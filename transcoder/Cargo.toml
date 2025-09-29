@@ -1,0 +1,16 @@
+[package]
+name = "transcoder"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+thiserror = "2.0.17"
+symphonia = { version = "0.5.4", features = [
+  "aac",
+  "flac",
+  "vorbis",
+  "mp3",
+  "wav",
+] }
+rubato = "0.16.2"
+ebur128 = "0.1.10"
