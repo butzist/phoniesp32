@@ -11,7 +11,7 @@ use symphonia::core::probe::Hint;
 
 pub(crate) fn decode_to_mono(
     input: Box<[u8]>,
-    progress: impl Fn(usize, usize),
+    mut progress: impl FnMut(usize, usize),
 ) -> Result<(Box<[f32]>, u32), TranscodeError> {
     let cursor = Cursor::new(input);
     let mss = MediaSourceStream::new(Box::new(cursor), Default::default());

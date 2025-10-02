@@ -41,13 +41,21 @@ ultra-portable**.
 ## 🚧 Project Status
 
 - [x] Rust/Embassy project scaffold
-- [ ] File upload & transcoding
-- [ ] Web server & UI (Dioxus)
+- [x] UI (Dioxus)
+- [ ] File transcoding WIP
+- [ ] Associate file with RFID tag
 - [ ] Audio pipeline (I2S → MAX98357)
-- [ ] Playback control
+- [ ] Playback control on device
+- [ ] Webserver on device
+- [ ] Playback control via frontend
 - [ ] SD card access
-- [ ] RFID tag → playlist mapping
-- [ ] Power management & optimizations
+- [ ] Switch to Bluma CSS
+- [ ] Playlists
+- [ ] Power management
+- [ ] Speed up transcoding
+- [ ] Playback control via BLE
+- [ ] Turn off Wi-Fi when on battery power
+- [ ] Start with Wi-Fi AP and Wi-Fi configuration via frontend
 - [ ] Wiring diagrams & build guide
 
 ---

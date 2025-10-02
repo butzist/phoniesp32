@@ -16,7 +16,7 @@ pub enum ResampleError {
 pub(crate) fn resample(
     input: &[f32],
     resample_ratio: f64,
-    progress: impl Fn(usize, usize),
+    mut progress: impl FnMut(usize, usize),
 ) -> Result<Vec<f32>, ResampleError> {
     let params = SincInterpolationParameters {
         sinc_len: 256,

@@ -5,7 +5,7 @@ pub(crate) fn loudness_normalize(
     sample_rate: u32,
     channels: usize,
     target_lufs: f64,
-    progress: impl Fn(usize, usize),
+    mut progress: impl FnMut(usize, usize),
 ) {
     let mut state = EbuR128::new(channels as u32, sample_rate, Mode::I).unwrap();
     state.add_frames_f32(samples).unwrap();

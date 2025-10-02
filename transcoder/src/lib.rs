@@ -9,10 +9,10 @@ const OUT_RATE: u32 = 44100;
 
 pub fn decode_and_normalize(
     input: Box<[u8]>,
-    progress: impl Fn(usize, usize) + Clone,
+    mut progress: impl FnMut(usize, usize) + Clone,
 ) -> Result<Box<[f32]>, TranscodeError> {
     let make_progress = |from: usize, to: usize| {
-        let progress = progress.clone();
+        let mut progress = progress.clone();
         progress(from, 100);
         move |current: usize, total: usize| {
             let out_range = to - from;
