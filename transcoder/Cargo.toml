@@ -14,3 +14,4 @@ symphonia = { version = "0.5.4", features = [
 ] }
 rubato = "0.16.2"
 ebur128 = "0.1.10"
+audio-codec-algorithms = "0.7.0"

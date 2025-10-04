@@ -9,6 +9,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
+name = "audio-codec-algorithms"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33f15622964e2d1f08cec8eb6fc6df40dd987c47be617ba010de330d5d837c98"
+
+[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -380,6 +386,7 @@ dependencies = [
 name = "transcoder"
 version = "0.1.0"
 dependencies = [
+ "audio-codec-algorithms",
  "ebur128",
  "rubato",
  "symphonia",

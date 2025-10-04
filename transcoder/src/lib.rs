@@ -1,4 +1,5 @@
 mod decode;
+mod encode;
 mod error;
 mod normalize;
 mod resample;
@@ -10,7 +11,7 @@ const OUT_RATE: u32 = 44100;
 pub fn decode_and_normalize(
     input: Box<[u8]>,
     mut progress: impl FnMut(usize, usize) + Clone,
-) -> Result<Box<[f32]>, TranscodeError> {
+) -> Result<Box<[u8]>, TranscodeError> {
     let make_progress = |from: usize, to: usize| {
         let mut progress = progress.clone();
         progress(from, 100);
@@ -22,20 +23,25 @@ pub fn decode_and_normalize(
     };
 
     let (downmixed, sample_rate) = decode::decode_to_mono(input, make_progress(0, 33))?;
-    let mut resampled = resample::resample(
+    let mut samples = resample::resample(
         &downmixed,
         OUT_RATE as f64 / sample_rate as f64,
         make_progress(34, 67),
     )?;
 
     // Spotify -14 lufs
-    normalize::loudness_normalize(&mut resampled, OUT_RATE, 1, -14.0, make_progress(68, 99));
+    normalize::loudness_normalize(&mut samples, OUT_RATE, 1, -14.0, make_progress(68, 85));
+
+    let samples = to_i16(samples.into());
+    progress(90, 100);
+
+    let file = encode::encode_ima_adpcm_wav(&samples, OUT_RATE)?;
 
     progress(100, 100);
-    Ok(resampled.into())
+    Ok(file)
 }
 
-pub fn to_i16(samples: Box<[f32]>) -> Box<[i16]> {
+fn to_i16(samples: Box<[f32]>) -> Box<[i16]> {
     let max = i16::MAX - 1;
     let result: Vec<i16> = samples
         .into_iter()
