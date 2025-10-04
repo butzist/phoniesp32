@@ -1,7 +1,11 @@
 use std::{cell::RefCell, sync::OnceLock};
 
+use anyhow::{Context, Error, Result};
 use dioxus::prelude::*;
-use tokio::sync::{oneshot::channel, Semaphore};
+use tokio::sync::{
+    oneshot::{channel, Sender},
+    Semaphore,
+};
 use wasm_bindgen::prelude::*;
 use web_sys::{
     js_sys::{self, Array, Uint8Array},
@@ -18,44 +22,9 @@ static FREE_WORKERS: OnceLock<Semaphore> = OnceLock::new();
 
 pub(crate) async fn transcode(
     input: Box<[u8]>,
-    mut progress: impl FnMut(usize, usize),
-) -> Result<Box<[u8]>, String> {
-    let result: JsValue = with_worker(|worker: Worker| async move {
-        let u8_array = Uint8Array::new_from_slice(&input);
-        let buffer = u8_array.buffer();
-
-        let (tx, rx) = channel();
-        let mut tx = Some(tx);
-        let onmessage = Closure::wrap(Box::new(move |event: MessageEvent| {
-            // TODO error handling
-            let data = event.data();
-            if let Some(progress_data) = get_prop(&data, "progress") {
-                let current = get_prop(&progress_data, "current")
-                    .unwrap()
-                    .as_f64()
-                    .unwrap();
-                let total = get_prop(&progress_data, "total").unwrap().as_f64().unwrap();
-                progress(current as usize, total as usize);
-            } else if let Some(result) = get_prop(&data, "result") {
-                if let Some(tx) = tx.take() {
-                    tx.send(result).unwrap();
-                }
-            } else if let Some(error) = get_prop(&data, "error") {
-                panic!("{}", to_string(error));
-            }
-        }) as Box<dyn FnMut(MessageEvent)>);
-        worker.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
-        worker
-            .post_message_with_transfer(&buffer, &Array::of1(&buffer))
-            .unwrap();
-
-        let result = rx.await.unwrap();
-        worker.set_onmessage(None);
-        Ok(result)
-    })
-    .await?
-    .map_err(to_string)?;
-
+    progress: impl FnMut(usize, usize),
+) -> Result<Box<[u8]>> {
+    let result: JsValue = transcode_in_worker(input, progress).await?;
     let u8_array = Uint8Array::new(&result);
     let mut vec = vec![0u8; u8_array.length() as usize];
     u8_array.copy_to(vec.as_mut_slice());
@@ -63,17 +32,71 @@ pub(crate) async fn transcode(
     Ok(vec.into())
 }
 
-fn new_worker() -> Result<Worker, String> {
+async fn transcode_in_worker(
+    input: Box<[u8]>,
+    mut progress: impl FnMut(usize, usize),
+) -> Result<JsValue> {
+    with_worker(|worker: Worker| async move {
+        let u8_array = Uint8Array::new_from_slice(&input);
+        let buffer = u8_array.buffer();
+
+        let (tx, rx) = channel::<Result<JsValue>>();
+        let mut tx = Some(tx);
+        let onmessage = Closure::wrap(Box::new(move |event: MessageEvent| {
+            process_message_from_worker(event.data(), &mut progress, &mut tx);
+        }) as Box<dyn FnMut(MessageEvent)>);
+        worker.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
+
+        worker
+            .post_message_with_transfer(&buffer, &Array::of1(&buffer))
+            .map_err(to_error)
+            .context("transmitting payload to worker")?;
+
+        let result = rx
+            .await
+            .context("receive error")?
+            .context("worker communication error")?;
+        worker.set_onmessage(None);
+
+        Ok(result) as Result<JsValue>
+    })
+    .await?
+}
+
+fn process_message_from_worker(
+    data: JsValue,
+    progress: &mut impl FnMut(usize, usize),
+    tx: &mut Option<Sender<Result<JsValue>>>,
+) {
+    if let Some(progress_data) = get_prop(&data, "progress") {
+        let current: Option<f64> = try { get_prop(&progress_data, "current")?.as_f64()? };
+        let total: Option<f64> = try { get_prop(&progress_data, "total")?.as_f64()? };
+
+        if let (Some(current), Some(total)) = (current, total) {
+            progress(current as usize, total as usize);
+        }
+    } else if let Some(result) = get_prop(&data, "result") {
+        if let Some(tx) = tx.take() {
+            tx.send(Ok(result)).unwrap();
+        }
+    } else if let Some(error) = get_prop(&data, "error") {
+        if let Some(tx) = tx.take() {
+            tx.send(Err(to_error(error))).unwrap();
+        }
+    }
+}
+
+fn new_worker() -> Result<Worker> {
     let worker_options = WorkerOptions::new();
     worker_options.set_type(WorkerType::Module);
 
     let worker = Worker::new_with_options(&format!("{}/worker.js", WORKER_DIR), &worker_options)
-        .map_err(to_string)?;
+        .map_err(to_error)?;
 
     Ok(worker)
 }
 
-fn init_workers() -> Result<(), String> {
+fn init_workers() -> Result<()> {
     let mut result = Ok(());
 
     WORKERS.with_borrow_mut(|option| {
@@ -97,7 +120,7 @@ fn init_workers() -> Result<(), String> {
     result
 }
 
-async fn with_worker<F, R>(f: F) -> Result<R, String>
+async fn with_worker<F, R>(f: F) -> Result<R>
 where
     F: AsyncFnOnce(Worker) -> R,
 {
@@ -114,10 +137,12 @@ where
     Ok(res)
 }
 
-fn to_string(value: JsValue) -> String {
-    js_sys::Object::to_string(&value.into())
-        .as_string()
-        .unwrap_or_else(|| "[error]".to_string())
+fn to_error(value: JsValue) -> Error {
+    Error::msg(
+        js_sys::Object::to_string(&value.into())
+            .as_string()
+            .unwrap_or_else(|| "[error]".to_string()),
+    )
 }
 
 fn get_prop(obj: &JsValue, key: &str) -> Option<JsValue> {

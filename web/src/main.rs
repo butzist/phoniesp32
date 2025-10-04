@@ -1,3 +1,4 @@
+#![feature(try_blocks)]
 use dioxus::prelude::*;
 
 pub(crate) mod components;
