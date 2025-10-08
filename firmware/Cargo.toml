@@ -67,6 +67,20 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
 ] }
 static_cell = { version = "2.1.1", features = ["nightly"] }
 picoserve = { version = "0.16.0", features = ["embassy"] }
+embedded-sdmmc = { version = "0.9.0", default-features = false, features = [
+  "defmt-log",
+] }
+embedded-hal-bus = "0.3.0"
+serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0.145", default-features = false, features = [
+  "alloc",
+] }
+heapless = { version = "0.8.0", featues = [
+  "alloc",
+  "defmt",
+  "serde",
+  "nightly",
+] }
 
 
 [profile.dev]

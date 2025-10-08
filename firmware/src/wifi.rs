@@ -1,22 +1,21 @@
 use embassy_executor::Spawner;
 use embassy_net::{DhcpConfig, Runner, Stack, StackResources};
 use embassy_time::{Duration, Timer};
-use esp_hal::rng::Rng;
+use esp_hal::{gpio::Output, peripherals::WIFI, rng::Rng};
 use esp_println::println;
 use esp_wifi::{
     wifi::{self, WifiController, WifiDevice, WifiEvent, WifiState},
     EspWifiController,
 };
 
-use crate::mk_static;
-
-const SSID: &str = env!("WIFI_SSID");
-const PASSWORD: &str = env!("WIFI_PASSWORD");
+use crate::{mk_static, DeviceConfig};
 
 pub async fn start_wifi(
     esp_wifi_ctrl: &'static EspWifiController<'static>,
-    wifi: esp_hal::peripherals::WIFI<'static>,
+    wifi: WIFI<'static>,
+    led: Output<'static>,
     mut rng: Rng,
+    config: Option<DeviceConfig>,
     spawner: &Spawner,
 ) -> Stack<'static> {
     let (controller, interfaces) = esp_wifi::wifi::new(esp_wifi_ctrl, wifi).unwrap();
@@ -34,7 +33,7 @@ pub async fn start_wifi(
         net_seed,
     );
 
-    spawner.spawn(connection_task(controller)).ok();
+    spawner.spawn(connection_task(config, controller, led)).ok();
     spawner.spawn(net_task(runner)).ok();
 
     wait_for_connection(stack).await;
@@ -62,19 +61,27 @@ async fn wait_for_connection(stack: Stack<'_>) {
 }
 
 #[embassy_executor::task]
-async fn connection_task(mut controller: WifiController<'static>) {
+async fn connection_task(
+    config: Option<DeviceConfig>,
+    mut controller: WifiController<'static>,
+    mut pin: Output<'static>,
+) {
     println!("start connection task");
     println!("Device capabilities: {:?}", controller.capabilities());
+    let config = config.unwrap(); // FIXME start AP, if config missing or connection
+                                  // fails
     loop {
         if esp_wifi::wifi::wifi_state() == WifiState::StaConnected {
+            pin.set_high();
             // wait until we're no longer connected
             controller.wait_for_event(WifiEvent::StaDisconnected).await;
+            pin.set_low();
             Timer::after(Duration::from_millis(5000)).await
         }
         if !matches!(controller.is_started(), Ok(true)) {
             let client_config = wifi::Configuration::Client(wifi::ClientConfiguration {
-                ssid: SSID.into(),
-                password: PASSWORD.into(),
+                ssid: config.ssid.as_str().into(),
+                password: config.password.as_str().into(),
                 ..Default::default()
             });
             controller.set_configuration(&client_config).unwrap();
