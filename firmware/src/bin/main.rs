@@ -7,19 +7,24 @@
 )]
 
 use alloc::vec::Vec;
-use defmt::info;
+use block_device_adapters::{BufStream, StreamSlice};
+use defmt::{info, warn};
 use embassy_executor::Spawner;
 use embassy_time::{Delay, Duration, Timer};
+use embedded_fatfs::FsOptions;
+use embedded_hal_async::delay::DelayNs;
 use embedded_hal_bus::spi::ExclusiveDevice;
-use embedded_sdmmc::{LfnBuffer, Mode, SdCard, TimeSource, Timestamp, VolumeIdx, VolumeManager};
+use embedded_io_async::Read;
+use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
 use esp_hal::gpio::{Output, OutputConfig};
-use esp_hal::spi::master::Spi;
+use esp_hal::spi::master::{Spi, SpiDmaBus};
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{clock::CpuClock, gpio::Level};
-use esp_hal::{spi, Async};
+use esp_hal::{dma_buffers_chunk_size, spi, Async};
 use esp_wifi::{ble::controller::BleConnector, EspWifiController};
 use firmware::{mk_static, DeviceConfig};
+use sdspi::SdSpi;
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
@@ -40,9 +45,17 @@ async fn main(spawner: Spawner) {
     esp_alloc::heap_allocator!(#[unsafe(link_section = ".dram2_uninit")] size: 64 * 1024);
 
     let timer0 = TimerGroup::new(peripherals.TIMG1);
+
     esp_hal_embassy::init(timer0.timer0);
 
     info!("Embassy initialized!");
+
+    let dma_channel = peripherals.DMA_SPI2;
+    let (rx_buffer, rx_descriptors, tx_buffer, tx_descriptors) =
+        dma_buffers_chunk_size!(4092, 1024);
+
+    let dma_rx_buf = DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap();
+    let dma_tx_buf = DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap();
 
     let mut spi_bus = Spi::new(
         peripherals.SPI2,
@@ -54,9 +67,12 @@ async fn main(spawner: Spawner) {
     .with_sck(peripherals.GPIO18)
     .with_mosi(peripherals.GPIO23)
     .with_miso(peripherals.GPIO19)
+    .with_dma(dma_channel)
+    .with_buffers(dma_rx_buf, dma_tx_buf)
     .into_async();
+
     let mut sd_cs = Output::new(peripherals.GPIO5, Level::High, OutputConfig::default());
-    let device_config = init_sd(&mut spi_bus, &mut sd_cs);
+    let device_config = init_sd(&mut spi_bus, &mut sd_cs).await;
     info!("Config: {:?}", &device_config);
 
     let rng = esp_hal::rng::Rng::new(peripherals.RNG);
@@ -97,61 +113,64 @@ async fn main(spawner: Spawner) {
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
 }
 
-/// Code from https://github.com/rp-rs/rp-hal-boards/blob/main/boards/rp-pico/examples/pico_spi_sd_card.rs
-/// A dummy timesource, which is mostly important for creating files.
-#[derive(Default)]
-pub struct DummyTimesource();
-
-impl TimeSource for DummyTimesource {
-    // In theory you could use the RTC of the rp2040 here, if you had
-    // any external time synchronizing device.
-    fn get_timestamp(&self) -> Timestamp {
-        Timestamp {
-            year_since_1970: 0,
-            zero_indexed_month: 0,
-            zero_indexed_day: 0,
-            hours: 0,
-            minutes: 0,
-            seconds: 0,
+async fn init_sd(
+    spi_bus: &mut SpiDmaBus<'static, Async>,
+    sd_cs: &mut Output<'static>,
+) -> Option<DeviceConfig> {
+    loop {
+        match sdspi::sd_init(spi_bus, sd_cs).await {
+            Ok(_) => break,
+            Err(e) => {
+                warn!("Sd init error: {:?}", e);
+                embassy_time::Timer::after_millis(10).await;
+            }
         }
     }
-}
 
-fn init_sd(spi_bus: &mut Spi<'static, Async>, sd_cs: &mut Output<'static>) -> Option<DeviceConfig> {
-    let spi_dev = ExclusiveDevice::new(spi_bus, sd_cs, Delay).unwrap();
+    let spid = ExclusiveDevice::new(spi_bus, sd_cs, Delay).unwrap();
+    let mut sd = SdSpi::<_, _, aligned::A1>::new(spid, Delay);
 
-    let sdcard = SdCard::new(spi_dev, Delay);
-    let sd_size = sdcard.num_bytes().unwrap();
-    info!("Card size is {} bytes\r\n", sd_size);
+    loop {
+        // Initialize the card
+        if sd.init().await.is_ok() {
+            // Increase the speed up to the SD max of 25mhz
+            sd.spi()
+                .bus_mut()
+                .apply_config(
+                    &spi::master::Config::default()
+                        .with_frequency(Rate::from_mhz(8))
+                        .with_mode(spi::Mode::_0),
+                )
+                .unwrap();
 
-    sdcard
-        .spi(|spi| {
-            spi.bus_mut().apply_config(
-                &spi::master::Config::default()
-                    .with_frequency(Rate::from_mhz(8))
-                    .with_mode(spi::Mode::_0),
-            )
-        })
-        .unwrap();
-    let volume_mgr = VolumeManager::new(sdcard, DummyTimesource::default());
-    let volume0 = volume_mgr.open_volume(VolumeIdx(0)).unwrap();
-    let root_dir = volume0.open_root_dir().unwrap();
+            info!("Initialization complete!");
 
-    let mut buffer = [0; 128];
-    let mut lfn_buffer = LfnBuffer::new(&mut buffer);
-    root_dir
-        .iterate_dir_lfn(&mut lfn_buffer, |f, s| info!("{} - {}", f.name, s))
-        .unwrap();
+            break;
+        }
+        info!("Failed to init card, retrying...");
+        embassy_time::Delay.delay_ns(5000u32).await;
+    }
 
-    let config_file = root_dir
-        .open_file_in_dir("CONFIG~1.JSO", Mode::ReadOnly)
-        .ok();
+    let sd_size = sd.size().await.unwrap();
+    info!("SD card size: {}", sd_size);
 
-    if let Some(config_file) = config_file {
+    let inner = BufStream::<_, 512>::new(sd);
+    // FIXME - need to skip manually to first partition?
+    let fs = embedded_fatfs::FileSystem::new(inner, FsOptions::new())
+        .await
+        .expect("partitions are not supported (yet) - create fs with mkfs.vfat -I -F32 /dev/sda");
+
+    let root_dir = fs.root_dir();
+    let config_file = root_dir.open_file("config.jsn").await.ok();
+
+    if let Some(mut config_file) = config_file {
         let mut bytes = Vec::new();
         let mut buffer = [0u8; 128];
-        while !config_file.is_eof() {
-            let n = config_file.read(&mut buffer).unwrap();
+        loop {
+            let n = config_file.read(&mut buffer).await.unwrap();
+            if n == 0 {
+                break;
+            };
             bytes.extend(&buffer[..n]);
         }
 

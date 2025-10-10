@@ -67,10 +67,16 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
 ] }
 static_cell = { version = "2.1.1", features = ["nightly"] }
 picoserve = { version = "0.16.0", features = ["embassy"] }
-embedded-sdmmc = { version = "0.9.0", default-features = false, features = [
-  "defmt-log",
+embedded-hal-async = "1"
+embedded-hal-bus = { version = "0.3.0", features = ["async"] }
+aligned = "0.4.2"
+sdspi = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", features = [
+  "defmt",
 ] }
-embedded-hal-bus = "0.3.0"
+block-device-adapters = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes" }
+embedded-fatfs = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", default-features = false, features = [
+  "defmt",
+] }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0.145", default-features = false, features = [
   "alloc",
