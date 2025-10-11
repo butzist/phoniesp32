@@ -16,7 +16,7 @@ impl AppBuilder for Application {
     }
 }
 
-pub const WEB_TASK_POOL_SIZE: usize = 2;
+pub const WEB_TASK_POOL_SIZE: usize = 1;
 pub struct WebApp {
     pub router: &'static Router<<Application as AppBuilder>::PathRouter>,
     pub config: &'static picoserve::Config<Duration>,

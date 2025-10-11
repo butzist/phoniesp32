@@ -1,23 +1,15 @@
 #![no_std]
 #![feature(impl_trait_in_assoc_type)]
+#![feature(type_alias_impl_trait)]
 
 use alloc::string::String;
 use serde::{Deserialize, Serialize};
 
+pub mod sd;
 pub mod web;
 pub mod wifi;
 
 extern crate alloc;
-
-#[macro_export]
-macro_rules! mk_static {
-    ($t:ty,$val:expr) => {{
-        static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
-        #[deny(unused_attributes)]
-        let x = STATIC_CELL.uninit().write(($val));
-        x
-    }};
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct DeviceConfig {

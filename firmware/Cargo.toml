@@ -12,7 +12,6 @@ path = "./src/bin/main.rs"
 defmt = "1.0.1"
 esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32"] }
 esp-hal = { version = "=1.0.0-rc.0", features = ["defmt", "esp32", "unstable"] }
-
 embassy-net = { version = "0.7.1", features = [
   "defmt",
   "dhcpv4",
@@ -53,20 +52,19 @@ trouble-host = { version = "0.4.0", features = [
   "default-packet-pool-mtu-255",
 ] }
 smoltcp = { version = "0.12.0", default-features = false, features = [
+  "alloc",
   "defmt",
   "medium-ethernet",
-  "multicast",
   "proto-dhcpv4",
-  "proto-dns",
   "proto-ipv4",
-  "socket-dns",
-  "socket-icmp",
-  "socket-raw",
   "socket-tcp",
-  "socket-udp",
 ] }
 static_cell = { version = "2.1.1", features = ["nightly"] }
-picoserve = { version = "0.16.0", features = ["embassy"] }
+picoserve = { version = "0.16.0", default-features = false, features = [
+  "alloc",
+  "embassy",
+  "defmt",
+] }
 embedded-hal-async = "1"
 embedded-hal-bus = { version = "0.3.0", features = ["async"] }
 aligned = "0.4.2"
@@ -87,6 +85,7 @@ heapless = { version = "0.8.0", featues = [
   "serde",
   "nightly",
 ] }
+enumset = "1"
 
 
 [profile.dev]

@@ -1003,6 +1003,7 @@ dependencies = [
  "embedded-hal-bus",
  "embedded-io",
  "embedded-io-async",
+ "enumset",
  "esp-alloc",
  "esp-backtrace",
  "esp-bootloader-esp-idf",
@@ -1346,6 +1347,7 @@ checksum = "33c13ee221d37df77538b033b831099235067c6a3fdcd2b80ef46c3d5b96e3b2"
 dependencies = [
  "const-sha1",
  "data-encoding",
+ "defmt 0.3.100",
  "embassy-net",
  "embassy-time 0.5.0",
  "embedded-io-async",
@@ -1586,6 +1588,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b81787e655bd59cecadc91f7b6b8651330b2be6c33246039a65e5cd6f4e0828"
 dependencies = [
+ "defmt 0.3.100",
  "heapless 0.8.0",
  "ryu",
  "serde",

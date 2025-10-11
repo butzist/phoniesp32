@@ -1,30 +1,25 @@
 #![no_std]
 #![no_main]
+#![feature(type_alias_impl_trait)]
 #![deny(
     clippy::mem_forget,
     reason = "mem::forget is generally not safe to do with esp_hal types, especially those \
     holding buffers for the duration of a data transfer."
 )]
 
-use alloc::vec::Vec;
-use block_device_adapters::{BufStream, StreamSlice};
-use defmt::{info, warn};
+use defmt::info;
 use embassy_executor::Spawner;
-use embassy_time::{Delay, Duration, Timer};
-use embedded_fatfs::FsOptions;
-use embedded_hal_async::delay::DelayNs;
-use embedded_hal_bus::spi::ExclusiveDevice;
-use embedded_io_async::Read;
+use embassy_time::{Duration, Timer};
 use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
 use esp_hal::gpio::{Output, OutputConfig};
-use esp_hal::spi::master::{Spi, SpiDmaBus};
+use esp_hal::spi::master::Spi;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{clock::CpuClock, gpio::Level};
-use esp_hal::{dma_buffers_chunk_size, spi, Async};
-use esp_wifi::{ble::controller::BleConnector, EspWifiController};
-use firmware::{mk_static, DeviceConfig};
-use sdspi::SdSpi;
+use esp_hal::{dma_buffers_chunk_size, spi};
+use esp_wifi::ble::controller::BleConnector;
+use firmware::sd::init_sd;
+use static_cell::make_static;
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
@@ -77,8 +72,7 @@ async fn main(spawner: Spawner) {
 
     let rng = esp_hal::rng::Rng::new(peripherals.RNG);
     let timer1 = TimerGroup::new(peripherals.TIMG0);
-    let wifi_init = &*mk_static!(
-        EspWifiController<'static>,
+    let wifi_init = &*make_static!(
         esp_wifi::init(timer1.timer0, rng).expect("Failed to initialize WIFI/BLE controller")
     );
     let _connector = BleConnector::new(wifi_init, peripherals.BT);
@@ -111,71 +105,4 @@ async fn main(spawner: Spawner) {
     }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
-}
-
-async fn init_sd(
-    spi_bus: &mut SpiDmaBus<'static, Async>,
-    sd_cs: &mut Output<'static>,
-) -> Option<DeviceConfig> {
-    loop {
-        match sdspi::sd_init(spi_bus, sd_cs).await {
-            Ok(_) => break,
-            Err(e) => {
-                warn!("Sd init error: {:?}", e);
-                embassy_time::Timer::after_millis(10).await;
-            }
-        }
-    }
-
-    let spid = ExclusiveDevice::new(spi_bus, sd_cs, Delay).unwrap();
-    let mut sd = SdSpi::<_, _, aligned::A1>::new(spid, Delay);
-
-    loop {
-        // Initialize the card
-        if sd.init().await.is_ok() {
-            // Increase the speed up to the SD max of 25mhz
-            sd.spi()
-                .bus_mut()
-                .apply_config(
-                    &spi::master::Config::default()
-                        .with_frequency(Rate::from_mhz(8))
-                        .with_mode(spi::Mode::_0),
-                )
-                .unwrap();
-
-            info!("Initialization complete!");
-
-            break;
-        }
-        info!("Failed to init card, retrying...");
-        embassy_time::Delay.delay_ns(5000u32).await;
-    }
-
-    let sd_size = sd.size().await.unwrap();
-    info!("SD card size: {}", sd_size);
-
-    let inner = BufStream::<_, 512>::new(sd);
-    // FIXME - need to skip manually to first partition?
-    let fs = embedded_fatfs::FileSystem::new(inner, FsOptions::new())
-        .await
-        .expect("partitions are not supported (yet) - create fs with mkfs.vfat -I -F32 /dev/sda");
-
-    let root_dir = fs.root_dir();
-    let config_file = root_dir.open_file("config.jsn").await.ok();
-
-    if let Some(mut config_file) = config_file {
-        let mut bytes = Vec::new();
-        let mut buffer = [0u8; 128];
-        loop {
-            let n = config_file.read(&mut buffer).await.unwrap();
-            if n == 0 {
-                break;
-            };
-            bytes.extend(&buffer[..n]);
-        }
-
-        serde_json::from_slice(&bytes).ok()
-    } else {
-        None
-    }
 }
