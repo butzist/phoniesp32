@@ -40,23 +40,36 @@ ultra-portable**.
 
 ## 🚧 Project Status
 
+![Screenshot of current prototype](./docs/progress-1.jpeg) Current
+work-in-progress prototype with lots of noisy data lines...
+
 - [x] Rust/Embassy project scaffold
 - [x] UI (Dioxus)
-- [ ] File transcoding WIP
-- [ ] Associate file with RFID tag
-- [ ] Audio pipeline (I2S → MAX98357)
-- [ ] Playback control on device
-- [ ] Webserver on device
-- [ ] Playback control via frontend
-- [ ] SD card access
+- [x] File transcoding
+- [x] Prototype
+- [x] Fallback to Wi-Fi AP mode
+- [ ] Web server on device WIP
+- [ ] Audio pipeline (I2S → MAX98357) WIP
+- [ ] SD card access WIP
+- [ ] Associate file with RFID tag via API
+- [ ] Playback control via buttons
+- [ ] Playback control via API
 - [ ] Switch to Bluma CSS
+- [ ] Playback control via frontend
+- [ ] Associate file with RFID tag via frontend
+- [ ] Configure Wi-Fi settings via frontend
 - [ ] Playlists
+- [ ] Firmware build instructions
+- [ ] Battery charger
+- [ ] Wiring diagrams & build guide
+- [ ] Custom PCB
+- [ ] Design and 3D print case
 - [ ] Power management
+- [ ] SD card partitioning support
+- [ ] Async / IRQ for RFID reader
 - [ ] Speed up transcoding
 - [ ] Playback control via BLE
 - [ ] Turn off Wi-Fi when on battery power
-- [ ] Start with Wi-Fi AP and Wi-Fi configuration via frontend
-- [ ] Wiring diagrams & build guide
 
 ---
 
