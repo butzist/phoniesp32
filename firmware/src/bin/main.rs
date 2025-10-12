@@ -7,11 +7,9 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use alloc::format;
 use defmt::info;
 use embassy_executor::Spawner;
-use embassy_time::{Delay, Duration, Timer};
-use embedded_hal_bus::spi::ExclusiveDevice;
+use embassy_time::{Duration, Timer};
 use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
 use esp_hal::gpio::{Output, OutputConfig};
 use esp_hal::spi::master::Spi;
@@ -21,9 +19,6 @@ use esp_hal::{clock::CpuClock, gpio::Level};
 use esp_hal::{dma_buffers_chunk_size, spi};
 use esp_wifi::ble::controller::BleConnector;
 use firmware::sd::init_sd;
-use heapless::String;
-use mfrc522::comm::blocking::spi::SpiInterface;
-use mfrc522::Mfrc522;
 use static_cell::make_static;
 use {esp_backtrace as _, esp_println as _};
 
@@ -57,7 +52,7 @@ async fn main(spawner: Spawner) {
     let dma_rx_buf = DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap();
     let dma_tx_buf = DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap();
 
-    let mut sd_spi_bus = Spi::new(
+    let mut spi_bus = Spi::new(
         peripherals.SPI2,
         spi::master::Config::default()
             .with_frequency(Rate::from_khz(400))
@@ -72,7 +67,7 @@ async fn main(spawner: Spawner) {
     .into_async();
 
     let mut sd_cs = Output::new(peripherals.GPIO5, Level::High, OutputConfig::default());
-    let device_config = init_sd(&mut sd_spi_bus, &mut sd_cs).await;
+    let device_config = init_sd(&mut spi_bus, &mut sd_cs).await;
     info!("Config: {:?}", &device_config);
 
     let rng = esp_hal::rng::Rng::new(peripherals.RNG);
@@ -104,43 +99,10 @@ async fn main(spawner: Spawner) {
     }
     info!("Web server started...");
 
-    let rfid_spi_bus = Spi::new(
-        peripherals.SPI3,
-        spi::master::Config::default()
-            .with_frequency(Rate::from_mhz(5))
-            .with_mode(spi::Mode::_0),
-    )
-    .unwrap()
-    .with_sck(peripherals.GPIO14)
-    .with_mosi(peripherals.GPIO13)
-    .with_miso(peripherals.GPIO12);
-
-    let rfid_cs = Output::new(peripherals.GPIO21, Level::High, OutputConfig::default());
-
-    let spi_dev = ExclusiveDevice::new(rfid_spi_bus, rfid_cs, Delay).unwrap();
-
-    let spi_interface = SpiInterface::new(spi_dev);
-    let mut rfid = Mfrc522::new(spi_interface).init().unwrap();
-
     loop {
-        if let Ok(atqa) = rfid.reqa() {
-            info!("Answer To reQuest code A");
-            Timer::after(Duration::from_millis(50)).await;
-            if let Ok(uid) = rfid.select(&atqa) {
-                print_hex_bytes(uid.as_bytes());
-            }
-        }
-        Timer::after(Duration::from_millis(500)).await;
+        info!("Hello world!");
+        Timer::after(Duration::from_secs(1)).await;
     }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
-}
-
-fn print_hex_bytes(data: &[u8]) {
-    let mut output = String::<32>::new();
-    for &b in data.iter() {
-        let byte = format!("{:02x} ", b);
-        output.push_str(&byte).unwrap();
-    }
-    info!("{}", output);
 }
