@@ -1,22 +1,31 @@
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
+#![feature(coroutines)]
+#![feature(coroutine_trait)]
+#![feature(stmt_expr_attributes)]
 #![deny(
     clippy::mem_forget,
     reason = "mem::forget is generally not safe to do with esp_hal types, especially those \
     holding buffers for the duration of a data transfer."
 )]
 
-use defmt::info;
+use core::ops::Coroutine;
+use core::pin::Pin;
+
+use audio_codec_algorithms::{decode_adpcm_ima, AdpcmImaState};
+use defmt::{error, info};
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Timer};
+use embassy_futures::join::join;
+use embedded_io_async::{Read, Seek};
 use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
 use esp_hal::gpio::{Output, OutputConfig};
+use esp_hal::i2s::master::{DataFormat, I2s, Standard};
 use esp_hal::spi::master::Spi;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{clock::CpuClock, gpio::Level};
-use esp_hal::{dma_buffers_chunk_size, spi};
+use esp_hal::{dma_buffers, dma_buffers_chunk_size, spi};
 use esp_wifi::ble::controller::BleConnector;
 use firmware::sd::init_sd;
 use static_cell::make_static;
@@ -35,7 +44,7 @@ async fn main(spawner: Spawner) {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
-    esp_alloc::heap_allocator!(size: 64 * 1024);
+    esp_alloc::heap_allocator!(size: 48 * 1024);
     // COEX needs more RAM - so we've added some more
     esp_alloc::heap_allocator!(#[unsafe(link_section = ".dram2_uninit")] size: 64 * 1024);
 
@@ -47,7 +56,7 @@ async fn main(spawner: Spawner) {
 
     let dma_channel = peripherals.DMA_SPI2;
     let (rx_buffer, rx_descriptors, tx_buffer, tx_descriptors) =
-        dma_buffers_chunk_size!(4092, 1024);
+        dma_buffers_chunk_size!(4 * 1024, 1024);
 
     let dma_rx_buf = DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap();
     let dma_tx_buf = DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap();
@@ -67,42 +76,123 @@ async fn main(spawner: Spawner) {
     .into_async();
 
     let mut sd_cs = Output::new(peripherals.GPIO5, Level::High, OutputConfig::default());
-    let device_config = init_sd(&mut spi_bus, &mut sd_cs).await;
+    let (device_config, fs) = init_sd(&mut spi_bus, &mut sd_cs).await;
     info!("Config: {:?}", &device_config);
 
-    let rng = esp_hal::rng::Rng::new(peripherals.RNG);
-    let timer1 = TimerGroup::new(peripherals.TIMG0);
-    let wifi_init = &*make_static!(
-        esp_wifi::init(timer1.timer0, rng).expect("Failed to initialize WIFI/BLE controller")
-    );
-    let _connector = BleConnector::new(wifi_init, peripherals.BT);
+    if false {
+        let rng = esp_hal::rng::Rng::new(peripherals.RNG);
+        let timer1 = TimerGroup::new(peripherals.TIMG0);
+        let wifi_init =
+            &*make_static!(esp_wifi::init(timer1.timer0, rng)
+                .expect("Failed to initialize WIFI/BLE controller"));
 
-    let wifi_led = Output::new(peripherals.GPIO2, Level::Low, OutputConfig::default());
-    let stack = firmware::wifi::start_wifi(
-        wifi_init,
-        peripherals.WIFI,
-        wifi_led,
-        rng,
-        device_config,
-        &spawner,
+        let _connector = BleConnector::new(wifi_init, peripherals.BT);
+
+        let wifi_led = Output::new(peripherals.GPIO2, Level::Low, OutputConfig::default());
+        let stack =
+            firmware::wifi::start_wifi(wifi_init, peripherals.WIFI, wifi_led, rng, None, &spawner)
+                .await;
+
+        let web_app = firmware::web::WebApp::default();
+        for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
+            spawner.must_spawn(firmware::web::web_task(
+                id,
+                stack,
+                web_app.router,
+                web_app.config,
+            ));
+        }
+        info!("Web server started...");
+    }
+
+    let root = fs.root_dir();
+    let mut wav = root.open_file("test.wav").await.unwrap();
+    // skip header
+    wav.seek(embedded_io::SeekFrom::Start(48)).await.unwrap();
+
+    let dma_channel = peripherals.DMA_I2S0;
+    let (_, _, mut tx_buffer, tx_descriptors) = dma_buffers!(0, 4 * 4096);
+
+    let i2s = I2s::new(
+        peripherals.I2S0,
+        Standard::Philips,
+        DataFormat::Data16Channel16,
+        Rate::from_hz(44100),
+        dma_channel,
     )
-    .await;
+    .into_async();
 
-    let web_app = firmware::web::WebApp::default();
-    for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
-        spawner.must_spawn(firmware::web::web_task(
-            id,
-            stack,
-            web_app.router,
-            web_app.config,
-        ));
-    }
-    info!("Web server started...");
+    let i2s_tx = i2s
+        .i2s_tx
+        .with_bclk(peripherals.GPIO27)
+        .with_ws(peripherals.GPIO26)
+        .with_dout(peripherals.GPIO25)
+        .build(tx_descriptors);
 
+    let mut pending_buffer = make_static!([0u8; 1024]);
+    let mut ready_buffer = make_static!([0u8; 1024]);
+
+    wav.read_exact(ready_buffer).await.unwrap();
+    let mut read_future = wav.read_exact(pending_buffer);
+
+    let mut transfer = i2s_tx.write_dma_circular_async(tx_buffer).unwrap();
     loop {
-        info!("Hello world!");
-        Timer::after(Duration::from_secs(1)).await;
-    }
+        let mut decoder = #[coroutine]
+        || {
+            let mut state = AdpcmImaState::new();
+            state.predictor = i16::from_le_bytes([ready_buffer[0], ready_buffer[1]]);
+            state.step_index = ready_buffer[2].min(88);
+            let sample = state.predictor;
+            yield sample as u8;
+            yield (sample >> 8) as u8;
+            yield 0;
+            yield 0;
 
-    // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
+            for b in &ready_buffer[4..] {
+                let sample = decode_adpcm_ima(*b & 0x0f, &mut state);
+                yield sample as u8;
+                yield (sample >> 8) as u8;
+                yield 0;
+                yield 0;
+
+                let sample = decode_adpcm_ima(*b >> 4, &mut state);
+                yield sample as u8;
+                yield (sample >> 8) as u8;
+                yield 0;
+                yield 0;
+            }
+        };
+
+        let transfer_future = async {
+            let mut decoding_done = false;
+            while !decoding_done {
+                transfer
+                    .push_with(|buf: &mut [u8]| {
+                        for (position, val) in buf.iter_mut().enumerate() {
+                            match Pin::new(&mut decoder).resume(()) {
+                                core::ops::CoroutineState::Yielded(b) => {
+                                    *val = b;
+                                }
+                                core::ops::CoroutineState::Complete(_) => {
+                                    decoding_done = true;
+                                    return position;
+                                }
+                            }
+                        }
+
+                        buf.len()
+                    })
+                    .await
+                    .unwrap();
+            }
+        };
+
+        let (_, read_err) = join(transfer_future, read_future).await;
+        if let Err(err) = read_err {
+            error!("read error: {}", err);
+        }
+
+        (pending_buffer, ready_buffer) = (ready_buffer, pending_buffer);
+        read_future = wav.read_exact(pending_buffer);
+    }
 }
