@@ -49,9 +49,9 @@ pub async fn web_task(
     config: &'static picoserve::Config<Duration>,
 ) -> ! {
     let port = 80;
-    let mut tcp_rx_buffer = [0; 1024];
-    let mut tcp_tx_buffer = [0; 1024];
-    let mut http_buffer = [0; 2048];
+    let mut tcp_rx_buffer = alloc::vec![0; 1024];
+    let mut tcp_tx_buffer = alloc::vec![0; 1024];
+    let mut http_buffer = alloc::vec![0; 2048];
 
     picoserve::listen_and_serve(
         id,

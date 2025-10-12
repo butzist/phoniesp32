@@ -33,6 +33,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "audio-codec-algorithms"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33f15622964e2d1f08cec8eb6fc6df40dd987c47be617ba010de330d5d837c98"
+
+[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -86,6 +92,7 @@ source = "git+https://github.com/butzist/embedded-fatfs?branch=fixes#a5f82c9ec6d
 dependencies = [
  "aligned",
  "block-device-driver",
+ "defmt 0.3.100",
  "embedded-io-async",
 ]
 
@@ -992,11 +999,14 @@ name = "firmware"
 version = "0.1.0"
 dependencies = [
  "aligned",
+ "audio-codec-algorithms",
  "block-device-adapters",
  "critical-section",
  "defmt 1.0.1",
  "embassy-executor",
+ "embassy-futures",
  "embassy-net",
+ "embassy-sync 0.7.2",
  "embassy-time 0.5.0",
  "embedded-fatfs",
  "embedded-hal-async",

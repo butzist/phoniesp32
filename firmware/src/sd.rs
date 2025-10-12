@@ -1,10 +1,10 @@
-use crate::DeviceConfig;
+use crate::{DeviceConfig, PrintErr};
 
 use alloc::vec::Vec;
 use block_device_adapters::BufStream;
 use defmt::{info, warn};
 use embassy_time::Delay;
-use embedded_fatfs::FsOptions;
+use embedded_fatfs::{FileSystem, FsOptions, LossyOemCpConverter, NullTimeProvider};
 use embedded_hal_async::delay::DelayNs;
 use embedded_hal_bus::spi::ExclusiveDevice;
 use embedded_io_async::Read;
@@ -16,10 +16,23 @@ use sdspi::SdSpi;
 
 use {esp_backtrace as _, esp_println as _};
 
+pub type SdFileSystem<'a> = FileSystem<
+    BufStream<
+        SdSpi<
+            ExclusiveDevice<&'a mut SpiDmaBus<'static, Async>, &'a mut Output<'static>, Delay>,
+            Delay,
+            aligned::A1,
+        >,
+        512,
+    >,
+    NullTimeProvider,
+    LossyOemCpConverter,
+>;
+
 pub async fn init_sd(
-    spi_bus: &mut SpiDmaBus<'static, Async>,
-    sd_cs: &mut Output<'static>,
-) -> Option<DeviceConfig> {
+    spi_bus: &'static mut SpiDmaBus<'static, Async>,
+    sd_cs: &'static mut Output<'static>,
+) -> (Option<DeviceConfig>, SdFileSystem<'static>) {
     loop {
         match sdspi::sd_init(spi_bus, sd_cs).await {
             Ok(_) => break,
@@ -61,14 +74,15 @@ pub async fn init_sd(
     // FIXME - need to skip manually to first partition?
     let fs = embedded_fatfs::FileSystem::new(inner, FsOptions::new())
         .await
-        .expect("partitions are not supported (yet) - create fs with mkfs.vfat -I -F32 /dev/sda");
+        .print_err("open filesystem")
+        .unwrap();
 
     let root_dir = fs.root_dir();
-    let config_file = root_dir.open_file("config.jsn").await.ok();
+    let mut config_file = root_dir.open_file("config.jsn").await.ok();
 
-    if let Some(mut config_file) = config_file {
+    let config = if let Some(config_file) = &mut config_file {
         let mut bytes = Vec::new();
-        let mut buffer = [0u8; 128];
+        let mut buffer = alloc::vec![0u8; 128];
         loop {
             let n = config_file.read(&mut buffer).await.unwrap();
             if n == 0 {
@@ -80,5 +94,10 @@ pub async fn init_sd(
         serde_json::from_slice(&bytes).ok()
     } else {
         None
-    }
+    };
+
+    drop(config_file);
+    drop(root_dir);
+
+    (config, fs)
 }
