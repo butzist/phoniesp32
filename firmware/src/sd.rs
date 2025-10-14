@@ -16,24 +16,23 @@ use sdspi::SdSpi;
 
 use {esp_backtrace as _, esp_println as _};
 
-pub async fn init_sd<'a>(
-    spi_bus: &'a mut SpiDmaBus<'static, Async>,
-    sd_cs: &'a mut Output<'static>,
-) -> (
-    Option<DeviceConfig>,
-    FileSystem<
-        BufStream<
-            SdSpi<
-                ExclusiveDevice<&'a mut SpiDmaBus<'static, Async>, &'a mut Output<'static>, Delay>,
-                Delay,
-                aligned::A1,
-            >,
-            512,
+pub type SdFileSystem<'a> = FileSystem<
+    BufStream<
+        SdSpi<
+            ExclusiveDevice<&'a mut SpiDmaBus<'static, Async>, &'a mut Output<'static>, Delay>,
+            Delay,
+            aligned::A1,
         >,
-        NullTimeProvider,
-        LossyOemCpConverter,
+        512,
     >,
-) {
+    NullTimeProvider,
+    LossyOemCpConverter,
+>;
+
+pub async fn init_sd(
+    spi_bus: &'static mut SpiDmaBus<'static, Async>,
+    sd_cs: &'static mut Output<'static>,
+) -> (Option<DeviceConfig>, SdFileSystem<'static>) {
     loop {
         match sdspi::sd_init(spi_bus, sd_cs).await {
             Ok(_) => break,

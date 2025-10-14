@@ -3,6 +3,7 @@
 #![feature(type_alias_impl_trait)]
 
 use alloc::string::String;
+use defmt::{error, warn};
 use serde::{Deserialize, Serialize};
 
 pub mod sd;
@@ -28,5 +29,35 @@ impl defmt::Format for DeviceConfig {
             self.ssid.as_str(),
             self.password.as_str(),
         )
+    }
+}
+
+pub trait PrintErr<T> {
+    fn print_warn(self, message: &str) -> Option<T>;
+    fn print_err(self, message: &str) -> Option<T>;
+}
+
+impl<T, E> PrintErr<T> for Result<T, E>
+where
+    E: defmt::Format,
+{
+    fn print_warn(self, message: &str) -> Option<T> {
+        match self {
+            Ok(val) => Some(val),
+            Err(err) => {
+                warn!("{}: {}", message, err);
+                None
+            }
+        }
+    }
+
+    fn print_err(self, message: &str) -> Option<T> {
+        match self {
+            Ok(val) => Some(val),
+            Err(err) => {
+                error!("{}: {}", message, err);
+                None
+            }
+        }
     }
 }
