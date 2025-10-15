@@ -1,4 +1,4 @@
-use crate::DeviceConfig;
+use crate::{DeviceConfig, PrintErr};
 
 use alloc::vec::Vec;
 use block_device_adapters::BufStream;
@@ -74,7 +74,8 @@ pub async fn init_sd(
     // FIXME - need to skip manually to first partition?
     let fs = embedded_fatfs::FileSystem::new(inner, FsOptions::new())
         .await
-        .expect("partitions are not supported (yet) - create fs with mkfs.vfat -I -F32 /dev/sda");
+        .print_err("open filesystem")
+        .unwrap();
 
     let root_dir = fs.root_dir();
     let mut config_file = root_dir.open_file("config.jsn").await.ok();

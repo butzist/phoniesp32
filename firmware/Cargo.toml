@@ -90,6 +90,7 @@ heapless = { version = "0.8.0", featues = [
 enumset = "1"
 audio-codec-algorithms = "0.7.0"
 embassy-futures = "0.1"
+embassy-sync = "0.7.2"
 
 
 [profile.dev]
