@@ -1,3 +1,4 @@
+use core::future::Future;
 use core::ops::Coroutine;
 use core::pin::Pin;
 
@@ -5,48 +6,121 @@ use crate::PrintErr;
 use crate::{retry, sd::SdFileSystem};
 use audio_codec_algorithms::{decode_adpcm_ima, AdpcmImaState};
 use defmt::error;
-use embassy_executor::Spawner;
 use embassy_futures::join::join;
 use embassy_futures::select::{select, Either};
-use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
+use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Receiver;
-use embassy_sync::signal::Signal;
-use embedded_io_async::{Read, Seek};
+use embedded_io_async::Seek;
+use esp_hal::dma::{AnyI2sDmaChannel, DmaDescriptor};
+use esp_hal::dma_buffers;
+use esp_hal::gpio::AnyPin;
 use esp_hal::i2s::master::asynch::I2sWriteDmaTransferAsync;
+use esp_hal::i2s::master::{DataFormat, I2s, Standard};
+use esp_hal::i2s::AnyI2s;
+use esp_hal::time::Rate;
 use heapless::String;
 use static_cell::make_static;
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
 
-static STOP_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+const DMA_SIZE: usize = 4 * 4096;
+const DMA_CHUNKS: usize = 5;
 
 pub enum PlayerCommand {
     Stop,
     Play(String<12>),
 }
 
+pub struct Player {
+    i2s: AnyI2s<'static>,
+    dma: AnyI2sDmaChannel<'static>,
+    bclk: AnyPin<'static>,
+    ws: AnyPin<'static>,
+    dout: AnyPin<'static>,
+    dma_buffer: &'static mut [u8; DMA_SIZE],
+    dma_descriptors: &'static mut [DmaDescriptor; DMA_CHUNKS],
+}
+
+impl Player {
+    pub fn new(
+        i2s: AnyI2s<'static>,
+        dma: AnyI2sDmaChannel<'static>,
+        bclk: AnyPin<'static>,
+        ws: AnyPin<'static>,
+        dout: AnyPin<'static>,
+    ) -> Self {
+        let (_, _, tx_buffer, tx_descriptors) = dma_buffers!(0, 4 * 4096);
+        Self {
+            i2s,
+            dma,
+            bclk,
+            ws,
+            dout,
+            dma_buffer: tx_buffer,
+            dma_descriptors: tx_descriptors,
+        }
+    }
+
+    pub fn transfer(&mut self) -> I2sWriteDmaTransferAsync<'_, &mut [u8; DMA_SIZE]> {
+        let i2s = I2s::new(
+            self.i2s.reborrow(),
+            Standard::Philips,
+            DataFormat::Data16Channel16,
+            Rate::from_hz(44100),
+            self.dma.reborrow(),
+        )
+        .into_async();
+
+        // SAFETY: self.dma_descriptors live forever, the risk is rather that they will still be in
+        // use when a new transfer is started. There does not seem to be any sane way to stop the
+        // I2S peripheral and DMA transfer and retrieve the descriptor again.
+        // TODO: validate that any pending transfer is really finished before we start a new one.
+        // Hope that this happens on re-initialization.
+        let reborrowed_dma_descriptors = unsafe {
+            let ptr = self.dma_descriptors as *mut [DmaDescriptor; DMA_CHUNKS];
+            &mut *ptr
+        };
+
+        let i2s_tx = i2s
+            .i2s_tx
+            .with_bclk(self.bclk.reborrow())
+            .with_ws(self.ws.reborrow())
+            .with_dout(self.dout.reborrow())
+            .build(reborrowed_dma_descriptors);
+
+        i2s_tx
+            .write_dma_circular_async::<&mut [u8; DMA_SIZE]>(self.dma_buffer)
+            .unwrap()
+    }
+}
+
 #[embassy_executor::task]
-pub async fn player(
-    mut dma_transfer: I2sWriteDmaTransferAsync<'static, &'static mut [u8; 4 * 4096]>,
+pub async fn run_player(
+    mut player: Player,
     fs: &'static SdFileSystem<'static>,
     commands: Receiver<'static, NoopRawMutex, PlayerCommand, 2>,
 ) {
+    let mut playback = opt_async(None);
+
     loop {
-        match commands.receive().await {
-            PlayerCommand::Stop => todo!(),
-            PlayerCommand::Play(file) => {
-                // TODO spawn
-                play_file(fs, file, &mut dma_transfer).await;
-            }
+        match select(commands.receive(), playback).await {
+            Either::First(command) => match command {
+                PlayerCommand::Stop => playback = opt_async(None),
+                PlayerCommand::Play(file) => {
+                    let dma_transfer = player.transfer();
+                    playback = opt_async(Some(play_file(fs, file, dma_transfer)));
+                }
+            },
+            Either::Second(_) => playback = opt_async(None),
         }
     }
 }
 
-async fn play_file(
+async fn play_file<'a>(
     fs: &'static SdFileSystem<'static>,
     file_name: String<12>,
-    dma_transfer: &mut I2sWriteDmaTransferAsync<'static, &'static mut [u8; 4 * 4096]>,
+    mut dma_transfer: I2sWriteDmaTransferAsync<'a, &'a mut [u8; 4 * 4096]>,
 ) {
     let root = fs.root_dir();
     let mut file = root.open_file(&file_name).await.unwrap();
@@ -124,12 +198,7 @@ async fn play_file(
             }
         };
 
-        let player_future = join(transfer_future, read_future);
-        let read_result = match select(player_future, STOP_SIGNAL.wait()).await {
-            Either::First((_, read_result)) => read_result,
-            Either::Second(_) => return,
-        };
-
+        let (_, read_result) = join(transfer_future, read_future).await;
         (pending_buffer, ready_buffer) = (ready_buffer, pending_buffer);
 
         next_block = match read_result {
@@ -180,4 +249,11 @@ where
     }
 
     Ok(BlockReadResult::Full)
+}
+
+async fn opt_async<F, R>(f: Option<F>) -> Option<R>
+where
+    F: Future<Output = R>,
+{
+    Some(f?.await)
 }

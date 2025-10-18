@@ -20,9 +20,8 @@ use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{clock::CpuClock, gpio::Level};
 use esp_hal::{dma_buffers, dma_buffers_chunk_size, spi};
 use esp_wifi::ble::controller::BleConnector;
-use firmware::player::PlayerCommand;
+use firmware::player::{Player, PlayerCommand};
 use firmware::sd::init_sd;
-use heapless::String;
 use static_cell::make_static;
 use {esp_backtrace as _, esp_println as _};
 
@@ -106,32 +105,16 @@ async fn main(spawner: Spawner) {
         info!("Web server started...");
     }
 
-    let dma_transfer = {
-        let dma_channel = peripherals.DMA_I2S0;
-        let (_, _, tx_buffer, tx_descriptors) = dma_buffers!(0, 4 * 4096);
-
-        let i2s = I2s::new(
-            peripherals.I2S0,
-            Standard::Philips,
-            DataFormat::Data16Channel16,
-            Rate::from_hz(44100),
-            dma_channel,
-        )
-        .into_async();
-
-        let i2s_tx = i2s
-            .i2s_tx
-            .with_bclk(peripherals.GPIO27)
-            .with_ws(peripherals.GPIO26)
-            .with_dout(peripherals.GPIO25)
-            .build(tx_descriptors);
-
-        i2s_tx.write_dma_circular_async(tx_buffer).unwrap()
-    };
-
+    let player = Player::new(
+        peripherals.I2S0.into(),
+        peripherals.DMA_I2S0.into(),
+        peripherals.GPIO27.into(),
+        peripherals.GPIO26.into(),
+        peripherals.GPIO25.into(),
+    );
     let commands = make_static!(Channel::<NoopRawMutex, PlayerCommand, 2>::new());
-    spawner.must_spawn(firmware::player::player(
-        dma_transfer,
+    spawner.must_spawn(firmware::player::run_player(
+        player,
         fs,
         commands.receiver(),
     ));
