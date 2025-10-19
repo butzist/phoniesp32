@@ -49,10 +49,10 @@ work-in-progress prototype with lots of noisy data lines...
 - [x] Prototype
 - [x] Fallback to Wi-Fi AP mode
 - [ ] Web server on device WIP
-- [ ] Audio pipeline (I2S → MAX98357) WIP
-- [ ] SD card access WIP
+- [x] Audio pipeline (I2S → MAX98357)
+- [x] SD card access
 - [ ] Associate file with RFID tag via API
-- [ ] Playback control via buttons
+- [x] Playback control via buttons
 - [ ] Playback control via API
 - [ ] Switch to Bluma CSS
 - [ ] Playback control via frontend
