@@ -1,16 +1,18 @@
 use core::ops::Coroutine;
 use core::pin::Pin;
+use core::sync::atomic::{AtomicU8, Ordering};
 
 use crate::{extend_to_static, PrintErr};
 use crate::{retry, sd::SdFileSystem};
 use audio_codec_algorithms::{decode_adpcm_ima, AdpcmImaState};
-use defmt::error;
+use defmt::{error, info};
 use embassy_executor::Spawner;
 use embassy_futures::join::join;
 use embassy_futures::select::{select, Either};
 use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
 use embassy_sync::channel::Receiver;
 use embassy_sync::signal::Signal;
+use embassy_time::Timer;
 use embedded_io_async::Seek;
 use esp_hal::dma::{AnyI2sDmaChannel, DmaDescriptor};
 use esp_hal::dma_buffers;
@@ -29,10 +31,13 @@ const DMA_SIZE: usize = 4 * 4096;
 const DMA_CHUNKS: usize = 5;
 
 static STOP_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+static VOLUME: AtomicU8 = AtomicU8::new(8);
 
 pub enum PlayerCommand {
     Stop,
     Play(String<12>),
+    VolumeUp,
+    VolumeDown,
 }
 
 pub struct Player {
@@ -107,8 +112,24 @@ pub async fn run_player(
 
     loop {
         match commands.receive().await {
-            PlayerCommand::Stop => STOP_SIGNAL.signal(()),
+            PlayerCommand::Stop => {
+                info!("Player command: STOP");
+                stop_player().await;
+            }
+            PlayerCommand::VolumeUp => {
+                info!("Player command: VOLUME UP");
+                VOLUME.update(Ordering::SeqCst, Ordering::SeqCst, |vol| 16.min(vol + 1));
+            }
+            PlayerCommand::VolumeDown => {
+                info!("Player command: VOLUME DOWN");
+                VOLUME.update(Ordering::SeqCst, Ordering::SeqCst, |vol| {
+                    vol.saturating_sub(1)
+                });
+            }
             PlayerCommand::Play(file) => {
+                info!("Player command: PLAY {}", file);
+                stop_player().await;
+
                 // SAFETY: a spawned task needs static lifetimes because it might run forever. In our case the task will be
                 // terminated though, before it is restarted with a new file.
                 let dma_transfer = unsafe {
@@ -129,6 +150,12 @@ pub async fn run_player(
             }
         }
     }
+}
+
+async fn stop_player() {
+    STOP_SIGNAL.signal(());
+    Timer::after_millis(50).await;
+    STOP_SIGNAL.reset();
 }
 
 #[embassy_executor::task]
@@ -160,14 +187,17 @@ async fn play_file(
         }
     };
     let mut read_future = read_block(&mut file, pending_buffer);
-
     loop {
+        let volume = VOLUME.load(Ordering::SeqCst);
+        let apply_volume = |sample: i16| (sample as i32 * volume as i32 / 16) as i16;
+
         let mut decoder = #[coroutine]
         || {
             let mut state = AdpcmImaState::new();
             state.predictor = i16::from_le_bytes([next_block[0], next_block[1]]);
             state.step_index = next_block[2].min(88);
             let sample = state.predictor;
+            let sample = apply_volume(sample);
             yield sample as u8;
             yield (sample >> 8) as u8;
             yield 0;
@@ -175,12 +205,14 @@ async fn play_file(
 
             for b in &next_block[4..] {
                 let sample = decode_adpcm_ima(*b & 0x0f, &mut state);
+                let sample = apply_volume(sample);
                 yield sample as u8;
                 yield (sample >> 8) as u8;
                 yield 0;
                 yield 0;
 
                 let sample = decode_adpcm_ima(*b >> 4, &mut state);
+                let sample = apply_volume(sample);
                 yield sample as u8;
                 yield (sample >> 8) as u8;
                 yield 0;

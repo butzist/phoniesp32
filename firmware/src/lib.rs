@@ -4,6 +4,7 @@
 #![feature(coroutines)]
 #![feature(coroutine_trait)]
 #![feature(stmt_expr_attributes)]
+#![feature(atomic_try_update)]
 
 use core::future::Future;
 
@@ -11,6 +12,7 @@ use alloc::string::String;
 use defmt::{error, warn};
 use serde::{Deserialize, Serialize};
 
+pub mod controls;
 pub mod player;
 pub mod sd;
 pub mod web;

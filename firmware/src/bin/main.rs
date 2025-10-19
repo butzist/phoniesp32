@@ -7,10 +7,11 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use defmt::{error, info};
+use defmt::info;
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
+use embassy_time::Timer;
 use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
 use esp_hal::gpio::{Output, OutputConfig};
 use esp_hal::spi::master::Spi;
@@ -19,6 +20,7 @@ use esp_hal::timer::timg::TimerGroup;
 use esp_hal::{clock::CpuClock, gpio::Level};
 use esp_hal::{dma_buffers_chunk_size, spi};
 use esp_wifi::ble::controller::BleConnector;
+use firmware::controls::{AnyTouchPin, Controls};
 use firmware::player::{Player, PlayerCommand};
 use firmware::sd::init_sd;
 use static_cell::make_static;
@@ -119,12 +121,21 @@ async fn main(spawner: Spawner) {
         commands.receiver(),
     ));
 
+    let controls = Controls::new(
+        peripherals.LPWR,
+        peripherals.TOUCH,
+        AnyTouchPin::GPIO15(peripherals.GPIO15),
+        AnyTouchPin::GPIO4(peripherals.GPIO4),
+        AnyTouchPin::GPIO33(peripherals.GPIO33),
+        AnyTouchPin::GPIO32(peripherals.GPIO32), // FIXME: GPIO32 touch does not work
+    );
+
+    spawner.must_spawn(firmware::controls::run_controls(
+        controls,
+        commands.sender(),
+    ));
+
     loop {
-        commands
-            .send(PlayerCommand::Play("test.wav".try_into().unwrap()))
-            .await;
-        embassy_time::Timer::after_millis(4000).await;
-        commands.send(PlayerCommand::Stop).await;
-        embassy_time::Timer::after_millis(4000).await;
+        Timer::after_secs(1).await;
     }
 }
