@@ -167,9 +167,16 @@ async fn play_file(
     mut ready_buffer: &'static mut [u8; 1024],
 ) {
     let root = fs.root_dir();
-    let mut file = root.open_file(&file_name).await.unwrap();
-    // skip header
-    file.seek(embedded_io::SeekFrom::Start(48)).await.unwrap();
+    let Some(mut file) = (try {
+        let mut file = root.open_file(&file_name).await.print_err("Opening file")?;
+        // skip header
+        file.seek(embedded_io::SeekFrom::Start(48))
+            .await
+            .print_err("Skipping header");
+        file
+    }) else {
+        return;
+    };
 
     let mut next_block = match read_block(&mut file, ready_buffer).await {
         Ok(BlockReadResult::Full) => &ready_buffer[..],

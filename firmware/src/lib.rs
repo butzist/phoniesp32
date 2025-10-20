@@ -5,6 +5,7 @@
 #![feature(coroutine_trait)]
 #![feature(stmt_expr_attributes)]
 #![feature(atomic_try_update)]
+#![feature(try_blocks)]
 
 use core::future::Future;
 
@@ -14,9 +15,9 @@ use serde::{Deserialize, Serialize};
 
 pub mod controls;
 pub mod player;
+pub mod radio;
 pub mod sd;
 pub mod web;
-pub mod wifi;
 
 extern crate alloc;
 

@@ -12,17 +12,12 @@ use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::Timer;
-use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
-use esp_hal::gpio::{Output, OutputConfig};
-use esp_hal::spi::master::Spi;
-use esp_hal::time::Rate;
+use esp_hal::clock::CpuClock;
 use esp_hal::timer::timg::TimerGroup;
-use esp_hal::{clock::CpuClock, gpio::Level};
-use esp_hal::{dma_buffers_chunk_size, spi};
-use esp_wifi::ble::controller::BleConnector;
 use firmware::controls::{AnyTouchPin, Controls};
 use firmware::player::{Player, PlayerCommand};
-use firmware::sd::init_sd;
+use firmware::radio::Radio;
+use firmware::sd::Sd;
 use static_cell::make_static;
 use {esp_backtrace as _, esp_println as _};
 
@@ -44,67 +39,39 @@ async fn main(spawner: Spawner) {
     esp_alloc::heap_allocator!(#[unsafe(link_section = ".dram2_uninit")] size: 64 * 1024);
 
     let timer0 = TimerGroup::new(peripherals.TIMG1);
-
     esp_hal_embassy::init(timer0.timer0);
 
     info!("Embassy initialized!");
 
-    let spi_bus = {
-        let dma_channel = peripherals.DMA_SPI2;
-        let (rx_buffer, rx_descriptors, tx_buffer, tx_descriptors) =
-            dma_buffers_chunk_size!(4 * 1024, 1024);
-
-        let dma_rx_buf = DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap();
-        let dma_tx_buf = DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap();
-
-        make_static!(Spi::new(
-            peripherals.SPI2,
-            spi::master::Config::default()
-                .with_frequency(Rate::from_khz(400))
-                .with_mode(spi::Mode::_0),
-        )
-        .unwrap()
-        .with_sck(peripherals.GPIO18)
-        .with_mosi(peripherals.GPIO23)
-        .with_miso(peripherals.GPIO19)
-        .with_dma(dma_channel)
-        .with_buffers(dma_rx_buf, dma_tx_buf)
-        .into_async())
-    };
-
-    let sd_cs = make_static!(Output::new(
-        peripherals.GPIO5,
-        Level::High,
-        OutputConfig::default()
-    ));
-    let (device_config, fs) = make_static!(init_sd(spi_bus, sd_cs).await);
+    let sd = Sd::new(
+        peripherals.SPI2.into(),
+        peripherals.DMA_SPI2.into(),
+        peripherals.GPIO18.into(),
+        peripherals.GPIO23.into(),
+        peripherals.GPIO19.into(),
+        peripherals.GPIO5.into(),
+    );
+    let (device_config, fs) = sd.init().await;
+    let fs = make_static!(fs);
     info!("Config: {:?}", &device_config);
 
-    if false {
-        let rng = esp_hal::rng::Rng::new(peripherals.RNG);
-        let timer1 = TimerGroup::new(peripherals.TIMG0);
-        let wifi_init =
-            make_static!(esp_wifi::init(timer1.timer0, rng)
-                .expect("Failed to initialize WIFI/BLE controller"));
+    let radio = Radio::new(
+        peripherals.WIFI,
+        peripherals.BT,
+        peripherals.TIMG0,
+        peripherals.RNG,
+        peripherals.GPIO2.into(),
+        device_config,
+    );
+    let (stack, _ble) = radio.start(&spawner).await;
 
-        let _connector = BleConnector::new(wifi_init, peripherals.BT);
-
-        let wifi_led = Output::new(peripherals.GPIO2, Level::Low, OutputConfig::default());
-        let stack =
-            firmware::wifi::start_wifi(wifi_init, peripherals.WIFI, wifi_led, rng, None, &spawner)
-                .await;
-
-        let web_app = firmware::web::WebApp::default();
-        for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
-            spawner.must_spawn(firmware::web::web_task(
-                id,
-                stack,
-                web_app.router,
-                web_app.config,
-            ));
-        }
-        info!("Web server started...");
-    }
+    let web_app = firmware::web::WebApp::default();
+    spawner.must_spawn(firmware::web::web_task(
+        stack,
+        web_app.router,
+        web_app.config,
+    ));
+    info!("Web server started...");
 
     let player = Player::new(
         peripherals.I2S0.into(),

@@ -4,39 +4,85 @@ use embassy_executor::Spawner;
 use embassy_net::{DhcpConfig, Ipv4Cidr, Runner, Stack, StackResources, StaticConfigV4};
 use embassy_time::{Duration, Timer};
 use enumset::EnumSet;
-use esp_hal::{gpio::Output, peripherals::WIFI, rng::Rng};
+use esp_hal::{
+    gpio::{AnyPin, Level, Output, OutputConfig},
+    peripherals::{BT, RNG, TIMG0, WIFI},
+    rng::Rng,
+    timer::timg::TimerGroup,
+};
 use esp_println::println;
 use esp_wifi::{
+    ble::controller::BleConnector,
     wifi::{
         self, AccessPointConfiguration, WifiController, WifiDevice, WifiError, WifiEvent, WifiState,
     },
-    EspWifiController,
 };
 use heapless::Vec;
 use static_cell::make_static;
 
 use crate::DeviceConfig;
 
-pub async fn start_wifi(
-    esp_wifi_ctrl: &'static EspWifiController<'static>,
+pub struct Radio {
     wifi: WIFI<'static>,
-    led: Output<'static>,
-    mut rng: Rng,
+    bt: BT<'static>,
+    timer_group: TIMG0<'static>,
+    rng: RNG<'static>,
+    led: AnyPin<'static>,
     config: Option<DeviceConfig>,
-    spawner: &Spawner,
-) -> Stack<'static> {
-    let (controller, interfaces) = esp_wifi::wifi::new(esp_wifi_ctrl, wifi).unwrap();
-    println!("Device capabilities: {:?}", controller.capabilities());
+}
 
-    if let Some(config) = config {
-        match start_wifi_sta(controller, led, interfaces.sta, &mut rng, config, spawner).await {
-            Ok(stack) => stack,
-            Err((_, controller, led)) => {
-                start_wifi_ap(controller, led, interfaces.ap, &mut rng, spawner).await
-            }
+impl Radio {
+    pub fn new(
+        wifi: WIFI<'static>,
+        bt: BT<'static>,
+        timer_group: TIMG0<'static>,
+        rng: RNG<'static>,
+        led: AnyPin<'static>,
+        config: Option<DeviceConfig>,
+    ) -> Self {
+        Self {
+            wifi,
+            bt,
+            timer_group,
+            rng,
+            led,
+            config,
         }
-    } else {
-        start_wifi_ap(controller, led, interfaces.ap, &mut rng, spawner).await
+    }
+
+    pub async fn start(self, spawner: &Spawner) -> (Stack<'static>, BleConnector<'static>) {
+        let mut rng = esp_hal::rng::Rng::new(self.rng);
+        let timer0 = TimerGroup::new(self.timer_group);
+        let wifi_init = make_static!(esp_wifi::init(timer0.timer0, rng).unwrap());
+
+        let ble_connector = BleConnector::new(wifi_init, self.bt);
+
+        let wifi_led = Output::new(self.led, Level::Low, OutputConfig::default());
+
+        let (controller, interfaces) = esp_wifi::wifi::new(wifi_init, self.wifi).unwrap();
+        println!("Device capabilities: {:?}", controller.capabilities());
+
+        let stack = if let Some(config) = self.config {
+            match start_wifi_sta(
+                controller,
+                wifi_led,
+                interfaces.sta,
+                &mut rng,
+                config,
+                spawner,
+            )
+            .await
+            {
+                Ok(stack) => stack,
+                Err((_, controller, wifi_led)) => {
+                    start_wifi_ap(controller, wifi_led, interfaces.ap, &mut rng, spawner).await
+                }
+            }
+        } else {
+            start_wifi_ap(controller, wifi_led, interfaces.ap, &mut rng, spawner).await
+        };
+
+        (stack, ble_connector)
     }
 }
 
@@ -162,6 +208,7 @@ async fn connection_task(
         if started_states.contains(&esp_wifi::wifi::wifi_state()) {
             pin.set_high();
             // wait until we're no longer connected
+            // TODO stop WIFI on battery power: controller.stop_async()
             controller.wait_for_events(stopped_events, false).await;
             pin.set_low();
             Timer::after(Duration::from_millis(5000)).await

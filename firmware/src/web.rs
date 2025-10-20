@@ -16,7 +16,6 @@ impl AppBuilder for Application {
     }
 }
 
-pub const WEB_TASK_POOL_SIZE: usize = 1;
 pub struct WebApp {
     pub router: &'static Router<<Application as AppBuilder>::PathRouter>,
     pub config: &'static picoserve::Config<Duration>,
@@ -41,9 +40,8 @@ impl Default for WebApp {
     }
 }
 
-#[embassy_executor::task(pool_size = WEB_TASK_POOL_SIZE)]
+#[embassy_executor::task]
 pub async fn web_task(
-    id: usize,
     stack: Stack<'static>,
     router: &'static AppRouter<Application>,
     config: &'static picoserve::Config<Duration>,
@@ -54,7 +52,7 @@ pub async fn web_task(
     let mut http_buffer = alloc::vec![0; 2048];
 
     picoserve::listen_and_serve(
-        id,
+        0,
         router,
         config,
         stack,
