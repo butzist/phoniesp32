@@ -51,27 +51,10 @@ async fn main(spawner: Spawner) {
         peripherals.GPIO19.into(),
         peripherals.GPIO5.into(),
     );
+
     let (device_config, fs) = sd.init().await;
     let fs = make_static!(fs);
     info!("Config: {:?}", &device_config);
-
-    let radio = Radio::new(
-        peripherals.WIFI,
-        peripherals.BT,
-        peripherals.TIMG0,
-        peripherals.RNG,
-        peripherals.GPIO2.into(),
-        device_config,
-    );
-    let (stack, _ble) = radio.start(&spawner).await;
-
-    let web_app = firmware::web::WebApp::default();
-    spawner.must_spawn(firmware::web::web_task(
-        stack,
-        web_app.router,
-        web_app.config,
-    ));
-    info!("Web server started...");
 
     let player = Player::new(
         peripherals.I2S0.into(),
@@ -80,6 +63,7 @@ async fn main(spawner: Spawner) {
         peripherals.GPIO26.into(),
         peripherals.GPIO25.into(),
     );
+
     let commands = make_static!(Channel::<NoopRawMutex, PlayerCommand, 2>::new());
     spawner.must_spawn(firmware::player::run_player(
         spawner,
@@ -101,6 +85,26 @@ async fn main(spawner: Spawner) {
         controls,
         commands.sender(),
     ));
+
+    let radio = Radio::new(
+        peripherals.WIFI,
+        peripherals.BT,
+        peripherals.TIMG0,
+        peripherals.RNG,
+        peripherals.GPIO2.into(),
+        device_config,
+    );
+    let (stack, _ble) = radio.start(&spawner).await;
+
+    let web_app = firmware::web::WebApp::default();
+    let web_app_state = firmware::web::AppState::new(fs, commands.sender());
+    spawner.must_spawn(firmware::web::web_task(
+        stack,
+        web_app.router,
+        web_app.config,
+        web_app_state,
+    ));
+    info!("Web server started...");
 
     loop {
         Timer::after_secs(1).await;

@@ -2,7 +2,7 @@ use core::ops::Coroutine;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicU8, Ordering};
 
-use crate::{extend_to_static, PrintErr};
+use crate::{extend_to_static, with_extension, PrintErr};
 use crate::{retry, sd::SdFileSystem};
 use audio_codec_algorithms::{decode_adpcm_ima, AdpcmImaState};
 use defmt::{error, info};
@@ -22,6 +22,7 @@ use esp_hal::i2s::master::{DataFormat, I2s, Standard};
 use esp_hal::i2s::AnyI2s;
 use esp_hal::time::Rate;
 use heapless::String;
+use serde::Serialize;
 use static_cell::make_static;
 use {esp_backtrace as _, esp_println as _};
 
@@ -35,9 +36,25 @@ static VOLUME: AtomicU8 = AtomicU8::new(8);
 
 pub enum PlayerCommand {
     Stop,
-    Play(String<12>),
+    Play(String<8>),
+    Pause,
     VolumeUp,
     VolumeDown,
+}
+
+#[derive(Serialize)]
+pub enum State {
+    Playing,
+    Paused,
+    Stopped,
+}
+
+#[derive(Serialize)]
+pub struct Status {
+    pub state: State,
+    pub position_seconds: Option<u16>,
+    pub duration_seconds: Option<u16>,
+    pub description: Option<String<50>>,
 }
 
 pub struct Player {
@@ -116,15 +133,16 @@ pub async fn run_player(
                 info!("Player command: STOP");
                 stop_player().await;
             }
+            PlayerCommand::Pause => {
+                error!("TODO: Player command: PAUSE");
+            }
             PlayerCommand::VolumeUp => {
                 info!("Player command: VOLUME UP");
                 VOLUME.update(Ordering::SeqCst, Ordering::SeqCst, |vol| 16.min(vol + 1));
             }
             PlayerCommand::VolumeDown => {
                 info!("Player command: VOLUME DOWN");
-                VOLUME.update(Ordering::SeqCst, Ordering::SeqCst, |vol| {
-                    vol.saturating_sub(1)
-                });
+                VOLUME.update(Ordering::SeqCst, Ordering::SeqCst, |vol| 1.max(vol - 1));
             }
             PlayerCommand::Play(file) => {
                 info!("Player command: PLAY {}", file);
@@ -161,14 +179,20 @@ async fn stop_player() {
 #[embassy_executor::task]
 async fn play_file(
     fs: &'static SdFileSystem<'static>,
-    file_name: String<12>,
+    file_name: String<8>,
     mut dma_transfer: I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
     mut pending_buffer: &'static mut [u8; 1024],
     mut ready_buffer: &'static mut [u8; 1024],
 ) {
     let root = fs.root_dir();
+
     let Some(mut file) = (try {
-        let mut file = root.open_file(&file_name).await.print_err("Opening file")?;
+        let fname = with_extension(&file_name, "wav").unwrap();
+        let dir = root
+            .open_dir("files")
+            .await
+            .print_err("Opening files directory")?;
+        let mut file = dir.open_file(&fname).await.print_err("Opening file")?;
         // skip header
         file.seek(embedded_io::SeekFrom::Start(48))
             .await
