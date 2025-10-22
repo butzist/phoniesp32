@@ -43,33 +43,51 @@ ultra-portable**.
 ![Screenshot of current prototype](./docs/progress-1.jpeg) Current
 work-in-progress prototype with lots of noisy data lines...
 
-- [x] Rust/Embassy project scaffold
+- [ ] Hardware
+  - [x] Prototype on breadboard
+  - [ ] Soldered Prototype
+  - [ ] Battery charger
+  - [ ] Schematics
+  - [ ] Custom PCB
+  - [ ] Design and 3D print case
 - [x] UI (Dioxus)
-- [x] File transcoding
-- [x] Prototype
-- [x] Fallback to Wi-Fi AP mode
-- [ ] Web server on device WIP
-- [x] Audio pipeline (I2S → MAX98357)
-- [x] SD card access
-- [ ] Associate file with RFID tag via API
-- [x] Playback control via buttons
-- [ ] Playback control via API
-- [ ] Switch to Bluma CSS
-- [ ] Playback control via frontend
-- [ ] Associate file with RFID tag via frontend
-- [ ] Configure Wi-Fi settings via frontend
-- [ ] Playlists
-- [ ] Firmware build instructions
-- [ ] Battery charger
-- [ ] Wiring diagrams & build guide
-- [ ] Custom PCB
-- [ ] Design and 3D print case
-- [ ] Power management
-- [ ] SD card partitioning support
-- [ ] Async / IRQ for RFID reader
-- [ ] Speed up transcoding
-- [ ] Playback control via BLE
-- [ ] Turn off Wi-Fi when on battery power
+  - [x] File transcoding
+  - [ ] Served from device
+  - [ ] Show last scanned RFID tag ID
+  - [ ] Switch to Bluma CSS
+  - [ ] Playback control
+  - [ ] Associate file with RFID tag
+  - [ ] Configure Wi-Fi settings
+  - [ ] Playlists
+  - [ ] List known tags
+  - [ ] List uploaded files
+  - [ ] Speed up transcoding
+- [ ] Firmware (Embassy)
+  - [x] Fallback to Wi-Fi AP mode
+  - [x] Audio pipeline (I2S → MAX98357)
+  - [x] SD card access
+  - [x] Playback control via buttons
+  - [ ] Playback control via RFID tags
+  - [ ] Pause playback
+  - [ ] Turn off Wi-Fi when on battery power
+  - [ ] Playlists
+  - [ ] Power management
+  - [ ] SD card partitioning support
+  - [ ] Async / IRQ for RFID reader
+  - [ ] Playback control via BLE
+- [ ] Web API (picoserve)
+  - [x] Associate file with RFID tag
+  - [x] Playback control
+  - [ ] Show playback status
+  - [ ] Show last scanned RFID tag ID
+  - [x] Configure Wi-Fi settings
+  - [ ] List known tags
+  - [ ] List uploaded files
+- [ ] Build system
+  - [ ] Build and bundle all components
+  - [ ] Build via GitHub actions
+  - [ ] Build instructions
+- [ ] Build guide
 
 ---
 
@@ -77,7 +95,7 @@ work-in-progress prototype with lots of noisy data lines...
 
 Want to help build the cheapest, most fun, and hackable jukebox for kids?
 
-- Share wiring diagrams
+- Share schematics
 - Improve the Rust firmware
 - Extend the web UI
 - Optimize power usage
