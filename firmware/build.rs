@@ -1,8 +1,52 @@
+use std::fs;
+use std::path::Path;
+use walkdir::WalkDir;
+
 fn main() {
     linker_be_nice();
     println!("cargo:rustc-link-arg=-Tdefmt.x");
     // make sure linkall.x is the last linker script (otherwise might cause problems with flip-link)
     println!("cargo:rustc-link-arg=-Tlinkall.x");
+
+    generate_assets();
+}
+
+fn generate_assets() {
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    let mut code = String::new();
+    code.push_str("use picoserve::{response::File, routing};\n\n");
+
+    // Generate add_asset_routes function
+    code.push_str("pub fn add_asset_routes<PR, State>(router: picoserve::Router<PR, State>) -> picoserve::Router<impl picoserve::routing::PathRouter<State>, State>\n");
+    code.push_str("where\n");
+    code.push_str("    PR: picoserve::routing::PathRouter<State>,\n");
+    code.push_str("{\n");
+    code.push_str("    router\n");
+
+    for entry in WalkDir::new("public").into_iter().filter_map(Result::ok) {
+        if entry.file_type().is_file() {
+            let path = entry.path();
+            if let Some(ext) = path.extension() {
+                if ext == "gz" {
+                    let rel_path = path.strip_prefix("public").unwrap();
+                    let rel_str = rel_path.to_str().unwrap();
+                    let route_path = format!("/{}", rel_str.trim_end_matches(".gz"));
+                    let file_stem = Path::new(rel_str).file_stem().unwrap().to_str().unwrap();
+                    let mime = mime_guess::from_path(file_stem)
+                        .first_or_octet_stream()
+                        .to_string();
+                    code.push_str(&format!("        .route(\"{}\", routing::get_service(File::with_content_type_and_headers(\"{}\", include_bytes!(\"{}/public/{}\"), &[(\"Content-Encoding\", \"gzip\")])))\n", route_path, mime, manifest_dir, rel_str));
+                }
+            }
+        }
+    }
+
+    code.push_str("}\n");
+
+    fs::write(format!("{}/assets.rs", out_dir), code).unwrap();
+    println!("cargo:rerun-if-changed=public");
 }
 
 fn linker_be_nice() {

@@ -3,7 +3,7 @@ use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Sender};
 use embassy_time::Duration;
 use esp_alloc as _;
 use picoserve::{
-    response::File,
+    response::Redirect,
     routing::{self},
     AppRouter, AppWithStateBuilder, Router,
 };
@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{player::PlayerCommand, sd::SdFileSystem};
 
+mod assets {
+    include!(concat!(env!("OUT_DIR"), "/assets.rs"));
+}
 mod config;
 mod fob;
 mod playback;
@@ -42,11 +45,8 @@ impl AppWithStateBuilder for Application {
     type State = AppState;
 
     fn build_app(self) -> picoserve::Router<Self::PathRouter, AppState> {
-        picoserve::Router::new()
-            .route(
-                "/",
-                routing::get_service(File::html(include_str!("index.html"))),
-            )
+        let router = picoserve::Router::new()
+            .route("/", routing::get(|| async { Redirect::to("index.html") }))
             .route(
                 ("/api/files", routing::parse_path_segment()),
                 routing::put_service(upload::UploadService),
@@ -70,7 +70,8 @@ impl AppWithStateBuilder for Application {
                 routing::post(playback::volume_down),
             )
             .route("/api/config", routing::put(config::put))
-            .route("/api/config", routing::delete(config::delete))
+            .route("/api/config", routing::delete(config::delete));
+        assets::add_asset_routes(router)
     }
 }
 

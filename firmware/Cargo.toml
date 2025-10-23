@@ -8,6 +8,10 @@ version = "0.1.0"
 name = "firmware"
 path = "./src/bin/main.rs"
 
+[build-dependencies]
+walkdir = "2.5"
+mime_guess = "2.0"
+
 [dependencies]
 defmt = "1.0.1"
 esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32"] }

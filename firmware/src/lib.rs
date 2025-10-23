@@ -1,4 +1,5 @@
 #![no_std]
+#![recursion_limit = "256"]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(type_alias_impl_trait)]
 #![feature(coroutines)]
