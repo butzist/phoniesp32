@@ -1,0 +1,20 @@
+deps:
+
+all: deps build-release
+
+all-nodeps: build-release
+
+build:
+	cargo build
+
+build-release:
+	cargo build --release
+
+test:
+	cargo test
+
+run:
+	cargo run --bin transcoder-test
+
+clean:
+	cargo clean

@@ -1,0 +1,26 @@
+CRATE := "transcoder_webworker"
+TARGET := "wasm32-unknown-unknown"
+PROFILE := "release"
+TARGET_DIR := "target/" + TARGET + "/" + PROFILE
+WASM_BINDGEN := "wasm-bindgen"
+WASM_OPT := "wasm-opt"
+WASM_OPT_FLAGS := "-Oz --enable-bulk-memory --enable-nontrapping-float-to-int --strip-debug"
+
+build-wasm:
+	cargo build --target {{TARGET}} --release
+
+bindgen: build-wasm
+	{{WASM_BINDGEN}} {{TARGET_DIR}}/{{CRATE}}.wasm --out-dir {{TARGET_DIR}} --target web
+
+optimize: bindgen
+	{{WASM_OPT}} {{WASM_OPT_FLAGS}} -o {{TARGET_DIR}}/{{CRATE}}_bg.opt.wasm {{TARGET_DIR}}/{{CRATE}}_bg.wasm
+
+deps:
+
+all: deps optimize
+
+all-nodeps: optimize
+
+clean:
+	cargo clean
+	rm -rf {{TARGET_DIR}}/*

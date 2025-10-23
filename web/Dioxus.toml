@@ -1,21 +1,18 @@
 [application]
 
-[web.app]
+[web]
+pre_compress = false
 
-# HTML title tag content
+[web.app]
 title = "web"
 
-# include `assets` in web platform
+[web.wasm_opt]
+level = "z"
+
 [web.resource]
-
-# Additional CSS style files
 style = []
-
-# Additional JavaScript files
 script = []
 
 [web.resource.dev]
-
-# Javascript code file
-# serve: [dev-server] only
+style = []
 script = []

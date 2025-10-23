@@ -1,0 +1,42 @@
+CRATE := "transcoder_webworker"
+TARGET := "wasm32-unknown-unknown"
+PROFILE := "release"
+WORKER_TARGET_DIR := "../transcoder-webworker/target/" + TARGET + "/" + PROFILE
+OUT_DIR := "assets/worker"
+WORKER_JS_SRC := "../transcoder-webworker/worker.js"
+
+build-webworker:
+	cd ../transcoder-webworker && just all
+
+copy-wasm: build-webworker
+	cp {{WORKER_TARGET_DIR}}/{{CRATE}}_bg.opt.wasm {{OUT_DIR}}/{{CRATE}}_bg.wasm
+
+copy-js: build-webworker
+	cp {{WORKER_TARGET_DIR}}/{{CRATE}}.js {{OUT_DIR}}/{{CRATE}}.js
+
+copy-worker: build-webworker
+	cp {{WORKER_JS_SRC}} {{OUT_DIR}}/
+
+copy-worker-assets: copy-wasm copy-js copy-worker
+
+deps: build-webworker copy-worker-assets
+
+all: deps build-dist
+
+all-nodeps: build-dist
+
+build:
+	dx build --release
+
+build-dist:
+	rm -rf dist/
+	dx bundle --release --out-dir dist
+	
+serve:
+	dx serve
+
+clean:
+	rm -rf dist/
+	rm -rf target/
+	rm -rf {{OUT_DIR}}/*
+

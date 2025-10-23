@@ -1,0 +1,33 @@
+TARGET := "xtensa-esp32-none-elf"
+PROFILE := "release"
+TARGET_DIR := "target/" + TARGET + "/" + PROFILE
+
+build-web:
+	cd ../web && just all
+
+copy-assets:
+  rm -fr public/*
+  cp -r ../web/dist/public/* public/
+  find public/ -path 'public/.*' -prune -o -type f ! -name '*.gz' -print -exec gzip -9 {} \;
+
+deps: build-web copy-assets
+
+all: deps build
+
+all-nodeps: build
+
+build:
+	cargo build --release
+
+flash: build
+	espflash flash {{TARGET_DIR}}/firmware
+
+run: flash
+	espflash monitor
+
+monitor:
+	espflash monitor
+
+clean:
+  cargo clean
+  rm -fr public/*
