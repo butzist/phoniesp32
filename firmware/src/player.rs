@@ -188,10 +188,10 @@ async fn play_file(
 
     let Some(mut file) = (try {
         let fname = with_extension(&file_name, "wav").unwrap();
-        let dir = root
-            .open_dir("files")
-            .await
-            .print_err("Opening files directory")?;
+        let dir = root;
+        //.open_dir("files")
+        //.await
+        //.print_err("Opening files directory")?;
         let mut file = dir.open_file(&fname).await.print_err("Opening file")?;
         // skip header
         file.seek(embedded_io::SeekFrom::Start(48))

@@ -35,7 +35,6 @@ async fn main(spawner: Spawner) {
     let peripherals = esp_hal::init(config);
 
     esp_alloc::heap_allocator!(size: 48 * 1024);
-    // COEX needs more RAM - so we've added some more
     esp_alloc::heap_allocator!(#[unsafe(link_section = ".dram2_uninit")] size: 64 * 1024);
 
     let timer0 = TimerGroup::new(peripherals.TIMG1);
@@ -88,22 +87,24 @@ async fn main(spawner: Spawner) {
 
     let radio = Radio::new(
         peripherals.WIFI,
-        peripherals.BT,
         peripherals.TIMG0,
         peripherals.RNG,
         peripherals.GPIO2.into(),
         device_config,
     );
-    let (stack, _ble) = radio.start(&spawner).await;
+    let stack = radio.start(&spawner).await;
 
     let web_app = firmware::web::WebApp::default();
     let web_app_state = firmware::web::AppState::new(fs, commands.sender());
-    spawner.must_spawn(firmware::web::web_task(
-        stack,
-        web_app.router,
-        web_app.config,
-        web_app_state,
-    ));
+    for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
+        spawner.must_spawn(firmware::web::web_task(
+            id,
+            stack,
+            web_app.router,
+            web_app.config,
+            web_app_state.clone(),
+        ));
+    }
     info!("Web server started...");
 
     loop {

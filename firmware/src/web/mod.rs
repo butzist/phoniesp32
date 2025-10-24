@@ -99,8 +99,11 @@ impl Default for WebApp {
     }
 }
 
-#[embassy_executor::task]
+pub const WEB_TASK_POOL_SIZE: usize = 2;
+
+#[embassy_executor::task(pool_size = WEB_TASK_POOL_SIZE)]
 pub async fn web_task(
+    id: usize,
     stack: Stack<'static>,
     router: &'static AppRouter<Application>,
     config: &'static picoserve::Config<Duration>,
@@ -112,7 +115,7 @@ pub async fn web_task(
     let mut http_buffer = alloc::vec![0; 2048];
 
     picoserve::listen_and_serve_with_state(
-        0,
+        id,
         router,
         config,
         stack,
