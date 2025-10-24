@@ -6,25 +6,21 @@ use embassy_time::{Duration, Timer};
 use enumset::EnumSet;
 use esp_hal::{
     gpio::{AnyPin, Level, Output, OutputConfig},
-    peripherals::{BT, RNG, TIMG0, WIFI},
+    peripherals::{RNG, TIMG0, WIFI},
     rng::Rng,
     timer::timg::TimerGroup,
 };
 use esp_println::println;
-use esp_wifi::{
-    ble::controller::BleConnector,
-    wifi::{
-        self, AccessPointConfiguration, WifiController, WifiDevice, WifiError, WifiEvent, WifiState,
-    },
+use esp_wifi::wifi::{
+    self, AccessPointConfiguration, WifiController, WifiDevice, WifiError, WifiEvent, WifiState,
 };
 use heapless::Vec;
 use static_cell::make_static;
 
-use crate::DeviceConfig;
+use crate::{extend_to_static, DeviceConfig};
 
 pub struct Radio {
     wifi: WIFI<'static>,
-    bt: BT<'static>,
     timer_group: TIMG0<'static>,
     rng: RNG<'static>,
     led: AnyPin<'static>,
@@ -34,7 +30,6 @@ pub struct Radio {
 impl Radio {
     pub fn new(
         wifi: WIFI<'static>,
-        bt: BT<'static>,
         timer_group: TIMG0<'static>,
         rng: RNG<'static>,
         led: AnyPin<'static>,
@@ -42,7 +37,6 @@ impl Radio {
     ) -> Self {
         Self {
             wifi,
-            bt,
             timer_group,
             rng,
             led,
@@ -50,24 +44,26 @@ impl Radio {
         }
     }
 
-    pub async fn start(self, spawner: &Spawner) -> (Stack<'static>, BleConnector<'static>) {
+    pub async fn start(self, spawner: &Spawner) -> Stack<'static> {
         let mut rng = esp_hal::rng::Rng::new(self.rng);
         let timer0 = TimerGroup::new(self.timer_group);
         let wifi_init = make_static!(esp_wifi::init(timer0.timer0, rng).unwrap());
-
-        let ble_connector = BleConnector::new(wifi_init, self.bt);
 
         let wifi_led = Output::new(self.led, Level::Low, OutputConfig::default());
 
         let (controller, interfaces) = esp_wifi::wifi::new(wifi_init, self.wifi).unwrap();
         println!("Device capabilities: {:?}", controller.capabilities());
 
+        let stack_resources =
+            make_static!(StackResources::<{ 2 * crate::web::WEB_TASK_POOL_SIZE }>::new());
         let stack = if let Some(config) = self.config {
             match start_wifi_sta(
                 controller,
                 wifi_led,
                 interfaces.sta,
                 &mut rng,
+                // SAFETY: will only use stack resources if connection is successful
+                unsafe { extend_to_static(stack_resources) },
                 config,
                 spawner,
             )
@@ -75,14 +71,30 @@ impl Radio {
             {
                 Ok(stack) => stack,
                 Err((_, controller, wifi_led)) => {
-                    start_wifi_ap(controller, wifi_led, interfaces.ap, &mut rng, spawner).await
+                    start_wifi_ap(
+                        controller,
+                        wifi_led,
+                        interfaces.ap,
+                        &mut rng,
+                        stack_resources,
+                        spawner,
+                    )
+                    .await
                 }
             }
         } else {
-            start_wifi_ap(controller, wifi_led, interfaces.ap, &mut rng, spawner).await
+            start_wifi_ap(
+                controller,
+                wifi_led,
+                interfaces.ap,
+                &mut rng,
+                stack_resources,
+                spawner,
+            )
+            .await
         };
 
-        (stack, ble_connector)
+        stack
     }
 }
 
@@ -91,6 +103,7 @@ pub async fn start_wifi_ap(
     led: Output<'static>,
     device: WifiDevice<'static>,
     rng: &mut Rng,
+    stack_resources: &'static mut StackResources<{ 2 * crate::web::WEB_TASK_POOL_SIZE }>,
     spawner: &Spawner,
 ) -> Stack<'static> {
     let net_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
@@ -102,12 +115,7 @@ pub async fn start_wifi_ap(
     });
 
     // Init network stack
-    let (stack, runner) = embassy_net::new(
-        device,
-        net_config,
-        make_static!(StackResources::<3>::new()),
-        net_seed,
-    );
+    let (stack, runner) = embassy_net::new(device, net_config, stack_resources, net_seed);
 
     let ap_config = AccessPointConfiguration {
         ssid: "phoniesp32".into(),
@@ -135,6 +143,7 @@ pub async fn start_wifi_sta(
     led: Output<'static>,
     device: WifiDevice<'static>,
     rng: &mut Rng,
+    stack_resources: &'static mut StackResources<{ 2 * crate::web::WEB_TASK_POOL_SIZE }>,
     config: DeviceConfig,
     spawner: &Spawner,
 ) -> Result<Stack<'static>, (WifiError, WifiController<'static>, Output<'static>)> {
@@ -144,12 +153,7 @@ pub async fn start_wifi_sta(
     let net_config = embassy_net::Config::dhcpv4(dhcp_config);
 
     // Init network stack
-    let (stack, runner) = embassy_net::new(
-        device,
-        net_config,
-        make_static!(StackResources::<3>::new()),
-        net_seed,
-    );
+    let (stack, runner) = embassy_net::new(device, net_config, stack_resources, net_seed);
 
     let mut last_error = None;
     for _ in 0..5 {
