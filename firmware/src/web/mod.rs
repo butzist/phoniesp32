@@ -51,10 +51,6 @@ impl AppWithStateBuilder for Application {
                 ("/api/files", routing::parse_path_segment()),
                 routing::put_service(upload::UploadService),
             )
-            .route(
-                ("/api/files", routing::parse_path_segment(), "info"),
-                routing::put(upload::put_info),
-            )
             .route("/api/last_fob", routing::get(fob::last))
             .route("/api/associations", routing::post(fob::associate))
             .route("/api/playback/status", routing::get(playback::status))

@@ -1,17 +1,16 @@
 use core::str::FromStr;
 
-use alloc::format;
+use alloc::vec;
+use embassy_futures::join::join;
 use embedded_io_async::{Read, Write};
 use heapless::String;
 use picoserve::{
-    extract,
     io::ReadExt,
     request::Request,
-    response::{IntoResponse, Response, ResponseWriter, StatusCode},
+    response::{IntoResponse, ResponseWriter},
     routing::RequestHandlerService,
     ResponseSent,
 };
-use serde::Deserialize;
 
 use crate::{web::AppState, with_extension};
 
@@ -50,23 +49,33 @@ impl RequestHandlerService<AppState, (UploadFileName,)> for UploadService {
         file.truncate().await.unwrap();
 
         let mut body = request.body_connection.body().reader();
-        let mut buffer = [0u8; 512];
+        let mut buffer1 = vec![0u8; 512];
+        let mut buffer2 = vec![0u8; 512];
+
+        let mut read_buffer = &mut buffer1;
+        let mut write_buffer = &mut buffer2;
+        let mut last_read_size = 0;
+
         loop {
-            match body.read(&mut buffer).await {
-                Ok(0) => {
-                    // eof
-                    break;
-                }
-                Ok(n) => {
-                    file.write_all(&buffer[..n]).await.unwrap();
-                }
-                Err(err) => {
-                    // stream terminated early?
-                    // delete file
-                    return Err(err);
-                }
+            // TODO delete file on error
+            let (read_res, write_res) = join(
+                read_max(&mut body, read_buffer),
+                file.write_all(&write_buffer[..last_read_size]),
+            )
+            .await;
+            write_res.unwrap();
+            last_read_size = read_res?;
+
+            (write_buffer, read_buffer) = (read_buffer, write_buffer);
+
+            if last_read_size != 512 {
+                file.write_all(&write_buffer[..last_read_size])
+                    .await
+                    .unwrap();
+                break;
             }
         }
+        file.flush().await.unwrap();
 
         body.discard_all_data().await?;
         let connection = request.body_connection.finalize().await?;
@@ -74,38 +83,14 @@ impl RequestHandlerService<AppState, (UploadFileName,)> for UploadService {
     }
 }
 
-#[derive(Deserialize)]
-pub struct FileInfo {
-    duration_seconds: u16,
-    description: String<50>,
-}
-
-pub async fn put_info(
-    name: UploadFileName,
-    extract::State(state): extract::State<AppState>,
-    extract::Json(req): extract::Json<FileInfo, 64>,
-) -> impl IntoResponse {
-    let root = state.fs.root_dir();
-    let dir = if !root.dir_exists("files").await.unwrap() {
-        root.create_dir("files").await.unwrap()
-    } else {
-        root.open_dir("files").await.unwrap()
-    };
-
-    let fname = with_extension(&name.0, "wav").unwrap();
-    if !dir.file_exists(&fname).await.unwrap() {
-        return Response::new(StatusCode::NOT_FOUND, "file not found");
+async fn read_max<R: Read>(r: &mut R, buf: &mut [u8]) -> Result<usize, R::Error> {
+    let mut buffer_pos = 0;
+    while !buf.is_empty() {
+        match r.read(&mut buf[buffer_pos..]).await {
+            Ok(0) => break,
+            Ok(n) => buffer_pos += n,
+            Err(e) => return Err(e),
+        }
     }
-
-    let fname = with_extension(&name.0, "inf").unwrap();
-    let mut file = dir.create_file(&fname).await.unwrap();
-    file.truncate().await.unwrap();
-
-    let line = format!("{},{}\r\n", req.duration_seconds, req.description);
-    file.write_all(line.as_bytes()).await.unwrap();
-    file.close().await.unwrap();
-
-    state.fs.flush().await.unwrap();
-
-    Response::new(StatusCode::NO_CONTENT, "")
+    Ok(buffer_pos)
 }

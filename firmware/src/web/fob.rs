@@ -40,14 +40,12 @@ pub async fn associate(
 
     file.write_all(b"#EXTM3U\r\n").await.unwrap();
 
-    // TODO create .inf file for each wav and copy over info
+    // TODO copy over artist info
     file.write_all(b"#EXTINF:60,Unknown Artist - Unknown Track\r\n")
         .await
         .unwrap();
     file.write_all(b"..\\files\\").await.unwrap();
     file.write_all(req.file.as_bytes()).await.unwrap();
     file.write_all(b"\r\n").await.unwrap();
-    file.close().await.unwrap();
-
-    state.fs.flush().await.unwrap();
+    file.flush().await.unwrap();
 }
