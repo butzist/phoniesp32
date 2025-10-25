@@ -19,6 +19,9 @@
         overlays = [(import rust-overlay)];
         pkgs = import nixpkgs {inherit system overlays;};
 
+        espToolchainVersion = "1.90.0";
+        espCrosstoolToolchainVersion = "15.2.0_20250920";
+
         # Use the latest nightly toolchain from rust-overlay
         rustNightly = pkgs.rust-bin.nightly.latest.default.override {
           extensions = ["rust-src"];
@@ -74,16 +77,28 @@
 
           shellHook = ''
             echo "🦀 Entered dev shell with nightly Rust + Dioxus"
+            flake_root=$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")
 
+
+            # Use rustup shims
             export PATH=${pkgs.rustup}/bin:$PATH
+            export RUSTUP_HOME="$flake_root/.rustup"
+            export ESP_EXPORT="$flake_root/.espup/export-esp.sh"
+            mkdir -p "$flake_root/.espup"
+
+            # Setup nix-installed toolchain in rustup
+            rustup toolchain link nix-nightly ${rustNightly}
+            rustup default nix-nightly
 
             # Install ESP toolchain if not present
-            if [ -f ~/export-esp.sh ]; then
+            if [ -f $ESP_EXPORT ]; then
               echo "ESP toolchain already installed, skipping install."
             else
-              espup install
+              espup install --export-file $ESP_EXPORT --targets esp32 \
+                --toolchain-version ${espToolchainVersion} \
+                --crosstool-toolchain-version ${espCrosstoolToolchainVersion}
             fi
-            source ~/export-esp.sh
+            source $ESP_EXPORT
 
           '';
         };
