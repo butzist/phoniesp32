@@ -34,7 +34,6 @@ ultra-portable**.
 - **Audio**: MAX98357 (I2S DAC + amplifier)
 - **Storage**: SD card adapter
 - **RFID**: FRC522 module + S50 RFID fobs
-- **Misc**: wiring TBD (PRs welcome!)
 
 ---
 
@@ -45,17 +44,18 @@ work-in-progress prototype with lots of noisy data lines...
 
 - [ ] Hardware
   - [x] Prototype on breadboard
-  - [ ] Soldered Prototype
+  - [x] Soldered Prototype
   - [ ] Battery charger
   - [ ] Schematics
   - [ ] Custom PCB
   - [ ] Design and 3D print case
 - [x] UI (Dioxus)
   - [x] File transcoding
-  - [ ] Served from device
+  - [x] Served from device
   - [ ] Show last scanned RFID tag ID
   - [ ] Switch to Bluma CSS
   - [ ] Playback control
+  - [ ] Store RIFF INFO chunk for artist/title
   - [ ] Associate file with RFID tag
   - [ ] Configure Wi-Fi settings
   - [ ] Playlists
@@ -67,27 +67,33 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Audio pipeline (I2S → MAX98357)
   - [x] SD card access
   - [x] Playback control via buttons
+  - [ ] Serve web UI with TLS (apparently needed for WASM, grr)
   - [ ] Playback control via RFID tags
   - [ ] Pause playback
   - [ ] Turn off Wi-Fi when on battery power
   - [ ] Playlists
+  - [ ] mDNS responder
+  - [ ] Use RIFF INFO chunk for artist/title
   - [ ] Power management
+  - [ ] Speed up SD access/upload
   - [ ] SD card partitioning support
   - [ ] Async / IRQ for RFID reader
   - [ ] Playback control via BLE
 - [ ] Web API (picoserve)
   - [x] Associate file with RFID tag
   - [x] Playback control
-  - [ ] Show playback status
-  - [ ] Show last scanned RFID tag ID
+  - [ ] Playback status
+  - [ ] Last scanned RFID tag ID
   - [x] Configure Wi-Fi settings
   - [ ] List known tags
   - [ ] List uploaded files
+  - [ ] Playlists
 - [ ] Build system
-  - [ ] Build and bundle all components
+  - [x] Build and bundle all components
   - [ ] Build via GitHub actions
-  - [ ] Build instructions
-- [ ] Build guide
+- [ ] Documentation
+  - [ ] Full build instructions
+  - [ ] Video tutorial
 
 ---
 
@@ -95,10 +101,11 @@ work-in-progress prototype with lots of noisy data lines...
 
 Want to help build the cheapest, most fun, and hackable jukebox for kids?
 
-- Share schematics
-- Improve the Rust firmware
-- Extend the web UI
-- Optimize power usage
+- Review my code! I bet there are many possibilities to optimize power/memory
+  usage
+- Create schematics & PCB in KiCad
+- Implement any of the missing features
+- Share your ideas
 
 PRs, issues, and ideas are always welcome!
 
