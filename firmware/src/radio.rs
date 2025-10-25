@@ -19,6 +19,8 @@ use static_cell::make_static;
 
 use crate::{extend_to_static, DeviceConfig};
 
+const NUM_SOCKETS: usize = crate::web::WEB_TASK_POOL_SIZE + 1;
+
 pub struct Radio {
     wifi: WIFI<'static>,
     timer_group: TIMG0<'static>,
@@ -54,8 +56,7 @@ impl Radio {
         let (controller, interfaces) = esp_wifi::wifi::new(wifi_init, self.wifi).unwrap();
         println!("Device capabilities: {:?}", controller.capabilities());
 
-        let stack_resources =
-            make_static!(StackResources::<{ 2 * crate::web::WEB_TASK_POOL_SIZE }>::new());
+        let stack_resources = make_static!(StackResources::<NUM_SOCKETS>::new());
         let stack = if let Some(config) = self.config {
             match start_wifi_sta(
                 controller,
@@ -103,7 +104,7 @@ pub async fn start_wifi_ap(
     led: Output<'static>,
     device: WifiDevice<'static>,
     rng: &mut Rng,
-    stack_resources: &'static mut StackResources<{ 2 * crate::web::WEB_TASK_POOL_SIZE }>,
+    stack_resources: &'static mut StackResources<NUM_SOCKETS>,
     spawner: &Spawner,
 ) -> Stack<'static> {
     let net_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
@@ -143,7 +144,7 @@ pub async fn start_wifi_sta(
     led: Output<'static>,
     device: WifiDevice<'static>,
     rng: &mut Rng,
-    stack_resources: &'static mut StackResources<{ 2 * crate::web::WEB_TASK_POOL_SIZE }>,
+    stack_resources: &'static mut StackResources<NUM_SOCKETS>,
     config: DeviceConfig,
     spawner: &Spawner,
 ) -> Result<Stack<'static>, (WifiError, WifiController<'static>, Output<'static>)> {

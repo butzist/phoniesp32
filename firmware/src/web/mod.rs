@@ -87,10 +87,10 @@ impl Default for WebApp {
         let config = picoserve::make_static!(
             picoserve::Config<Duration>,
             picoserve::Config::new(picoserve::Timeouts {
-                start_read_request: Some(Duration::from_secs(5)),
-                persistent_start_read_request: Some(Duration::from_secs(5)),
-                read_request: Some(Duration::from_secs(1)),
-                write: Some(Duration::from_secs(1)),
+                start_read_request: None,
+                persistent_start_read_request: None,
+                read_request: None,
+                write: None,
             })
             .keep_connection_alive()
         );
