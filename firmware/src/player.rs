@@ -1,3 +1,5 @@
+use core::f32::consts::PI;
+use core::iter::repeat_n;
 use core::ops::Coroutine;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicU8, Ordering};
@@ -11,9 +13,11 @@ use embassy_futures::join::join;
 use embassy_futures::select::{select, Either};
 use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
 use embassy_sync::channel::Receiver;
+use embassy_sync::lazy_lock::LazyLock;
+use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::Timer;
-use embedded_io_async::Seek;
+use embedded_io_async::{Read, Seek};
 use esp_hal::dma::{AnyI2sDmaChannel, DmaDescriptor};
 use esp_hal::dma_buffers;
 use esp_hal::gpio::AnyPin;
@@ -23,10 +27,12 @@ use esp_hal::i2s::AnyI2s;
 use esp_hal::time::Rate;
 use heapless::String;
 use serde::Serialize;
-use static_cell::make_static;
+
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
+
+use alloc::{vec, vec::Vec};
 
 const DMA_SIZE: usize = 4 * 4096;
 const DMA_CHUNKS: usize = 5;
@@ -37,6 +43,7 @@ static VOLUME: AtomicU8 = AtomicU8::new(8);
 pub enum PlayerCommand {
     Stop,
     Play(String<8>),
+    PlayList(String<8>),
     Pause,
     VolumeUp,
     VolumeDown,
@@ -124,9 +131,6 @@ pub async fn run_player(
     fs: &'static SdFileSystem<'static>,
     commands: Receiver<'static, NoopRawMutex, PlayerCommand, 2>,
 ) {
-    let pending_buffer = make_static!([0u8; 1024]);
-    let ready_buffer = make_static!([0u8; 1024]);
-
     loop {
         match commands.receive().await {
             PlayerCommand::Stop => {
@@ -145,27 +149,61 @@ pub async fn run_player(
                 VOLUME.update(Ordering::SeqCst, Ordering::SeqCst, |vol| 1.max(vol - 1));
             }
             PlayerCommand::Play(file) => {
-                info!("Player command: PLAY {}", file);
-                stop_player().await;
-
-                // SAFETY: a spawned task needs static lifetimes because it might run forever. In our case the task will be
-                // terminated though, before it is restarted with a new file.
-                let dma_transfer = unsafe {
-                    core::mem::transmute::<
-                        I2sWriteDmaTransferAsync<'_, &mut [u8; DMA_SIZE]>,
-                        I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
-                    >(player.transfer())
-                };
-                let pending_buffer = unsafe { extend_to_static(pending_buffer) };
-                let ready_buffer = unsafe { extend_to_static(ready_buffer) };
-                spawner.must_spawn(play_file(
-                    fs,
-                    file,
-                    dma_transfer,
-                    pending_buffer,
-                    ready_buffer,
-                ));
+                info!("Player command: PLAY FILE {}", file);
+                play_files(fs, vec![file], &mut player, &spawner).await;
             }
+            PlayerCommand::PlayList(list) => {
+                info!("Player command: PLAY LIST {}", list);
+
+                if let Some(files) = read_playlist(fs, &list)
+                    .await
+                    .print_err("Failed to read playlist")
+                {
+                    play_files(fs, files, &mut player, &spawner).await;
+                }
+            }
+        }
+    }
+}
+
+async fn play_files(
+    fs: &'static SdFileSystem<'static>,
+    files: Vec<String<8>>,
+    player: &mut Player,
+    spawner: &Spawner,
+) {
+    stop_player().await;
+
+    // SAFETY: a spawned task needs static lifetimes because it might run forever. In our case the task will be
+    // terminated though, before it is restarted with a new file.
+    let dma_transfer = unsafe {
+        core::mem::transmute::<
+            I2sWriteDmaTransferAsync<'_, &mut [u8; DMA_SIZE]>,
+            I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
+        >(player.transfer())
+    };
+    spawner.must_spawn(play_files_task(fs, files, dma_transfer));
+}
+
+#[embassy_executor::task]
+async fn play_files_task(
+    fs: &'static SdFileSystem<'static>,
+    files: Vec<String<8>>,
+    mut dma_transfer: I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
+) {
+    play_beep(2, &mut dma_transfer).await;
+    for (i, file) in files.into_iter().enumerate() {
+        if i > 0 {
+            // sleep for ~2s
+            play_samples_from_iterator(repeat_n(0, 2 * 44100), &mut dma_transfer).await;
+            if STOP_SIGNAL.signaled() {
+                return;
+            }
+        }
+
+        play_file(fs, file, &mut dma_transfer).await;
+        if STOP_SIGNAL.signaled() {
+            return;
         }
     }
 }
@@ -176,18 +214,123 @@ async fn stop_player() {
     STOP_SIGNAL.reset();
 }
 
-#[embassy_executor::task]
-async fn play_file(
+async fn read_playlist(
     fs: &'static SdFileSystem<'static>,
-    file_name: String<8>,
-    mut dma_transfer: I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
-    mut pending_buffer: &'static mut [u8; 1024],
-    mut ready_buffer: &'static mut [u8; 1024],
+    list_name: &str,
+) -> Result<Vec<String<8>>, ()> {
+    let root = fs.root_dir();
+    let dir = root
+        .open_dir("fobs")
+        .await
+        .print_err("Failed to open fobs directory")
+        .ok_or(())?;
+    let fname = with_extension(list_name, "m3u").unwrap();
+    let mut file = dir
+        .open_file(&fname)
+        .await
+        .print_err("Failed to open playlist file")
+        .ok_or(())?;
+
+    // Read entire file
+    // TODO: Change to using a ring buffer instead of reading all at once.
+    let mut buffer = Vec::new();
+    let mut temp_buf = [0u8; 256];
+    loop {
+        match file.read(&mut temp_buf).await {
+            Ok(0) => break,
+            Ok(n) => buffer.extend_from_slice(&temp_buf[..n]),
+            Err(_) => {
+                error!("Error reading playlist file");
+                return Err(());
+            }
+        }
+    }
+
+    // Parse
+    let content = core::str::from_utf8(&buffer)
+        .map_err(|_| ())
+        .print_err("Invalid UTF-8 in playlist")
+        .ok_or(())?;
+    let mut files = Vec::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if line.starts_with('#') || line.is_empty() {
+            continue;
+        }
+        // Assume ..\files\<file>.wav
+        if line.starts_with("..\\files\\") && line.ends_with(".wav") {
+            let start = "..\\files\\".len();
+            let end = line.len() - ".wav".len();
+            let file_part = &line[start..end];
+            let file = file_part
+                .parse::<String<8>>()
+                .print_err("Failed to parse filename")
+                .ok_or(())?;
+            files.push(file);
+        }
+    }
+    Ok(files)
+}
+
+async fn play_beep(
+    duration_100ms: u16,
+    dma_transfer: &mut I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
 ) {
+    let freq = 2000.;
+    let samples = (0..44100 / 100 * duration_100ms)
+        .map(|i| (libm::sinf(i as f32 / 44100. * freq * 2. * PI) * i16::MAX as f32) as i16);
+
+    play_samples_from_iterator(samples, dma_transfer).await;
+}
+
+async fn play_samples_from_iterator(
+    iter: impl IntoIterator<Item = i16>,
+    dma_transfer: &mut I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
+) {
+    let mut done = false;
+    let mut iter = iter.into_iter();
+    while !done {
+        dma_transfer
+            .push_with(|buf: &mut [u8]| {
+                let n_samples = buf.len() / 4;
+                for n in 0..n_samples {
+                    if let Some(sample) = iter.next() {
+                        buf[n * 4] = sample as u8;
+                        buf[n * 4 + 1] = (sample >> 8) as u8;
+                        buf[n * 4 + 2] = 0;
+                        buf[n * 4 + 3] = 0;
+                    } else {
+                        done = true;
+                        return n * 4;
+                    }
+                }
+
+                n_samples * 4
+            })
+            .await
+            .print_err("I2S DMA transfer");
+    }
+}
+
+async fn play_file<'a>(
+    fs: &'a SdFileSystem<'a>,
+    file: String<8>,
+    dma_transfer: &'a mut I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
+) {
+    static PENDING_BUFFER: LazyLock<Mutex<CriticalSectionRawMutex, [u8; 1024]>> =
+        LazyLock::new(|| Mutex::new([0u8; 1024]));
+    static READY_BUFFER: LazyLock<Mutex<CriticalSectionRawMutex, [u8; 1024]>> =
+        LazyLock::new(|| Mutex::new([0u8; 1024]));
+
+    let mut pending_buffer = PENDING_BUFFER.get().lock().await;
+    let mut pending_buffer = &mut *pending_buffer;
+    let mut ready_buffer = READY_BUFFER.get().lock().await;
+    let mut ready_buffer = &mut *ready_buffer;
+
     let root = fs.root_dir();
 
     let Some(mut file) = (try {
-        let fname = with_extension(&file_name, "wav").unwrap();
+        let fname = with_extension(&file, "wav").unwrap();
         let dir = root
             .open_dir("files")
             .await

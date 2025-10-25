@@ -17,6 +17,7 @@ use esp_hal::timer::timg::TimerGroup;
 use firmware::controls::{AnyTouchPin, Controls};
 use firmware::player::{Player, PlayerCommand};
 use firmware::radio::Radio;
+use firmware::rfid::Rfid;
 use firmware::sd::Sd;
 use static_cell::make_static;
 use {esp_backtrace as _, esp_println as _};
@@ -84,6 +85,16 @@ async fn main(spawner: Spawner) {
         controls,
         commands.sender(),
     ));
+
+    let _rfid = Rfid::new(
+        peripherals.SPI3.into(),
+        peripherals.GPIO14.into(),
+        peripherals.GPIO13.into(),
+        peripherals.GPIO12.into(),
+        peripherals.GPIO21.into(),
+        &spawner,
+        commands.sender(),
+    );
 
     let radio = Radio::new(
         peripherals.WIFI,

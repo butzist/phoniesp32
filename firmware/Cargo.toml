@@ -78,16 +78,13 @@ serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0.145", default-features = false, features = [
   "alloc",
 ] }
-heapless = { version = "0.8.0", featues = [
-  "alloc",
-  "defmt",
-  "serde",
-  "nightly",
-] }
+heapless = { version = "0.8.0", features = ["serde", "defmt-03"] }
 enumset = "1"
 audio-codec-algorithms = "0.7.0"
 embassy-futures = "0.1"
 embassy-sync = "0.7.2"
+mfrc522 = "0.8.0"
+libm = "0.2"
 
 
 [profile.dev]

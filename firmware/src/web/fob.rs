@@ -20,7 +20,10 @@ pub struct AssociationRequest {
 }
 
 pub async fn last() -> impl IntoResponse {
-    Json(LastFob { last_fob: None })
+    let last_fob = crate::rfid::LAST_FOB.lock().await;
+    Json(LastFob {
+        last_fob: last_fob.clone(),
+    })
 }
 
 pub async fn associate(
@@ -46,6 +49,6 @@ pub async fn associate(
         .unwrap();
     file.write_all(b"..\\files\\").await.unwrap();
     file.write_all(req.file.as_bytes()).await.unwrap();
-    file.write_all(b"\r\n").await.unwrap();
+    file.write_all(b".wav\r\n").await.unwrap();
     file.flush().await.unwrap();
 }

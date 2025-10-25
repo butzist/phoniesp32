@@ -14,12 +14,6 @@ use alloc::string::String;
 use defmt::{error, warn};
 use serde::{Deserialize, Serialize};
 
-pub mod controls;
-pub mod player;
-pub mod radio;
-pub mod sd;
-pub mod web;
-
 extern crate alloc;
 
 #[derive(Serialize, Deserialize)]
@@ -111,3 +105,10 @@ pub fn with_extension(basename: &str, ext: &str) -> Result<heapless::String<12>,
     fname.push_str(ext)?;
     Ok(fname)
 }
+
+pub mod controls;
+pub mod player;
+pub mod radio;
+pub mod rfid;
+pub mod sd;
+pub mod web;

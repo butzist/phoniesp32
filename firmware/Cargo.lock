@@ -984,6 +984,8 @@ dependencies = [
  "esp-println",
  "esp-wifi",
  "heapless",
+ "libm",
+ "mfrc522",
  "mime_guess",
  "picoserve",
  "sdspi",
@@ -1173,6 +1175,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "744a4c881f502e98c2241d2e5f50040ac73b30194d64452bb6260393b53f0dc9"
 
 [[package]]
+name = "libm"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
+
+[[package]]
 name = "linked_list_allocator"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1213,6 +1221,16 @@ name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
+
+[[package]]
+name = "mfrc522"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "543f2c392f438e427aa9009338710434884b0dc95d0c39110f456846be0aa352"
+dependencies = [
+ "embedded-hal 1.0.0",
+ "heapless",
+]
 
 [[package]]
 name = "mime"
