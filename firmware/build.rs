@@ -38,6 +38,10 @@ fn generate_assets() {
                         .first_or_octet_stream()
                         .to_string();
                     code.push_str(&format!("        .route(\"{}\", routing::get_service(File::with_content_type_and_headers(\"{}\", include_bytes!(\"{}/public/{}\"), &[(\"Content-Encoding\", \"gzip\")])))\n", route_path, mime, manifest_dir, rel_str));
+                    if route_path.ends_with("/index.html") {
+                        let dir_route = route_path.trim_end_matches("index.html");
+                        code.push_str(&format!("        .route(\"{}\", routing::get_service(File::with_content_type_and_headers(\"{}\", include_bytes!(\"{}/public/{}\"), &[(\"Content-Encoding\", \"gzip\")])))\n", dir_route, mime, manifest_dir, rel_str));
+                    }
                 }
             }
         }

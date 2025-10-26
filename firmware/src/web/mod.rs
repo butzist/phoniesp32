@@ -2,11 +2,7 @@ use embassy_net::Stack;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Sender};
 use embassy_time::Duration;
 use esp_alloc as _;
-use picoserve::{
-    response::Redirect,
-    routing::{self},
-    AppRouter, AppWithStateBuilder, Router,
-};
+use picoserve::{routing, AppRouter, AppWithStateBuilder, Router};
 use serde::{Deserialize, Serialize};
 
 use crate::{player::PlayerCommand, sd::SdFileSystem};
@@ -46,7 +42,6 @@ impl AppWithStateBuilder for Application {
 
     fn build_app(self) -> picoserve::Router<Self::PathRouter, AppState> {
         let router = picoserve::Router::new()
-            .route("/", routing::get(|| async { Redirect::to("index.html") }))
             .route(
                 ("/api/files", routing::parse_path_segment()),
                 routing::put_service(upload::UploadService),
