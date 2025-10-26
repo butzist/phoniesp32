@@ -1,0 +1,42 @@
+name: Build and Release Firmware
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: /nix
+          key: nix-${{ runner.os }}
+
+      - name: Cache toolchains
+        uses: actions/cache@v4
+        with:
+          path: |
+            .rustup
+            .espup
+          key: toolchains-${{ runner.os }}
+
+      - name: Build firmware
+        run: nix develop --command "just"
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: firmware.bin
+

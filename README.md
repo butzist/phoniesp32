@@ -9,6 +9,11 @@ ultra-portable**.
 
 ---
 
+## 📥 Download Latest Firmware
+
+[Download Firmware](https://github.com/butzist/phoniesp32/actions) (download the
+`firmware` artifact from the latest run on main)
+
 ## ✨ Features
 
 - **ESP32-based jukebox**: replaces the Raspberry Pi with an ESP-WROOM-32, or
