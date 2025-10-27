@@ -44,7 +44,7 @@ ultra-portable**.
 
 ## 🚧 Project Status
 
-![Screenshot of current prototype](./docs/progress-1.jpeg) Current
+![Screenshot of current prototype](./docs/progress-2.jpeg) Current
 work-in-progress prototype with lots of noisy data lines...
 
 - [ ] Hardware
