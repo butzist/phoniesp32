@@ -20,10 +20,10 @@ build:
 	cargo build --release
 
 flash: build
-	espflash flash {{TARGET_DIR}}/firmware
+	espflash flash --chip esp32 {{TARGET_DIR}}/firmware
 
 run: flash
-	espflash monitor
+	espflash monitor --chip esp32 --log-format defmt --elf {{TARGET_DIR}}/firmware
 
 monitor:
 	espflash monitor
