@@ -56,7 +56,10 @@
           doCheck = false;
         };
       in {
-        packages.${system}.default = pkgs.hello;
+        packages = {
+          default = pkgs.hello;
+          dioxusCli = dioxusCli;
+        };
 
         devShells.default = pkgs.mkShell {
           name = "dev-shell-dioxus-esp-nightly";
