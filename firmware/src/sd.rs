@@ -30,6 +30,20 @@ pub type SdFileSystem<'a> = FileSystem<
     LossyOemCpConverter,
 >;
 
+pub type FileHandle<'a> = embedded_fatfs::File<
+    'a,
+    BufStream<
+        SdSpi<
+            ExclusiveDevice<SpiDmaBus<'static, Async>, Output<'static>, Delay>,
+            Delay,
+            aligned::A1,
+        >,
+        512,
+    >,
+    NullTimeProvider,
+    LossyOemCpConverter,
+>;
+
 pub struct Sd {
     bus: SpiDmaBus<'static, Async>,
     cs: Output<'static>,

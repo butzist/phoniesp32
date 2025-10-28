@@ -4,7 +4,11 @@ use core::ops::Coroutine;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicU8, Ordering};
 
-use crate::{extend_to_static, with_extension, PrintErr};
+use crate::entities::{
+    audio_file::AudioFile,
+    playlist::{PlayListRef, Playlist},
+};
+use crate::{extend_to_static, PrintErr};
 use crate::{retry, sd::SdFileSystem};
 use audio_codec_algorithms::{decode_adpcm_ima, AdpcmImaState};
 use defmt::{error, info};
@@ -17,7 +21,7 @@ use embassy_sync::lazy_lock::LazyLock;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::Timer;
-use embedded_io_async::{Read, Seek};
+use embedded_io_async::Seek;
 use esp_hal::dma::{AnyI2sDmaChannel, DmaDescriptor};
 use esp_hal::dma_buffers;
 use esp_hal::gpio::AnyPin;
@@ -32,7 +36,7 @@ use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
 
-use alloc::{vec, vec::Vec};
+use alloc::vec::Vec;
 
 const DMA_SIZE: usize = 4 * 4096;
 const DMA_CHUNKS: usize = 5;
@@ -42,8 +46,8 @@ static VOLUME: AtomicU8 = AtomicU8::new(8);
 
 pub enum PlayerCommand {
     Stop,
-    Play(String<8>),
-    PlayList(String<8>),
+    Playlist(Playlist),
+    PlaylistRef(PlayListRef),
     Pause,
     VolumeUp,
     VolumeDown,
@@ -148,18 +152,24 @@ pub async fn run_player(
                 info!("Player command: VOLUME DOWN");
                 VOLUME.update(Ordering::SeqCst, Ordering::SeqCst, |vol| 1.max(vol - 1));
             }
-            PlayerCommand::Play(file) => {
-                info!("Player command: PLAY FILE {}", file);
-                play_files(fs, vec![file], &mut player, &spawner).await;
+            PlayerCommand::Playlist(playlist) => {
+                info!(
+                    "Player command: PLAY LIST with {} files",
+                    playlist.files.len()
+                );
+                play_files(fs, playlist.files, &mut player, &spawner).await;
             }
-            PlayerCommand::PlayList(list) => {
-                info!("Player command: PLAY LIST {}", list);
-
-                if let Some(files) = read_playlist(fs, &list)
+            PlayerCommand::PlaylistRef(playlist_ref) => {
+                if let Some(playlist) = playlist_ref
+                    .read(fs)
                     .await
                     .print_err("Failed to read playlist")
                 {
-                    play_files(fs, files, &mut player, &spawner).await;
+                    info!(
+                        "Player command: PLAY LIST REF with {} files",
+                        playlist.files.len()
+                    );
+                    play_files(fs, playlist.files, &mut player, &spawner).await;
                 }
             }
         }
@@ -168,7 +178,7 @@ pub async fn run_player(
 
 async fn play_files(
     fs: &'static SdFileSystem<'static>,
-    files: Vec<String<8>>,
+    files: Vec<AudioFile>,
     player: &mut Player,
     spawner: &Spawner,
 ) {
@@ -188,7 +198,7 @@ async fn play_files(
 #[embassy_executor::task]
 async fn play_files_task(
     fs: &'static SdFileSystem<'static>,
-    files: Vec<String<8>>,
+    files: Vec<AudioFile>,
     mut dma_transfer: I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
 ) {
     play_beep(2, &mut dma_transfer).await;
@@ -212,64 +222,6 @@ async fn stop_player() {
     STOP_SIGNAL.signal(());
     Timer::after_millis(50).await;
     STOP_SIGNAL.reset();
-}
-
-async fn read_playlist(
-    fs: &'static SdFileSystem<'static>,
-    list_name: &str,
-) -> Result<Vec<String<8>>, ()> {
-    let root = fs.root_dir();
-    let dir = root
-        .open_dir("fobs")
-        .await
-        .print_err("Failed to open fobs directory")
-        .ok_or(())?;
-    let fname = with_extension(list_name, "m3u").unwrap();
-    let mut file = dir
-        .open_file(&fname)
-        .await
-        .print_err("Failed to open playlist file")
-        .ok_or(())?;
-
-    // Read entire file
-    // TODO: Change to using a ring buffer instead of reading all at once.
-    let mut buffer = Vec::new();
-    let mut temp_buf = [0u8; 256];
-    loop {
-        match file.read(&mut temp_buf).await {
-            Ok(0) => break,
-            Ok(n) => buffer.extend_from_slice(&temp_buf[..n]),
-            Err(_) => {
-                error!("Error reading playlist file");
-                return Err(());
-            }
-        }
-    }
-
-    // Parse
-    let content = core::str::from_utf8(&buffer)
-        .map_err(|_| ())
-        .print_err("Invalid UTF-8 in playlist")
-        .ok_or(())?;
-    let mut files = Vec::new();
-    for line in content.lines() {
-        let line = line.trim();
-        if line.starts_with('#') || line.is_empty() {
-            continue;
-        }
-        // Assume ..\files\<file>.wav
-        if line.starts_with("..\\files\\") && line.ends_with(".wav") {
-            let start = "..\\files\\".len();
-            let end = line.len() - ".wav".len();
-            let file_part = &line[start..end];
-            let file = file_part
-                .parse::<String<8>>()
-                .print_err("Failed to parse filename")
-                .ok_or(())?;
-            files.push(file);
-        }
-    }
-    Ok(files)
 }
 
 async fn play_beep(
@@ -314,9 +266,15 @@ async fn play_samples_from_iterator(
 
 async fn play_file<'a>(
     fs: &'a SdFileSystem<'a>,
-    file: String<8>,
+    file: AudioFile,
     dma_transfer: &'a mut I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
 ) {
+    let Ok(mut file) = file.open(fs).await else {
+        return;
+    };
+
+    // skip header
+    file.seek(embedded_io::SeekFrom::Start(48)).await.ok();
     static PENDING_BUFFER: LazyLock<Mutex<CriticalSectionRawMutex, [u8; 1024]>> =
         LazyLock::new(|| Mutex::new([0u8; 1024]));
     static READY_BUFFER: LazyLock<Mutex<CriticalSectionRawMutex, [u8; 1024]>> =
@@ -326,24 +284,6 @@ async fn play_file<'a>(
     let mut pending_buffer = &mut *pending_buffer;
     let mut ready_buffer = READY_BUFFER.get().lock().await;
     let mut ready_buffer = &mut *ready_buffer;
-
-    let root = fs.root_dir();
-
-    let Some(mut file) = (try {
-        let fname = with_extension(&file, "wav").unwrap();
-        let dir = root
-            .open_dir("files")
-            .await
-            .print_err("Opening files directory")?;
-        let mut file = dir.open_file(&fname).await.print_err("Opening file")?;
-        // skip header
-        file.seek(embedded_io::SeekFrom::Start(48))
-            .await
-            .print_err("Skipping header");
-        file
-    }) else {
-        return;
-    };
 
     let mut next_block = match read_block(&mut file, ready_buffer).await {
         Ok(BlockReadResult::Full) => &ready_buffer[..],

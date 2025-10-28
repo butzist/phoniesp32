@@ -13,6 +13,7 @@ use heapless::String;
 use mfrc522::comm::blocking::spi::{DummyDelay, SpiInterface};
 use mfrc522::{Initialized, Mfrc522};
 
+use crate::entities::playlist::PlayListRef;
 use crate::player::PlayerCommand;
 
 use {esp_backtrace as _, esp_println as _};
@@ -72,10 +73,13 @@ async fn rfid_task(mut rfid: MyMfrc522, commands: Sender<'static, NoopRawMutex, 
                     "{:02x}{:02x}{:02x}{:02x}",
                     uid_bytes[0], uid_bytes[1], uid_bytes[2], uid_bytes[3]
                 );
+
                 let fob_str = String::try_from(hex_str.as_str()).unwrap();
                 LAST_FOB.lock().await.replace(fob_str.clone());
 
-                let _ = commands.send(PlayerCommand::PlayList(fob_str)).await;
+                let _ = commands
+                    .send(PlayerCommand::PlaylistRef(PlayListRef::new(fob_str)))
+                    .await;
                 Timer::after(Duration::from_millis(5000)).await;
             }
         } else {

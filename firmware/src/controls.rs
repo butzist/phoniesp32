@@ -1,3 +1,4 @@
+use alloc::vec;
 use embassy_futures::select::{select4, Either4};
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Sender;
@@ -8,6 +9,8 @@ use esp_hal::touch::{Continuous, TouchPad};
 use esp_hal::Async;
 use esp_hal::{rtc_cntl::Rtc, touch::Touch};
 
+use crate::entities::audio_file::AudioFile;
+use crate::entities::playlist::Playlist;
 use crate::player::PlayerCommand;
 
 pub enum AnyTouchPin<'a> {
@@ -108,7 +111,10 @@ pub async fn run_controls(
         match controls.wait_for_touch().await {
             Pad::Play => {
                 commands
-                    .send(PlayerCommand::Play("test.wav".try_into().unwrap()))
+                    .send(PlayerCommand::Playlist(Playlist::new(
+                        "test".try_into().unwrap(),
+                        vec![AudioFile::new("test".try_into().unwrap())],
+                    )))
                     .await
             }
             Pad::Stop => commands.send(PlayerCommand::Stop).await,

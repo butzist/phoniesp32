@@ -107,6 +107,7 @@ pub fn with_extension(basename: &str, ext: &str) -> Result<heapless::String<12>,
 }
 
 pub mod controls;
+pub mod entities;
 pub mod player;
 pub mod radio;
 pub mod rfid;
