@@ -9,9 +9,12 @@
 
 use defmt::info;
 use embassy_executor::Spawner;
+use embassy_net::tcp::TcpSocket;
+use embassy_net::IpListenEndpoint;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::Timer;
+use embedded_io_async::Write;
 use esp_hal::clock::CpuClock;
 use esp_hal::timer::timg::TimerGroup;
 use firmware::controls::{AnyTouchPin, Controls};
@@ -86,15 +89,15 @@ async fn main(spawner: Spawner) {
         commands.sender(),
     ));
 
-    let _rfid = Rfid::new(
-        peripherals.SPI3.into(),
-        peripherals.GPIO14.into(),
-        peripherals.GPIO13.into(),
-        peripherals.GPIO12.into(),
-        peripherals.GPIO21.into(),
-        &spawner,
-        commands.sender(),
-    );
+    //let _rfid = Rfid::new(
+    //    peripherals.SPI3.into(),
+    //    peripherals.GPIO14.into(),
+    //    peripherals.GPIO13.into(),
+    //    peripherals.GPIO12.into(),
+    //    peripherals.GPIO21.into(),
+    //    &spawner,
+    //    commands.sender(),
+    //);
 
     let radio = Radio::new(
         peripherals.WIFI,
@@ -105,20 +108,32 @@ async fn main(spawner: Spawner) {
     );
     let stack = radio.start(&spawner).await;
 
-    let web_app = firmware::web::WebApp::default();
-    let web_app_state = firmware::web::AppState::new(fs, commands.sender());
-    for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
-        spawner.must_spawn(firmware::web::web_task(
-            id,
-            stack,
-            web_app.router,
-            web_app.config,
-            web_app_state.clone(),
-        ));
-    }
+    //let web_app = firmware::web::WebApp::default();
+    //let web_app_state = firmware::web::AppState::new(fs, commands.sender());
+    //for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
+    //    spawner.must_spawn(firmware::web::web_task(
+    //        id,
+    //        stack,
+    //        web_app.router,
+    //        web_app.config,
+    //        web_app_state.clone(),
+    //    ));
+    //}
     info!("Web server started...");
 
+    let tx_buffer = make_static!([0u8; 1024]);
+    let rx_buffer = make_static!([0u8; 1024]);
+    let mut socket = TcpSocket::new(stack, rx_buffer, tx_buffer);
+
     loop {
-        Timer::after_secs(1).await;
+        let local_endpoint = IpListenEndpoint {
+            addr: None,
+            port: 8080,
+        };
+        socket.accept(local_endpoint).await.unwrap();
+
+        static BYTES: &[u8; 506646] =
+            include_bytes!("../../public/assets/web_bg-dxh89bee2a7895d89f.wasm.gz");
+        socket.write_all(BYTES).await;
     }
 }
