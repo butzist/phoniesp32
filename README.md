@@ -72,8 +72,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Audio pipeline (I2S → MAX98357)
   - [x] SD card access
   - [x] Playback control via buttons
-  - [ ] Serve web UI with TLS (apparently needed for WASM, grr)
-  - [ ] Playback control via RFID tags
+  - [x] Playback control via RFID tags
   - [ ] Pause playback
   - [ ] Turn off Wi-Fi when on battery power
   - [ ] Playlists
@@ -87,8 +86,8 @@ work-in-progress prototype with lots of noisy data lines...
 - [ ] Web API (picoserve)
   - [x] Associate file with RFID tag
   - [x] Playback control
-  - [ ] Playback status
-  - [ ] Last scanned RFID tag ID
+  - [x] Playback status
+  - [x] Last scanned RFID tag ID
   - [x] Configure Wi-Fi settings
   - [ ] List known tags
   - [ ] List uploaded files
