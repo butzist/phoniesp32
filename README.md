@@ -67,6 +67,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [ ] List known tags
   - [ ] List uploaded files
   - [ ] Speed up transcoding
+  - [ ] Update to stable Dioxus 0.7
 - [ ] Firmware (Embassy)
   - [x] Fallback to Wi-Fi AP mode
   - [x] Audio pipeline (I2S → MAX98357)
@@ -83,6 +84,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [ ] SD card partitioning support
   - [ ] Async / IRQ for RFID reader
   - [ ] Playback control via BLE
+  - [ ] Update to stable esp-hal 1.0
 - [ ] Web API (picoserve)
   - [x] Associate file with RFID tag
   - [x] Playback control
