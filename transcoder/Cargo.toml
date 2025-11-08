@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 thiserror = "2.0.17"
-symphonia = { version = "0.5.4", features = [
+symphonia = { version = "0.5.5", features = [
   "aac",
   "flac",
   "vorbis",
@@ -15,3 +15,12 @@ symphonia = { version = "0.5.4", features = [
 rubato = "0.16.2"
 ebur128 = "0.1.10"
 audio-codec-algorithms = "0.7.0"
+audio-file-utils = { path = "../audio-file-utils", features = ["std"] }
+embedded-io-async = "0.7"
+tokio = { version = "1", default-features = false, features = [
+  "macros",
+  "rt-multi-thread",
+], optional = true }
+
+[features]
+tokio-runtime = ["tokio"]

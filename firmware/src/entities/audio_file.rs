@@ -1,17 +1,34 @@
+use defmt::warn;
 use heapless::String;
 
+use crate::entities::basename;
 use crate::sd::{FileHandle, SdFileSystem};
 use crate::{with_extension, PrintErr};
+use audio_file_utils::metadata::{extract_metadata, INFO_CHUNK_SIZE};
+use embedded_io_async::{Seek, SeekFrom};
+use futures::stream::{self, Stream, StreamExt};
 
-const FILE_DIR: &str = "files";
-const FILE_EXT: &str = "wav";
+const FILE_DIR: &str = "FILES";
+const FILE_EXT: &str = ".WAV";
 
 #[derive(Clone)]
-pub struct Info {
-    pub artist: String<32>,
-    pub title: String<32>,
-    pub album: String<32>,
+pub struct Metadata {
+    pub artist: String<31>,
+    pub title: String<31>,
+    pub album: String<31>,
     pub duration: u32,
+}
+
+impl Default for Metadata {
+    fn default() -> Self {
+        let default: String<31> = "Unknown".try_into().unwrap();
+        Self {
+            artist: default.clone(),
+            title: default.clone(),
+            album: default,
+            duration: 60,
+        }
+    }
 }
 
 pub struct AudioFile(String<8>);
@@ -56,9 +73,9 @@ impl AudioFile {
     }
 
     pub fn from_path(path: &str) -> Option<Self> {
-        if path.starts_with("..\\files\\") && path.ends_with(".wav") {
-            let start = "..\\files\\".len();
-            let end = path.len() - ".wav".len();
+        if path.starts_with("..\\FILES\\") && path.ends_with(FILE_EXT) {
+            let start = "..\\FILES\\".len();
+            let end = path.len() - FILE_EXT.len();
 
             Some(Self(path[start..end].parse::<String<8>>().ok()?))
         } else {
@@ -66,14 +83,86 @@ impl AudioFile {
         }
     }
 
-    pub async fn info(&self, fs: &SdFileSystem<'_>) -> Result<Info, ()> {
-        // For now, fake info. In future, parse ID3 tags or WAV header for duration.
-        let _file = self.open(fs).await?; // Open to potentially read metadata
-        Ok(Info {
-            artist: "Unknown Artist".try_into().unwrap(),
-            title: "Unknown Track".try_into().unwrap(),
-            album: "Unknown Album".try_into().unwrap(),
-            duration: 60, // Fake duration in seconds
+    pub async fn data_reader<'a>(
+        &self,
+        fs: &'a SdFileSystem<'a>,
+    ) -> Result<impl embedded_io_async::Read<Error = impl defmt::Format> + use<'a>, ()> {
+        let mut file = self.open(fs).await?;
+
+        let list_chunk_size = 8 + INFO_CHUNK_SIZE as u64;
+        let header_size = 48 + list_chunk_size;
+
+        file.seek(SeekFrom::Start(header_size)).await.unwrap();
+        Ok(file)
+    }
+
+    pub async fn metadata(&self, fs: &SdFileSystem<'_>) -> Result<Metadata, ()> {
+        let root = fs.root_dir();
+        let fname = with_extension(&self.0, FILE_EXT).unwrap();
+        let dir = root
+            .open_dir(FILE_DIR)
+            .await
+            .print_err("Opening files directory")
+            .ok_or(())?;
+
+        let meta = dir
+            .open_meta(&fname)
+            .await
+            .print_err("Checking file")
+            .ok_or(())?;
+        let file_size = meta.len();
+
+        let mut file = dir
+            .open_file(&fname)
+            .await
+            .print_err("Opening file")
+            .ok_or(())?;
+        let audio_metadata = extract_metadata(&mut file).await.unwrap_or_default();
+
+        let list_chunk_size = 8 + INFO_CHUNK_SIZE as u64;
+        let header_size = 48 + list_chunk_size;
+        let data_size = file_size - header_size;
+
+        // Assume fixed format: 44100 Hz, mono, IMA ADPCM (4 bits/sample, 2 samples/byte)
+        let duration = (data_size / 22050) as u32;
+
+        Ok(Metadata {
+            artist: audio_metadata.artist,
+            title: audio_metadata.title,
+            album: audio_metadata.album,
+            duration,
         })
     }
+}
+
+pub async fn list_files(
+    fs: &SdFileSystem<'_>,
+) -> Result<impl Stream<Item = Result<(String<8>, Metadata), ()>>, ()> {
+    let root = fs.root_dir();
+    let dir = root
+        .open_dir(FILE_DIR)
+        .await
+        .print_err("open files dir")
+        .ok_or(())?;
+
+    let mut files = alloc::vec::Vec::new();
+    let mut iter = dir.iter();
+    while let Some(entry) = iter.next().await {
+        if let Ok(entry) = entry {
+            if entry.is_file() {
+                if let Some(name) = basename(entry.short_file_name_as_bytes(), FILE_EXT) {
+                    let audio_file = AudioFile::new(name.clone());
+                    let metadata = audio_file.metadata(fs).await.unwrap_or_default();
+                    files.push((name, metadata));
+                } else {
+                    warn!(
+                        "Unknown file: \\FILES\\{}",
+                        entry.short_file_name_as_bytes()
+                    )
+                }
+            }
+        }
+    }
+
+    Ok(stream::iter(files.into_iter()).map(Ok))
 }

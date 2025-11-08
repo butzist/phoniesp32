@@ -101,7 +101,6 @@ where
 pub fn with_extension(basename: &str, ext: &str) -> Result<heapless::String<12>, ()> {
     let mut fname = heapless::String::<12>::new();
     fname.push_str(basename)?;
-    fname.push('.')?;
     fname.push_str(ext)?;
     Ok(fname)
 }

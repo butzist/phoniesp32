@@ -1,13 +1,15 @@
 use super::audio_file::AudioFile;
+use crate::entities::basename;
 use crate::sd::SdFileSystem;
 use crate::{with_extension, PrintErr};
 use alloc::{string::ToString, vec::Vec};
-use defmt::error;
+use defmt::{error, warn};
 use embedded_io_async::{Read, Write};
+use futures::stream::{self, Stream, StreamExt};
 use heapless::String;
 
-const PLAYLIST_DIR: &str = "fobs";
-const PLAYLIST_EXT: &str = "m3u";
+const PLAYLIST_DIR: &str = "FOBS";
+const PLAYLIST_EXT: &str = ".M3U";
 
 pub struct PlayListRef(String<8>);
 
@@ -101,22 +103,51 @@ impl Playlist {
         file.write_all(b"#EXTM3U\r\n").await.unwrap();
 
         for file_entry in files {
-            let info = file_entry.info(fs).await.unwrap();
+            let metadata = file_entry.metadata(fs).await.unwrap();
             file.write_all(b"#EXTINF:").await.unwrap();
-            file.write_all(info.duration.to_string().as_bytes())
+            file.write_all(metadata.duration.to_string().as_bytes())
                 .await
                 .unwrap();
             file.write_all(b",").await.unwrap();
-            file.write_all(info.artist.as_bytes()).await.unwrap();
+            file.write_all(metadata.artist.as_bytes()).await.unwrap();
             file.write_all(b" - ").await.unwrap();
-            file.write_all(info.title.as_bytes()).await.unwrap();
+            file.write_all(metadata.title.as_bytes()).await.unwrap();
             file.write_all(b"\r\n").await.unwrap();
-            file.write_all(b"..\\files\\").await.unwrap();
+            file.write_all(b"..\\FILES\\").await.unwrap();
             file.write_all(file_entry.name().as_bytes()).await.unwrap();
-            file.write_all(b".wav\r\n").await.unwrap();
+            file.write_all(b".WAV\r\n").await.unwrap();
         }
         file.flush().await.unwrap();
 
         Ok(())
     }
+}
+
+pub async fn list_playlists(
+    fs: &SdFileSystem<'_>,
+) -> Result<
+    impl Stream<Item = Result<(String<8>, alloc::vec::Vec<super::audio_file::AudioFile>), ()>>,
+    (),
+> {
+    let root = fs.root_dir();
+    let dir = root.open_dir(PLAYLIST_DIR).await.map_err(|_| ())?;
+
+    let mut playlists = alloc::vec::Vec::new();
+    let mut iter = dir.iter();
+    while let Some(entry) = iter.next().await {
+        if let Ok(entry) = entry {
+            if entry.is_file() {
+                if let Some(name) = basename(entry.short_file_name_as_bytes(), PLAYLIST_EXT) {
+                    let playlist_ref = PlayListRef::new(name.clone());
+                    if let Ok(playlist) = playlist_ref.read(fs).await {
+                        playlists.push((name, playlist.files));
+                    }
+                } else {
+                    warn!("Unknown file: \\FOBS\\{}", entry.short_file_name_as_bytes())
+                }
+            }
+        }
+    }
+
+    Ok(stream::iter(playlists.into_iter()).map(Ok))
 }

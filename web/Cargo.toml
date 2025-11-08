@@ -25,6 +25,8 @@ reqwest = { version = "0.12", default-features = false, features = [
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
+audio-file-utils = { path = "../audio-file-utils", features = ["std"] }
+heapless = "0.8"
 
 
 [features]

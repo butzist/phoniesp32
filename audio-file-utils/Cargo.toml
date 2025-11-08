@@ -1,0 +1,12 @@
+[package]
+name = "audio-file-utils"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+embedded-io-async = { version = "0.6", features = ["alloc"] }
+thiserror = { version = "2", default-features = false }
+heapless = { version = "0.8" }
+
+[features]
+std = ["embedded-io-async/std", "thiserror/std"]

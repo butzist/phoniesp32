@@ -33,7 +33,7 @@ self.onmessage = async (ev) => {
 
   try {
     await ensureWasm();
-    const output = transcode(input, progress);
+    const output = await transcode(input, progress);
 
     // transfer ownership of output buffer
     self.postMessage({result: output}, [output]);

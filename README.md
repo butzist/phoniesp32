@@ -57,11 +57,11 @@ work-in-progress prototype with lots of noisy data lines...
 - [x] UI (Dioxus)
   - [x] File transcoding
   - [x] Served from device
-  - [ ] Show last scanned RFID tag ID
+  - [x] Show last scanned RFID tag ID
   - [ ] Switch to Bluma CSS
   - [ ] Playback control
-  - [ ] Store RIFF INFO chunk for artist/title
-  - [ ] Associate file with RFID tag
+  - [x] Store RIFF INFO chunk for artist/title
+  - [x] Associate file with RFID tag
   - [ ] Configure Wi-Fi settings
   - [ ] Playlists
   - [ ] List known tags
@@ -76,9 +76,9 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Playback control via RFID tags
   - [ ] Pause playback
   - [ ] Turn off Wi-Fi when on battery power
-  - [ ] Playlists
+  - [x] Playlists
   - [ ] mDNS responder
-  - [ ] Use RIFF INFO chunk for artist/title
+  - [x] Use RIFF INFO chunk for artist/title
   - [ ] Power management
   - [ ] Speed up SD access/upload
   - [ ] SD card partitioning support
@@ -88,15 +88,15 @@ work-in-progress prototype with lots of noisy data lines...
 - [ ] Web API (picoserve)
   - [x] Associate file with RFID tag
   - [x] Playback control
-  - [x] Playback status
+  - [ ] Playback status
   - [x] Last scanned RFID tag ID
   - [x] Configure Wi-Fi settings
-  - [ ] List known tags
-  - [ ] List uploaded files
-  - [ ] Playlists
-- [ ] Build system
+  - [x] List known tags
+  - [x] List uploaded files
+  - [x] Playlists
+- [x] Build system
   - [x] Build and bundle all components
-  - [ ] Build via GitHub actions
+  - [x] Build via GitHub actions
 - [ ] Documentation
   - [ ] Full build instructions
   - [ ] Video tutorial

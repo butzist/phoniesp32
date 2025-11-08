@@ -1,20 +1,15 @@
 deps:
 
-all: deps build-release
-
-all-nodeps: build-release
-
-build:
-	cargo build
-
-build-release:
-	cargo build --release
+all:
 
 test:
 	cargo test
 
+build:
+	cargo build --release --bin transcoder-test --features tokio-runtime
+
 run:
-	cargo run --bin transcoder-test
+	cargo run --release --bin transcoder-test --features tokio-runtime
 
 clean:
 	cargo clean

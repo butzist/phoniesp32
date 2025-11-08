@@ -11,6 +11,7 @@ mod assets {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));
 }
 mod config;
+mod files;
 mod fob;
 mod playback;
 mod upload;
@@ -35,6 +36,20 @@ pub struct Test {
     x: u16,
 }
 
+#[derive(Clone, Serialize)]
+pub struct FileEntry {
+    pub name: heapless::String<8>,
+    pub metadata: FileMetadata,
+}
+
+#[derive(Clone, Serialize)]
+pub struct FileMetadata {
+    pub artist: heapless::String<31>,
+    pub title: heapless::String<31>,
+    pub album: heapless::String<31>,
+    pub duration: u32,
+}
+
 pub struct Application;
 impl AppWithStateBuilder for Application {
     type PathRouter = impl routing::PathRouter<AppState>;
@@ -46,8 +61,12 @@ impl AppWithStateBuilder for Application {
                 ("/api/files", routing::parse_path_segment()),
                 routing::put_service(upload::UploadService),
             )
+            .route("/api/files", routing::get(files::list))
             .route("/api/last_fob", routing::get(fob::last))
-            .route("/api/associations", routing::post(fob::associate))
+            .route(
+                "/api/associations",
+                routing::get(fob::list).post(fob::associate),
+            )
             .route("/api/playback/status", routing::get(playback::status))
             .route("/api/playback/play", routing::post(playback::play))
             .route("/api/playback/stop", routing::post(playback::stop))
@@ -60,8 +79,10 @@ impl AppWithStateBuilder for Application {
                 "/api/playback/volume_down",
                 routing::post(playback::volume_down),
             )
-            .route("/api/config", routing::put(config::put))
-            .route("/api/config", routing::delete(config::delete));
+            .route(
+                "/api/config",
+                routing::put(config::put).delete(config::delete),
+            );
         assets::add_asset_routes(router)
     }
 }

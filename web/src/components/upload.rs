@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::metadata;
 use crate::services::{self, transcoder};
 
 use anyhow::{Context, Result};
@@ -82,6 +83,8 @@ pub fn Upload() -> Element {
     let mut input_element: Signal<Option<web_sys::HtmlInputElement>> = use_signal(|| None);
 
     let mut file_name = use_signal(|| None);
+    let mut metadata = use_signal(|| None::<metadata::Metadata>);
+    let mut edited_metadata = use_signal(|| None::<metadata::Metadata>);
 
     use_effect(move || {
         if let (Some(_), ConversionStatus::Complete(_)) =
@@ -108,13 +111,15 @@ pub fn Upload() -> Element {
             return;
         };
         conversion_status.set(ConversionStatus::Running(0));
-
+        metadata.set(None);
+        edited_metadata.set(None);
         file_name.set(Some(name.to_string()));
 
         let data = fileengine
             .read_file(&name)
             .await
             .expect("failed reading file");
+
         let progress = move |percent: usize, _total: usize| {
             if ConversionStatus::Running(percent as u8) != *conversion_status.read() {
                 conversion_status.set(ConversionStatus::Running(percent as u8));
@@ -122,7 +127,12 @@ pub fn Upload() -> Element {
         };
 
         match transcoder::transcode(data.into(), progress).await {
-            Ok(output) => conversion_status.set(ConversionStatus::Complete(output)),
+            Ok(output) => {
+                let output_extracted = metadata::extract_metadata(&output).await;
+                metadata.set(Some(output_extracted.clone()));
+                edited_metadata.set(Some(output_extracted));
+                conversion_status.set(ConversionStatus::Complete(output));
+            }
             Err(err) => conversion_status.set(ConversionStatus::Error(format!("{err:?}"))),
         }
     };
@@ -130,15 +140,27 @@ pub fn Upload() -> Element {
     let perform_upload = move || async move {
         let result: Result<()> = try {
             let file_name = file_name.as_ref().context("file name not set")?;
-            let file_data = conversion_status
+            let mut data = conversion_status
                 .take()
                 .take_file_data()
                 .context("file data not set")?;
             let last_fob = last_fob().context("fob id missing")?;
 
+            if let (Some(edited), Some(original)) = (edited_metadata(), metadata()) {
+                if edited != original {
+                    let result = metadata::update_metadata(&mut data, &edited)
+                        .await
+                        .context("failed updating metadata");
+                    if let Err(err) = result {
+                        conversion_status.set(ConversionStatus::Error(format!("{err:?}")));
+                        return;
+                    }
+                }
+            }
+
             upload_status.set(UploadStatus::Pending);
 
-            services::files::put_file(&file_name, file_data)
+            services::files::put_file(&file_name, data)
                 .await
                 .context("uploading file")?;
             services::fob::associate_fob(&last_fob, &file_name)
@@ -194,6 +216,44 @@ pub fn Upload() -> Element {
                 },
             }
             div { class: "filename", "{file_name:?}" }
+            {matches!(*conversion_status.read(), ConversionStatus::Complete(_)).then(|| rsx! {
+                div { class: "metadata",
+                    {edited_metadata().map(|meta| {
+                        let artist = meta.artist.clone();
+                        let title = meta.title.clone();
+                        let album = meta.album.clone();
+                        let meta_for_artist = meta.clone();
+                        let meta_for_title = meta.clone();
+                        let meta_for_album = meta.clone();
+                        rsx! {
+                            div {
+                                label { "Artist:" }
+                                input { r#type: "text", value: artist.as_str(), maxlength: "31", oninput: move |e| {
+                                    let mut new_meta = meta_for_artist.clone();
+                                    new_meta.artist = e.value().chars().take(31).collect();
+                                    edited_metadata.set(Some(new_meta));
+                                } }
+                            }
+                            div {
+                                label { "Title:" }
+                                input { r#type: "text", value: title.as_str(), maxlength: "31", oninput: move |e| {
+                                    let mut new_meta = meta_for_title.clone();
+                                    new_meta.title = e.value().chars().take(31).collect();
+                                    edited_metadata.set(Some(new_meta));
+                                } }
+                            }
+                            div {
+                                label { "Album:" }
+                                input { r#type: "text", value: album.as_str(), maxlength: "31", oninput: move |e| {
+                                    let mut new_meta = meta_for_album.clone();
+                                    new_meta.album = e.value().chars().take(31).collect();
+                                    edited_metadata.set(Some(new_meta));
+                                } }
+                            }
+                        }
+                    })}
+                }
+            })}
         }
         div { class: "progress", hidden: conversion_status.read().progress_percent().is_none(),
             div { class: "bar",

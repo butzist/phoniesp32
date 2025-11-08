@@ -21,7 +21,6 @@ use embassy_sync::lazy_lock::LazyLock;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::Timer;
-use embedded_io_async::Seek;
 use esp_hal::dma::{AnyI2sDmaChannel, DmaDescriptor};
 use esp_hal::dma_buffers;
 use esp_hal::gpio::AnyPin;
@@ -201,7 +200,7 @@ async fn play_files_task(
     files: Vec<AudioFile>,
     mut dma_transfer: I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
 ) {
-    play_beep(2, &mut dma_transfer).await;
+    play_beep(4, &mut dma_transfer).await;
     for (i, file) in files.into_iter().enumerate() {
         if i > 0 {
             // sleep for ~2s
@@ -228,7 +227,7 @@ async fn play_beep(
     duration_100ms: u16,
     dma_transfer: &mut I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
 ) {
-    let freq = 2000.;
+    let freq = 1000.;
     let samples = (0..44100 / 100 * duration_100ms)
         .map(|i| (libm::sinf(i as f32 / 44100. * freq * 2. * PI) * i16::MAX as f32) as i16);
 
@@ -269,12 +268,10 @@ async fn play_file<'a>(
     file: AudioFile,
     dma_transfer: &'a mut I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
 ) {
-    let Ok(mut file) = file.open(fs).await else {
+    let Ok(mut file_handle) = file.data_reader(fs).await else {
         return;
     };
 
-    // skip header
-    file.seek(embedded_io::SeekFrom::Start(48)).await.ok();
     static PENDING_BUFFER: LazyLock<Mutex<CriticalSectionRawMutex, [u8; 1024]>> =
         LazyLock::new(|| Mutex::new([0u8; 1024]));
     static READY_BUFFER: LazyLock<Mutex<CriticalSectionRawMutex, [u8; 1024]>> =
@@ -285,7 +282,7 @@ async fn play_file<'a>(
     let mut ready_buffer = READY_BUFFER.get().lock().await;
     let mut ready_buffer = &mut *ready_buffer;
 
-    let mut next_block = match read_block(&mut file, ready_buffer).await {
+    let mut next_block = match read_block(&mut file_handle, ready_buffer).await {
         Ok(BlockReadResult::Full) => &ready_buffer[..],
         Ok(BlockReadResult::Eof) => return, // cleanup DMA buffer afterwards
         Ok(BlockReadResult::Partial(size)) => {
@@ -300,7 +297,7 @@ async fn play_file<'a>(
             return;
         }
     };
-    let mut read_future = read_block(&mut file, pending_buffer);
+    let mut read_future = read_block(&mut file_handle, pending_buffer);
     loop {
         let volume = VOLUME.load(Ordering::SeqCst);
         let apply_volume = |sample: i16| (sample as i32 * volume as i32 / 16) as i16;
@@ -382,7 +379,7 @@ async fn play_file<'a>(
             }
         };
 
-        read_future = read_block(&mut file, pending_buffer);
+        read_future = read_block(&mut file_handle, pending_buffer);
     }
 }
 

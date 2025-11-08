@@ -2,7 +2,7 @@ use js_sys::{ArrayBuffer, Function, Uint8Array};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub fn transcode(input: &ArrayBuffer, progress: &Function) -> Result<ArrayBuffer, JsValue> {
+pub async fn transcode(input: &ArrayBuffer, progress: &Function) -> Result<ArrayBuffer, JsValue> {
     let mut last_position: usize = 0;
     let progress = move |position: usize, total: usize| {
         if last_position == position {
@@ -25,6 +25,7 @@ pub fn transcode(input: &ArrayBuffer, progress: &Function) -> Result<ArrayBuffer
     u8_array.copy_to(vec.as_mut_slice());
 
     let samples = transcoder::decode_and_normalize(vec.into(), progress)
+        .await
         .map_err(|e| js_sys::Error::new(&e.to_string()))?;
 
     // TODO: encode as IMA ADPCM

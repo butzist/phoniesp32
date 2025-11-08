@@ -2,6 +2,7 @@
 use dioxus::prelude::*;
 
 pub(crate) mod components;
+pub(crate) mod metadata;
 pub(crate) mod services;
 
 use components::{Controls, Upload};
