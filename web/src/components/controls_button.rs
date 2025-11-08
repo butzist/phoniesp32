@@ -1,20 +1,30 @@
-pub use dioxus::prelude::*;
+use dioxus::prelude::*;
+use dioxus_bulma as b;
 use dioxus_free_icons::{Icon, IconShape};
 
 #[component]
 pub fn ControlsButton<T: IconShape + PartialEq + Clone + 'static>(
     icon: T,
     label: String,
+    onclick: Option<EventHandler<MouseEvent>>,
+    size: Option<b::BulmaSize>,
 ) -> Element {
+    let icon_size = match size {
+        Some(b::BulmaSize::Small) => 12,
+        _ => 24,
+    };
     rsx! {
-        button { class: "btn secondary",
+        b::Button {
+            color: b::BulmaColor::Primary,
+            size: size,
+            onclick: onclick,
             Icon {
-                width: 24,
-                height: 24,
-                fill: "black",
+                width: icon_size,
+                height: icon_size,
+                fill: "currentColor",
                 title: label,
                 icon: icon,
-            },
+            }
         }
     }
 }

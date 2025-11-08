@@ -2,10 +2,8 @@ use std::{cell::RefCell, sync::OnceLock};
 
 use anyhow::{Context, Error, Result};
 use dioxus::prelude::*;
-use tokio::sync::{
-    oneshot::{channel, Sender},
-    Semaphore,
-};
+use futures::channel::oneshot::{channel, Sender};
+use async_lock::Semaphore;
 use wasm_bindgen::prelude::*;
 use web_sys::{
     js_sys::{self, Array, Uint8Array},
@@ -127,7 +125,7 @@ where
     init_workers()?;
 
     let sem = FREE_WORKERS.get_or_init(|| Semaphore::new(N_WORKERS));
-    let _permit = sem.acquire().await.unwrap();
+    let _permit = sem.acquire().await;
 
     let worker = WORKERS.with_borrow_mut(|workers| workers.as_mut().unwrap().pop().unwrap());
     let res = f(worker.clone()).await;

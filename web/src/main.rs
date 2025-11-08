@@ -1,21 +1,27 @@
 #![feature(try_blocks)]
 use dioxus::prelude::*;
-
+use dioxus_bulma as b;
 pub(crate) mod components;
+pub(crate) mod layouts;
 pub(crate) mod metadata;
+pub(crate) mod pages;
 pub(crate) mod services;
 
-use components::{Controls, Upload};
+use layouts::Layout;
+use pages::{Associations, Playback};
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
+    #[layout(Layout)]
     #[route("/")]
-    Home {},
+    Playback {},
+
+    #[route("/associations")]
+    Associations {},
 }
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
-const MAIN_CSS: Asset = asset!("/assets/styles.scss");
 
 fn main() {
     dioxus::launch(App);
@@ -25,49 +31,8 @@ fn main() {
 fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
-        document::Link { rel: "stylesheet", href: MAIN_CSS }
-        Router::<Route> {}
-    }
-}
-
-/// Home page
-#[component]
-fn Home() -> Element {
-    rsx! {
-        h1 { "PhoniESP32" }
-
-        div {
-            display: "flex",
-            justify_content: "center",
-            align_items: "center",
-            flex_direction: "column",
-            gap: "20px",
-
-            div { class: "card",
-                width: "600px",
-
-                div { class: "header", "Controls" }
-                div { class: "content",
-                    div {
-                        display: "flex",
-                        justify_content: "center",
-                        align_items: "center",
-                        flex_direction: "column",
-                        gap: "20px",
-
-                        div { "Currently playing: NOTHING" }
-                        Controls {}
-                    }
-                }
-            }
-            div { class: "card",
-                width: "600px",
-
-                div { class: "header", "Upload & Convert" }
-                div { class: "content",
-                    Upload {}
-                }
-            }
+        b::BulmaProvider { theme: b::BulmaTheme::Auto, load_bulma_css: true,
+            Router::<Route> {}
         }
     }
 }

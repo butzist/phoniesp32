@@ -27,8 +27,7 @@ pub async fn status(extract::State(_state): extract::State<AppState>) -> impl In
     Json(Status {
         state: State::Stopped,
         position_seconds: None,
-        duration_seconds: None,
-        description: None,
+        metadata: None,
     })
 }
 

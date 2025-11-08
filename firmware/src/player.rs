@@ -59,13 +59,21 @@ pub enum State {
     Stopped,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub struct Status {
     pub state: State,
     pub position_seconds: Option<u16>,
-    pub duration_seconds: Option<u16>,
-    pub description: Option<String<50>>,
+    pub metadata: Option<FileMetadata>,
 }
+
+#[derive(Clone, Serialize)]
+pub struct FileMetadata {
+    pub artist: heapless::String<31>,
+    pub title: heapless::String<31>,
+    pub album: heapless::String<31>,
+    pub duration: u32,
+}
+
 
 pub struct Player {
     i2s: AnyI2s<'static>,

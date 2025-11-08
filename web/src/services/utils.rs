@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct FileMetadata {
     pub artist: String,
     pub title: String,
@@ -8,7 +8,7 @@ pub struct FileMetadata {
     pub duration: u32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct FileEntry {
     pub name: String,
     pub metadata: FileMetadata,

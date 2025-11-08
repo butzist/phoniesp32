@@ -16,7 +16,8 @@ use crate::{
         audio_file::AudioFile,
         playlist::{list_playlists, Playlist},
     },
-    web::{AppState, FileEntry, FileMetadata},
+    web::{AppState, FileEntry},
+    player::FileMetadata,
 };
 
 struct StreamingAssociations {

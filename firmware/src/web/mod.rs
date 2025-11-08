@@ -5,7 +5,7 @@ use esp_alloc as _;
 use picoserve::{routing, AppRouter, AppWithStateBuilder, Router};
 use serde::{Deserialize, Serialize};
 
-use crate::{player::PlayerCommand, sd::SdFileSystem};
+use crate::{player::{PlayerCommand, FileMetadata}, sd::SdFileSystem};
 
 mod assets {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));
@@ -40,14 +40,6 @@ pub struct Test {
 pub struct FileEntry {
     pub name: heapless::String<8>,
     pub metadata: FileMetadata,
-}
-
-#[derive(Clone, Serialize)]
-pub struct FileMetadata {
-    pub artist: heapless::String<31>,
-    pub title: heapless::String<31>,
-    pub album: heapless::String<31>,
-    pub duration: u32,
 }
 
 pub struct Application;
