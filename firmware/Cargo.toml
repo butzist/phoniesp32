@@ -65,13 +65,13 @@ picoserve = { version = "0.16.0", default-features = false, features = [
 embedded-hal-async = "1.0.0"
 embedded-hal-bus = { version = "0.3.0", features = ["async"] }
 aligned = "0.4.2"
-sdspi = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", features = [
+sdspi = { git = "https://github.com/MabezDev/embedded-fatfs", branch = "master", features = [
   "defmt",
 ] }
-block-device-adapters = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", features = [
+block-device-adapters = { git = "https://github.com/MabezDev/embedded-fatfs", branch = "master", features = [
   "defmt",
 ] }
-embedded-fatfs = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", default-features = false, features = [
+embedded-fatfs = { git = "https://github.com/MabezDev/embedded-fatfs", branch = "master", default-features = false, features = [
   "defmt",
 ] }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
