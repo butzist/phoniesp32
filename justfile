@@ -11,6 +11,7 @@ clean:
 	cd web && just clean
 	cd transcoder-webworker && just clean
 	cd firmware && just clean
+	rm firmware.bin
 
 flash:
 	cd firmware && just flash
