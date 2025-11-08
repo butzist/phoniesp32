@@ -67,7 +67,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [ ] List known tags
   - [ ] List uploaded files
   - [ ] Speed up transcoding
-  - [ ] Update to stable Dioxus 0.7
+  - [x] Update to stable Dioxus 0.7
 - [ ] Firmware (Embassy)
   - [x] Fallback to Wi-Fi AP mode
   - [x] Audio pipeline (I2S → MAX98357)

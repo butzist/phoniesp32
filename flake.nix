@@ -31,13 +31,13 @@
         # Build dioxus-cli from GitHub
         dioxusCli = pkgs.rustPlatform.buildRustPackage rec {
           pname = "dioxus-cli";
-          version = "0.7.0-rc.0";
+          version = "0.7.1";
 
           src = pkgs.fetchFromGitHub {
             owner = "DioxusLabs";
             repo = "dioxus";
             rev = "v${version}";
-            sha256 = "025j9qxv5sbdsyjz0cfylqjj6znmyliihjzrlnryp1wbz51nn2cg";
+            sha256 = "sha256-EzfuD3rWVuomyzqSv4b3SVA6MmQiWAeePbdfXEvkiRk=";
           };
 
           nativeBuildInputs = [
@@ -51,7 +51,7 @@
             "no-downloads"
           ];
 
-          cargoHash = "sha256-BZUIOfZ6ophsUQelpkqAaSUmWAsc/AeSAMwsx/nw1eA=";
+          cargoHash = "sha256-cZe+p4pnXgkOvKxNSSylQzbQcBklqJuzf96YzsI3XX4=";
           cargoBuildFlags = ["--package" "dioxus-cli"];
           doCheck = false;
         };
