@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_bulma as b;
-use dioxus_free_icons::icons::fa_solid_icons::{FaFile, FaLink, FaPlay, FaUpload};
+use dioxus_free_icons::icons::fa_solid_icons::{FaFile, FaLink, FaPlay, FaUpload, FaWrench};
 use dioxus_free_icons::Icon;
 use dioxus_router::Link;
 
@@ -64,6 +64,14 @@ pub fn Layout(children: Element) -> Element {
                                         " Association"
                                     }
                                 }
+                            }
+                        }
+                    }
+                    b::NavbarItem {
+                        Link { to: Route::Settings {},
+                            span { class: "has-text-primary",
+                                Icon { icon: FaWrench, width: 16, height: 16, fill: "currentColor" }
+                                " Settings"
                             }
                         }
                     }

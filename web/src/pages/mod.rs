@@ -12,3 +12,6 @@ pub use upload::UploadPage;
 
 mod new_association;
 pub use new_association::NewAssociation;
+
+mod settings;
+pub use settings::Settings;
