@@ -104,8 +104,12 @@ where
                     remaining -= 8 + sub_size;
                 }
             }
-            // Skip remaining bytes in LIST chunk
-            skip(&mut reader, remaining).await?;
+
+            return Ok(Metadata {
+                artist: artist.unwrap_or("Unknown".try_into().unwrap()),
+                title: title.unwrap_or("Unknown".try_into().unwrap()),
+                album: album.unwrap_or("Unknown".try_into().unwrap()),
+            });
         } else {
             // Skip chunk
             skip(&mut reader, chunk_size).await?;
@@ -113,9 +117,9 @@ where
     }
 
     Ok(Metadata {
-        artist: artist.unwrap_or("Unknown".try_into().unwrap()),
-        title: title.unwrap_or("Unknown".try_into().unwrap()),
-        album: album.unwrap_or("Unknown".try_into().unwrap()),
+        artist: "Unknown".try_into().unwrap(),
+        title: "Unknown".try_into().unwrap(),
+        album: "Unknown".try_into().unwrap(),
     })
 }
 
