@@ -42,35 +42,38 @@ pub fn AssociationTable() -> Element {
                 fullwidth: true,
                 thead {
                     tr {
+                        th { "Play" }
                         th { "Fob ID" }
                         th { "Songs" }
                         th { "Total Duration" }
-                        th { "Play" }
                     }
                 }
                 tbody {
-                    for info in infos {
-                        tr {
-                            td { "{info.fob}" }
-                            td { "{info.count}" }
-                            td { "{info.duration_str}" }
-                            td {
-                                ControlsButton {
-                                    icon: FaPlay,
-                                    label: "Play Association".to_string(),
-                                    size: Some(b::BulmaSize::Small),
-                                    onclick: Some(EventHandler::new(move |_| {
-                                        let fob = info.fob.clone();
+                    {infos.clone().into_iter().map(|info| {
+                        let fob = info.fob.clone();
+                        rsx! {
+                            tr {
+                                td {
+                                    ControlsButton {
+                                        icon: FaPlay,
+                                        label: "Play Association".to_string(),
+                                        size: Some(b::BulmaSize::Small),
+                                onclick: Some(EventHandler::new(move |_| {
+                                        let value = fob.clone();
                                         spawn(async move {
-                                            if let Err(e) = services::playback::play_playlist_ref(&fob).await {
+                                            if let Err(e) = services::playback::play_playlist_ref(&value).await {
                                                 eprintln!("Failed to play playlist: {:?}", e);
                                             }
                                         });
                                     })),
+                                    }
                                 }
+                                td { "{info.fob}" }
+                                td { "{info.count}" }
+                                td { "{info.duration_str}" }
                             }
                         }
-                    }
+                    })}
                 }
             }
         } else {

@@ -19,5 +19,5 @@ pub use navbar_burger::NavbarBurger;
 mod upload;
 pub use upload::Upload;
 
-
-
+mod modal;
+pub use modal::Modal;

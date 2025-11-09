@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_bulma as b;
-use dioxus_free_icons::icons::fa_solid_icons::{FaLink, FaPlay, FaUpload};
+use dioxus_free_icons::icons::fa_solid_icons::{FaFile, FaLink, FaPlay, FaUpload};
 use dioxus_free_icons::Icon;
 use dioxus_router::Link;
 
@@ -29,18 +29,10 @@ pub fn Layout(children: Element) -> Element {
                         }
                     }
                     b::NavbarItem {
-                        Link { to: Route::Upload {},
+                        Link { to: Route::Files {},
                             span { class: "has-text-primary",
-                                Icon { icon: FaUpload, width: 16, height: 16, fill: "currentColor" }
-                                " Upload"
-                            }
-                        }
-                    }
-                    b::NavbarItem {
-                        Link { to: Route::NewAssociation {},
-                            span { class: "has-text-primary",
-                                Icon { icon: FaLink, width: 16, height: 16, fill: "currentColor" }
-                                " New Association"
+                                Icon { icon: FaFile, width: 16, height: 16, fill: "currentColor" }
+                                " Files"
                             }
                         }
                     }
@@ -49,6 +41,29 @@ pub fn Layout(children: Element) -> Element {
                             span { class: "has-text-primary",
                                 Icon { icon: FaLink, width: 16, height: 16, fill: "currentColor" }
                                 " Associations"
+                            }
+                        }
+                    }
+                    b::NavbarItem { class: "has-dropdown is-hoverable",
+                        a { class: "navbar-link has-text-primary",
+                            "Create"
+                        }
+                        div { class: "navbar-dropdown",
+                            b::NavbarItem {
+                                Link { to: Route::UploadPage {},
+                                    span { class: "has-text-primary",
+                                        Icon { icon: FaUpload, width: 16, height: 16, fill: "currentColor" }
+                                        " File"
+                                    }
+                                }
+                            }
+                            b::NavbarItem {
+                                Link { to: Route::NewAssociation {},
+                                    span { class: "has-text-primary",
+                                        Icon { icon: FaLink, width: 16, height: 16, fill: "currentColor" }
+                                        " Association"
+                                    }
+                                }
                             }
                         }
                     }

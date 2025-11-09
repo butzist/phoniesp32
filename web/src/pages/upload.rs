@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use dioxus_bulma as b;
 
 #[component]
-pub fn Upload() -> Element {
+pub fn UploadPage() -> Element {
     rsx! {
         b::Section {
             b::Container {

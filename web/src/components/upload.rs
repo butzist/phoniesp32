@@ -60,7 +60,7 @@ impl ConversionStatus {
 }
 
 #[component]
-pub fn Upload() -> Element {
+pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
     let mut upload_status = use_signal(|| UploadStatus::NotReady);
     let mut conversion_status = use_signal(|| ConversionStatus::Idle);
 
@@ -143,6 +143,9 @@ pub fn Upload() -> Element {
             upload_status.set(UploadStatus::Error(format!("{err:?}")))
         } else {
             upload_status.set(UploadStatus::Complete);
+            if let Some(on_complete) = on_complete {
+                on_complete.call(());
+            }
         }
     };
 

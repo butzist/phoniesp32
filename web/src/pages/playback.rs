@@ -8,8 +8,6 @@ pub fn Playback() -> Element {
             b::Container {
                 crate::components::CurrentSong {}
                 crate::components::Controls {}
-                b::Subtitle { size: b::TitleSize::Is3, "Files" }
-                crate::components::FileTable {}
             }
         }
     }

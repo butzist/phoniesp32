@@ -8,7 +8,7 @@ pub(crate) mod pages;
 pub(crate) mod services;
 
 use layouts::Layout;
-use pages::{Associations, NewAssociation, Playback, Upload};
+use pages::{Associations, Files, NewAssociation, Playback, UploadPage};
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
@@ -20,8 +20,11 @@ enum Route {
     #[route("/associations")]
     Associations {},
 
+    #[route("/files")]
+    Files {},
+
     #[route("/upload")]
-    Upload {},
+    UploadPage {},
 
     #[route("/new-association")]
     NewAssociation {},
