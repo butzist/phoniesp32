@@ -63,7 +63,6 @@ impl ConversionStatus {
 pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
     let mut upload_status = use_signal(|| UploadStatus::NotReady);
     let mut conversion_status = use_signal(|| ConversionStatus::Idle);
-    let mut upload_progress = use_signal(|| 0.0f64);
 
     let mut input_element: Signal<Option<web_sys::HtmlInputElement>> = use_signal(|| None);
     let mut file_name = use_signal(|| None);
@@ -135,9 +134,7 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
 
             upload_status.set(UploadStatus::Pending);
 
-            services::files::put_file(&file_name, data, Box::new(move |current, total| {
-                upload_progress.set(current as f64 / total as f64);
-            }))
+            services::files::put_file(&file_name, data)
                 .await
                 .context("uploading file")?;
         };
@@ -192,15 +189,7 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                         }
                     })
                 }
-                {
-                    (*upload_status.read() == UploadStatus::Pending).then(|| rsx! {
-                        b::Field {
-                            b::Control {
-                                b::Progress { value: (*upload_progress.read() * 100.0) as f32, max: 100.0, "Uploading..." }
-                            }
-                        }
-                    })
-                }
+
                 {
                     matches!(*conversion_status.read(), ConversionStatus::Complete(_)).then(|| rsx! {
                         b::Field {
@@ -252,6 +241,7 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                         b::Button {
                             color: b::BulmaColor::Primary,
                             disabled: *upload_status.read() != UploadStatus::Ready,
+                            loading: *upload_status.read() == UploadStatus::Pending,
                             onclick: move |_| async move { perform_upload().await },
                             "Upload"
                         }
