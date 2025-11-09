@@ -5433,6 +5433,7 @@ dependencies = [
  "async-lock",
  "async-std",
  "audio-file-utils",
+ "bytes",
  "dioxus",
  "dioxus-bulma",
  "dioxus-free-icons",

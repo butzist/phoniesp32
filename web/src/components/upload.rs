@@ -6,7 +6,7 @@ use wasm_bindgen::JsCast;
 use web_sys::{console, js_sys::JsString};
 
 use crate::metadata;
-use crate::services::{self};
+use crate::services;
 
 #[derive(Debug, PartialEq, Default)]
 enum UploadStatus {
@@ -63,6 +63,7 @@ impl ConversionStatus {
 pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
     let mut upload_status = use_signal(|| UploadStatus::NotReady);
     let mut conversion_status = use_signal(|| ConversionStatus::Idle);
+    let mut upload_progress = use_signal(|| 0.0f64);
 
     let mut input_element: Signal<Option<web_sys::HtmlInputElement>> = use_signal(|| None);
     let mut file_name = use_signal(|| None);
@@ -134,7 +135,9 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
 
             upload_status.set(UploadStatus::Pending);
 
-            services::files::put_file(&file_name, data)
+            services::files::put_file(&file_name, data, Box::new(move |current, total| {
+                upload_progress.set(current as f64 / total as f64);
+            }))
                 .await
                 .context("uploading file")?;
         };
@@ -185,6 +188,15 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                         b::Field {
                             b::Control {
                                 b::Progress { value: percent as f32, max: 100.0, "Transcoding..." }
+                            }
+                        }
+                    })
+                }
+                {
+                    (*upload_status.read() == UploadStatus::Pending).then(|| rsx! {
+                        b::Field {
+                            b::Control {
+                                b::Progress { value: (*upload_progress.read() * 100.0) as f32, max: 100.0, "Uploading..." }
                             }
                         }
                     })
