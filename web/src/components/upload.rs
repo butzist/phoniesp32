@@ -66,8 +66,10 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
 
     let mut input_element: Signal<Option<web_sys::HtmlInputElement>> = use_signal(|| None);
     let mut file_name = use_signal(|| None);
+    let mut computed_name = use_signal(|| None::<String>);
     let mut metadata = use_signal(|| None::<metadata::Metadata>);
     let mut edited_metadata = use_signal(|| None::<metadata::Metadata>);
+    let mut file_exists_warning = use_signal(|| false);
 
     use_effect(move || {
         if let (Some(_), ConversionStatus::Complete(_)) =
@@ -95,8 +97,11 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
         conversion_status.set(ConversionStatus::Running(0));
         metadata.set(None);
         edited_metadata.set(None);
+        file_exists_warning.set(false);
         file_name.set(Some(file.name()));
         let data = file.read_bytes().await.expect("failed reading file");
+        let computed = services::files::compute_file_name(&data);
+        computed_name.set(Some(computed));
         let progress = move |percent: usize, _total: usize| {
             if ConversionStatus::Running(percent as u8) != *conversion_status.read() {
                 conversion_status.set(ConversionStatus::Running(percent as u8));
@@ -116,7 +121,7 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
 
     let perform_upload = move || async move {
         let result: anyhow::Result<()> = try {
-            let file_name = file_name.as_ref().context("file name not set")?;
+            let computed_name = computed_name.as_ref().context("computed name not set")?;
             let mut data = conversion_status
                 .take()
                 .take_file_data()
@@ -132,9 +137,12 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                 }
             }
 
+            let exists = services::files::file_exists(computed_name.as_str()).await?;
+            file_exists_warning.set(exists);
+
             upload_status.set(UploadStatus::Pending);
 
-            services::files::put_file(&file_name, data)
+            services::files::put_file(computed_name.as_str(), data)
                 .await
                 .context("uploading file")?;
         };
@@ -236,17 +244,17 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                         }
                     })
                 }
-                b::Field {
-                    b::Control {
-                        b::Button {
-                            color: b::BulmaColor::Primary,
-                            disabled: *upload_status.read() != UploadStatus::Ready,
-                            loading: *upload_status.read() == UploadStatus::Pending,
-                            onclick: move |_| async move { perform_upload().await },
-                            "Upload"
-                        }
-                    }
-                }
+                 b::Field {
+                     b::Control {
+                         b::Button {
+                             color: if *file_exists_warning.read() { b::BulmaColor::Warning } else { b::BulmaColor::Primary },
+                             disabled: *upload_status.read() != UploadStatus::Ready,
+                             loading: *upload_status.read() == UploadStatus::Pending,
+                             onclick: move |_| async move { perform_upload().await },
+                             if *file_exists_warning.read() { "Upload (file exists)" } else { "Upload" }
+                         }
+                     }
+                 }
             }
         }
     }

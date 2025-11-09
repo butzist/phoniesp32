@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
 use reqwest::Method;
+use sha1::{Digest, Sha1};
+use base32::encode;
 
 use super::utils::{resolve_relative_url, FileEntry};
 
@@ -9,6 +11,19 @@ pub(crate) async fn list_files() -> Result<Vec<FileEntry>> {
     let files: Vec<FileEntry> = response.json().await.context("reading response")?;
 
     Ok(files)
+}
+
+pub(crate) fn compute_file_name(content: &[u8]) -> String {
+    let mut hasher = Sha1::new();
+    hasher.update(content);
+    let hash = hasher.finalize();
+    let encoded = encode(base32::Alphabet::RFC4648 { padding: false }, &hash);
+    encoded.chars().take(8).collect()
+}
+
+pub(crate) async fn file_exists(name: &str) -> Result<bool> {
+    let files = list_files().await?;
+    Ok(files.iter().any(|f| f.name.eq_ignore_ascii_case(name)))
 }
 
 pub(crate) async fn put_file(name: &str, content: Box<[u8]>) -> Result<()> {
