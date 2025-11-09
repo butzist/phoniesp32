@@ -1,11 +1,12 @@
-use crate::metadata;
-use crate::services::{self, transcoder};
-
-use anyhow::{Context, Result};
 use dioxus::html::FileData;
-use dioxus::{html::HasFileData, prelude::*, web::WebEventExt as _};
+use dioxus::prelude::*;
+use dioxus::web::WebEventExt;
+use dioxus_bulma as b;
 use wasm_bindgen::JsCast;
 use web_sys::{console, js_sys::JsString};
+
+use crate::metadata;
+use crate::services::{self};
 
 #[derive(Debug, PartialEq, Default)]
 enum UploadStatus {
@@ -60,18 +61,6 @@ impl ConversionStatus {
 
 #[component]
 pub fn Upload() -> Element {
-    let last_fob_result = use_resource(services::fob::get_last_fob);
-    let last_fob_status = use_memo(move || match &*last_fob_result.read() {
-        None => "Loading...".to_string(),
-        Some(Ok(Some(fob))) => fob.clone(),
-        Some(Ok(None)) => "".to_string(),
-        Some(Err(err)) => format!("Error: {err:?}"),
-    });
-    let last_fob = use_memo(move || match &*last_fob_result.read() {
-        Some(Ok(Some(fob))) => Some(fob.clone()),
-        _ => None,
-    });
-
     let mut upload_status = use_signal(|| UploadStatus::NotReady);
     let mut conversion_status = use_signal(|| ConversionStatus::Idle);
 
@@ -89,7 +78,6 @@ pub fn Upload() -> Element {
     });
 
     // temporary solution for error reporting
-    // TODO use toast or banner
     use_effect(move || {
         if let Some(err) = conversion_status.read().error() {
             console::log_1(&JsString::from(err));
@@ -115,7 +103,7 @@ pub fn Upload() -> Element {
             }
         };
 
-        match transcoder::transcode(data.to_vec().into(), progress).await {
+        match services::transcoder::transcode(data.to_vec().into(), progress).await {
             Ok(output) => {
                 let output_extracted = metadata::extract_metadata(&output).await;
                 metadata.set(Some(output_extracted.clone()));
@@ -127,24 +115,20 @@ pub fn Upload() -> Element {
     };
 
     let perform_upload = move || async move {
-        let result: Result<()> = try {
+        let result: anyhow::Result<()> = try {
             let file_name = file_name.as_ref().context("file name not set")?;
             let mut data = conversion_status
                 .take()
                 .take_file_data()
                 .context("file data not set")?;
-            let last_fob = last_fob().context("fob id missing")?;
 
-            if let (Some(edited), Some(original)) = (edited_metadata(), metadata()) {
+            let edited = edited_metadata().context("metadata not set")?;
+
+            if let Some(original) = metadata() {
                 if edited != original {
-                    let result = metadata::update_metadata(&mut data, &edited)
+                    metadata::update_metadata(&mut data, &edited)
                         .await
-                        .context("failed updating metadata");
-                    if let Err(err) = result {
-                        conversion_status.set(ConversionStatus::Error(format!("{err:?}")));
-                        conversion_status.set(ConversionStatus::Error(format!("{err:?}")));
-                        return;
-                    }
+                        .context("failed updating metadata")?;
                 }
             }
 
@@ -153,9 +137,6 @@ pub fn Upload() -> Element {
             services::files::put_file(&file_name, data)
                 .await
                 .context("uploading file")?;
-            services::fob::associate_fob(&last_fob, &file_name)
-                .await
-                .context("associating fob")?;
         };
 
         if let Err(err) = result {
@@ -166,112 +147,102 @@ pub fn Upload() -> Element {
     };
 
     rsx! {
-        div { "Last scanned fob: {last_fob_status}" }
-        div { class: "fileinput",
-            div {
-                class: "dropzone",
-                id: "dropzone",
-                hidden: !matches!(*conversion_status.read(), ConversionStatus::Idle),
-                onclick: move |_| {
-                    if let Some(input) = input_element() {
-                        input.click();
+        b::Section {
+            b::Container {
+                b::Field {
+                    b::Control {
+                        div { class: "file",
+                            label { class: "file-label",
+                                input {
+                                    class: "file-input",
+                                    r#type: "file",
+                                    onmounted: move |element| {
+                                        let element = element.as_web_event();
+                                        let input = element.dyn_into().ok();
+                                        input_element.set(input);
+                                    },
+                                    onchange: move |e| {
+                                        e.prevent_default();
+                                        spawn(process_files(e.files()));
+                                    },
+                                }
+                                span { class: "file-cta",
+                                    span { class: "file-icon",
+                                        i { class: "fas fa-upload" }
+                                    }
+                                    span { class: "file-label", "Choose a file…" }
+                                }
+                                 span { class: "file-name", "{file_name().as_ref().map(|s| s.as_str()).unwrap_or(\"No file selected\")}" }
+                            }
+                        }
                     }
-                },
-                ondrop: move |e| {
-                    e.prevent_default();
-                    spawn(process_files(e.files()));
-                },
-                ondragover: move |e| {
-                    e.prevent_default();
-                },
-                "Click here or drop audio file"
-            }
-            input {
-                r#type: "file",
-                onmounted: move |element| {
-                    let element = element.as_web_event();
-                    let input = element.dyn_into().ok();
-                    input_element.set(input);
-                },
-                onchange: move |e| {
-                    e.prevent_default();
-                    spawn(process_files(e.files()));
-                },
-            }
-            div { class: "filename", "{file_name:?}" }
-            {
-                matches!(*conversion_status.read(), ConversionStatus::Complete(_))
-                    .then(|| rsx! {
-                        div { class: "metadata",
-                            {
-                                edited_metadata()
-                                    .map(|meta| {
-                                        let artist = meta.artist.clone();
-                                        let title = meta.title.clone();
-                                        let album = meta.album.clone();
-                                        let meta_for_artist = meta.clone();
-                                        let meta_for_title = meta.clone();
-                                        let meta_for_album = meta.clone();
-                                        rsx! {
-                                            div {
-                                                label { "Artist:" }
-                                                input {
-                                                    r#type: "text",
-                                                    value: artist.as_str(),
-                                                    maxlength: "31",
-                                                    oninput: move |e| {
-                                                        let mut new_meta = meta_for_artist.clone();
-                                                        new_meta.artist = e.value().chars().take(31).collect();
-                                                        edited_metadata.set(Some(new_meta));
-                                                    },
-                                                }
-                                            }
-                                            div {
-                                                label { "Title:" }
-                                                input {
-                                                    r#type: "text",
-                                                    value: title.as_str(),
-                                                    maxlength: "31",
-                                                    oninput: move |e| {
-                                                        let mut new_meta = meta_for_title.clone();
-                                                        new_meta.title = e.value().chars().take(31).collect();
-                                                        edited_metadata.set(Some(new_meta));
-                                                    },
-                                                }
-                                            }
-                                            div {
-                                                label { "Album:" }
-                                                input {
-                                                    r#type: "text",
-                                                    value: album.as_str(),
-                                                    maxlength: "31",
-                                                    oninput: move |e| {
-                                                        let mut new_meta = meta_for_album.clone();
-                                                        new_meta.album = e.value().chars().take(31).collect();
-                                                        edited_metadata.set(Some(new_meta));
-                                                    },
-                                                }
-                                            }
-                                        }
-                                    })
+                }
+                {
+                    conversion_status.read().progress_percent().map(|percent| rsx! {
+                        b::Field {
+                            b::Control {
+                                b::Progress { value: percent as f32, max: 100.0, "Transcoding..." }
                             }
                         }
                     })
+                }
+                {
+                    matches!(*conversion_status.read(), ConversionStatus::Complete(_)).then(|| rsx! {
+                        b::Field {
+                            b::Label { "Artist" }
+                            b::Control {
+                                 b::Input {
+                                     value: "{edited_metadata().as_ref().map(|m| m.artist.as_str()).unwrap_or(\"\")}",
+                                     oninput: move |e: dioxus::html::FormEvent| {
+                                         if let Some(mut m) = edited_metadata() {
+                                             m.artist = e.value().chars().take(31).collect::<heapless::String<31>>();
+                                             edited_metadata.set(Some(m));
+                                         }
+                                     },
+                                 }
+                            }
+                        }
+                        b::Field {
+                            b::Label { "Title" }
+                            b::Control {
+                                 b::Input {
+                                     value: "{edited_metadata().as_ref().map(|m| m.title.as_str()).unwrap_or(\"\")}",
+                                     oninput: move |e: dioxus::html::FormEvent| {
+                                         if let Some(mut m) = edited_metadata() {
+                                             m.title = e.value().chars().take(31).collect::<heapless::String<31>>();
+                                             edited_metadata.set(Some(m));
+                                         }
+                                     },
+                                 }
+                            }
+                        }
+                        b::Field {
+                            b::Label { "Album" }
+                            b::Control {
+                                 b::Input {
+                                     value: "{edited_metadata().as_ref().map(|m| m.album.as_str()).unwrap_or(\"\")}",
+                                     oninput: move |e: dioxus::html::FormEvent| {
+                                         if let Some(mut m) = edited_metadata() {
+                                             m.album = e.value().chars().take(31).collect::<heapless::String<31>>();
+                                             edited_metadata.set(Some(m));
+                                         }
+                                     },
+                                 }
+                            }
+                        }
+                    })
+                }
+                b::Field {
+                    b::Control {
+                        b::Button {
+                            color: b::BulmaColor::Primary,
+                            disabled: *upload_status.read() != UploadStatus::Ready,
+                            onclick: move |_| async move { perform_upload().await },
+                            "Upload"
+                        }
+                    }
+                }
             }
-        }
-        div {
-            class: "progress",
-            hidden: conversion_status.read().progress_percent().is_none(),
-            div {
-                class: "bar",
-                width: format!("{}%", conversion_status.read().progress_percent().unwrap_or(0)),
-            }
-        }
-        button {
-            class: "btn primary",
-            disabled: *upload_status.read() != UploadStatus::Ready,
-            onclick: move |_| async move { perform_upload().await },
-            "Upload"
         }
     }
 }

@@ -16,5 +16,8 @@ pub use association_table::AssociationTable;
 mod navbar_burger;
 pub use navbar_burger::NavbarBurger;
 
+mod upload;
+pub use upload::Upload;
+
 
 

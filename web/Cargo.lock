@@ -903,7 +903,7 @@ dependencies = [
  "dioxus-history",
  "dioxus-hooks",
  "dioxus-html",
- "dioxus-logger 0.7.1",
+ "dioxus-logger",
  "dioxus-router",
  "dioxus-signals",
  "dioxus-stores",
@@ -1303,16 +1303,6 @@ dependencies = [
  "sledgehammer_utils",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
-name = "dioxus-logger"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e96b1f756b39559985be4640c6263506943601f2f53c34674d657bed89f11d6d"
-dependencies = [
- "log",
  "web-sys",
 ]
 
@@ -5446,13 +5436,11 @@ dependencies = [
  "dioxus",
  "dioxus-bulma",
  "dioxus-free-icons",
- "dioxus-logger 0.1.2",
  "futures",
  "heapless",
  "reqwest",
  "serde",
  "serde_json",
- "tracing",
  "wasm-bindgen",
  "web-sys",
  "web-time",

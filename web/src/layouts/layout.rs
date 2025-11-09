@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_bulma as b;
-use dioxus_free_icons::icons::fa_solid_icons::{FaLink, FaPlay};
+use dioxus_free_icons::icons::fa_solid_icons::{FaLink, FaPlay, FaUpload};
 use dioxus_free_icons::Icon;
 use dioxus_router::Link;
 
@@ -25,6 +25,22 @@ pub fn Layout(children: Element) -> Element {
                             span { class: "has-text-primary",
                                 Icon { icon: FaPlay, width: 16, height: 16, fill: "currentColor" }
                                 " Playback"
+                            }
+                        }
+                    }
+                    b::NavbarItem {
+                        Link { to: Route::Upload {},
+                            span { class: "has-text-primary",
+                                Icon { icon: FaUpload, width: 16, height: 16, fill: "currentColor" }
+                                " Upload"
+                            }
+                        }
+                    }
+                    b::NavbarItem {
+                        Link { to: Route::NewAssociation {},
+                            span { class: "has-text-primary",
+                                Icon { icon: FaLink, width: 16, height: 16, fill: "currentColor" }
+                                " New Association"
                             }
                         }
                     }

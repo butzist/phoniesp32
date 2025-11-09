@@ -8,7 +8,7 @@ pub(crate) mod pages;
 pub(crate) mod services;
 
 use layouts::Layout;
-use pages::{Associations, Playback};
+use pages::{Associations, NewAssociation, Playback, Upload};
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
@@ -19,6 +19,12 @@ enum Route {
 
     #[route("/associations")]
     Associations {},
+
+    #[route("/upload")]
+    Upload {},
+
+    #[route("/new-association")]
+    NewAssociation {},
 }
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");

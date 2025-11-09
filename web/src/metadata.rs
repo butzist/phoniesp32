@@ -12,7 +12,15 @@ pub struct Metadata {
 }
 
 pub async fn extract_metadata(data: &[u8]) -> Metadata {
-    let audio_metadata = extract_audio_metadata(data).await.unwrap_or_default();
+    use web_sys::{console, js_sys::JsString};
+    let result = extract_audio_metadata(data).await;
+    console::log_1(&JsString::from(format!(
+        "{:?}, len: {}",
+        result,
+        data.len()
+    )));
+
+    let audio_metadata = result.unwrap_or_default();
     Metadata {
         artist: audio_metadata.artist,
         title: audio_metadata.title,

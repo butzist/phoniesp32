@@ -6,7 +6,7 @@ pub fn Associations() -> Element {
     rsx! {
         b::Section {
             b::Container {
-                b::Subtitle { size: b::TitleSize::Is3, "Associations" }
+                b::Title { size: b::TitleSize::Is4, "Associations" }
                 crate::components::AssociationTable {}
             }
         }
