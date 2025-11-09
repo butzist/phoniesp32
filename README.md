@@ -54,18 +54,18 @@ work-in-progress prototype with lots of noisy data lines...
   - [ ] Schematics
   - [ ] Custom PCB
   - [ ] Design and 3D print case
-- [x] UI (Dioxus)
+- [ ] UI (Dioxus)
   - [x] File transcoding
   - [x] Served from device
   - [x] Show last scanned RFID tag ID
-  - [ ] Switch to Bluma CSS
-  - [ ] Playback control
+  - [x] Switch to Bluma CSS
+  - [x] Playback control
   - [x] Store RIFF INFO chunk for artist/title
   - [x] Associate file with RFID tag
-  - [ ] Configure Wi-Fi settings
+  - [x] Configure Wi-Fi settings
   - [ ] Playlists
-  - [ ] List known tags
-  - [ ] List uploaded files
+  - [x] List known tags
+  - [x] List uploaded files
   - [ ] Speed up transcoding
   - [x] Update to stable Dioxus 0.7
 - [ ] Firmware (Embassy)

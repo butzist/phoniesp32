@@ -5,7 +5,10 @@ use esp_alloc as _;
 use picoserve::{routing, AppRouter, AppWithStateBuilder, Router};
 use serde::{Deserialize, Serialize};
 
-use crate::{player::{PlayerCommand, FileMetadata}, sd::SdFileSystem};
+use crate::{
+    player::{FileMetadata, PlayerCommand},
+    sd::SdFileSystem,
+};
 
 mod assets {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));
@@ -51,7 +54,7 @@ impl AppWithStateBuilder for Application {
         let router = picoserve::Router::new()
             .route(
                 ("/api/files", routing::parse_path_segment()),
-                routing::put_service(upload::UploadService),
+                routing::put_service(upload::UploadService).get_service(files::GetMetadataService),
             )
             .route("/api/files", routing::get(files::list))
             .route("/api/last_fob", routing::get(fob::last))
