@@ -28,7 +28,6 @@ use esp_hal::i2s::master::asynch::I2sWriteDmaTransferAsync;
 use esp_hal::i2s::master::{DataFormat, I2s, Standard};
 use esp_hal::i2s::AnyI2s;
 use esp_hal::time::Rate;
-use heapless::String;
 use serde::Serialize;
 
 use {esp_backtrace as _, esp_println as _};
@@ -52,7 +51,7 @@ pub enum PlayerCommand {
     VolumeDown,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub enum State {
     Playing,
     Paused,
@@ -73,7 +72,6 @@ pub struct FileMetadata {
     pub album: heapless::String<31>,
     pub duration: u32,
 }
-
 
 pub struct Player {
     i2s: AnyI2s<'static>,
