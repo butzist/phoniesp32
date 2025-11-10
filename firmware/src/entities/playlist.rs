@@ -1,11 +1,15 @@
+use core::pin::Pin;
+
 use super::audio_file::AudioFile;
 use crate::entities::basename;
 use crate::sd::SdFileSystem;
 use crate::{with_extension, PrintErr};
-use alloc::{string::ToString, vec::Vec};
-use defmt::{error, warn};
+use alloc::{boxed::Box, string::ToString, vec::Vec};
+use defmt::error;
+
 use embedded_io_async::{Read, Write};
-use futures::stream::{self, Stream, StreamExt};
+use futures::StreamExt;
+use futures::{stream, stream::Stream};
 use heapless::String;
 
 const PLAYLIST_DIR: &str = "FOBS";
@@ -121,33 +125,34 @@ impl Playlist {
 
         Ok(())
     }
-}
 
-pub async fn list_playlists(
-    fs: &SdFileSystem<'_>,
-) -> Result<
-    impl Stream<Item = Result<(String<8>, alloc::vec::Vec<super::audio_file::AudioFile>), ()>>,
-    (),
-> {
-    let root = fs.root_dir();
-    let dir = root.open_dir(PLAYLIST_DIR).await.map_err(|_| ())?;
+    pub async fn list<'a>(
+        fs: &'a SdFileSystem<'static>,
+    ) -> Result<Pin<Box<dyn Stream<Item = Playlist> + 'a>>, ()> {
+        let root = fs.root_dir();
+        let dir = root.open_dir(PLAYLIST_DIR).await.map_err(|_| ())?;
 
-    let mut playlists = alloc::vec::Vec::new();
-    let mut iter = dir.iter();
-    while let Some(entry) = iter.next().await {
-        if let Ok(entry) = entry {
-            if entry.is_file() {
-                if let Some(name) = basename(entry.short_file_name_as_bytes(), PLAYLIST_EXT) {
-                    let playlist_ref = PlayListRef::new(name.clone());
-                    if let Ok(playlist) = playlist_ref.read(fs).await {
-                        playlists.push((name, playlist.files));
+        let stream = stream::unfold((dir.iter(), fs), |(mut iter, fs)| async move {
+            match iter.next().await {
+                Some(Ok(entry)) => {
+                    if entry.is_file() {
+                        if let Some(name) = basename(entry.short_file_name_as_bytes(), PLAYLIST_EXT)
+                        {
+                            let playlist_ref = PlayListRef::new(name);
+                            Some((playlist_ref.read(fs).await, (iter, fs)))
+                        } else {
+                            Some((Err(()), (iter, fs)))
+                        }
+                    } else {
+                        Some((Err(()), (iter, fs)))
                     }
-                } else {
-                    warn!("Unknown file: \\FOBS\\{}", entry.short_file_name_as_bytes())
                 }
+                Some(Err(_)) => Some((Err(()), (iter, fs))),
+                None => None,
             }
-        }
-    }
+        })
+        .filter_map(|x| async { x.ok() });
 
-    Ok(stream::iter(playlists.into_iter()).map(Ok))
+        Ok(Box::pin(stream))
+    }
 }

@@ -5,10 +5,7 @@ use esp_alloc as _;
 use picoserve::{routing, AppRouter, AppWithStateBuilder, Router};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    player::{FileMetadata, PlayerCommand},
-    sd::SdFileSystem,
-};
+use crate::{entities::audio_file::AudioMetadata, player::PlayerCommand, sd::SdFileSystem};
 
 mod assets {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));
@@ -42,7 +39,7 @@ pub struct Test {
 #[derive(Clone, Serialize)]
 pub struct FileEntry {
     pub name: heapless::String<8>,
-    pub metadata: FileMetadata,
+    pub metadata: AudioMetadata,
 }
 
 pub struct Application;
@@ -60,7 +57,7 @@ impl AppWithStateBuilder for Application {
             .route("/api/last_fob", routing::get(fob::last))
             .route(
                 "/api/associations",
-                routing::get(fob::list).post(fob::associate),
+                routing::get_service(fob::ListAssociationsService).post(fob::associate),
             )
             .route("/api/playback/status", routing::get(playback::status))
             .route("/api/playback/play", routing::post(playback::play))

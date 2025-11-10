@@ -5,7 +5,7 @@ use core::pin::Pin;
 use core::sync::atomic::{AtomicU8, Ordering};
 
 use crate::entities::{
-    audio_file::AudioFile,
+    audio_file::{AudioFile, AudioMetadata},
     playlist::{PlayListRef, Playlist},
 };
 use crate::{extend_to_static, PrintErr};
@@ -62,15 +62,7 @@ pub enum State {
 pub struct Status {
     pub state: State,
     pub position_seconds: Option<u16>,
-    pub metadata: Option<FileMetadata>,
-}
-
-#[derive(Clone, Serialize)]
-pub struct FileMetadata {
-    pub artist: heapless::String<31>,
-    pub title: heapless::String<31>,
-    pub album: heapless::String<31>,
-    pub duration: u32,
+    pub metadata: Option<AudioMetadata>,
 }
 
 pub struct Player {

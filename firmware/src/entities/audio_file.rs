@@ -1,5 +1,9 @@
+use core::pin::Pin;
+
+use alloc::boxed::Box;
 use defmt::warn;
 use heapless::String;
+use serde::Serialize;
 
 use crate::entities::basename;
 use crate::sd::{FileHandle, SdFileSystem};
@@ -11,15 +15,15 @@ use futures::stream::{self, Stream, StreamExt};
 const FILE_DIR: &str = "FILES";
 const FILE_EXT: &str = ".WAV";
 
-#[derive(Clone)]
-pub struct Metadata {
-    pub artist: String<31>,
-    pub title: String<31>,
-    pub album: String<31>,
+#[derive(Clone, Serialize)]
+pub struct AudioMetadata {
+    pub artist: heapless::String<31>,
+    pub title: heapless::String<31>,
+    pub album: heapless::String<31>,
     pub duration: u32,
 }
 
-impl Default for Metadata {
+impl Default for AudioMetadata {
     fn default() -> Self {
         let default: String<31> = "Unknown".try_into().unwrap();
         Self {
@@ -31,6 +35,7 @@ impl Default for Metadata {
     }
 }
 
+#[derive(serde::Serialize)]
 pub struct AudioFile(String<8>);
 
 impl AudioFile {
@@ -96,7 +101,7 @@ impl AudioFile {
         Ok(file)
     }
 
-    pub async fn metadata(&self, fs: &SdFileSystem<'_>) -> Result<Metadata, ()> {
+    pub async fn metadata(&self, fs: &SdFileSystem<'_>) -> Result<AudioMetadata, ()> {
         let root = fs.root_dir();
         let fname = with_extension(&self.0, FILE_EXT).unwrap();
         let dir = root
@@ -126,43 +131,49 @@ impl AudioFile {
         // Assume fixed format: 44100 Hz, mono, IMA ADPCM (4 bits/sample, 2 samples/byte)
         let duration = (data_size / 22050) as u32;
 
-        Ok(Metadata {
+        Ok(AudioMetadata {
             artist: audio_metadata.artist,
             title: audio_metadata.title,
             album: audio_metadata.album,
             duration,
         })
     }
-}
 
-pub async fn list_files(
-    fs: &SdFileSystem<'_>,
-) -> Result<impl Stream<Item = Result<(String<8>, Metadata), ()>>, ()> {
-    let root = fs.root_dir();
-    let dir = root
-        .open_dir(FILE_DIR)
-        .await
-        .print_err("open files dir")
-        .ok_or(())?;
+    pub async fn list<'a>(
+        fs: &'a SdFileSystem<'static>,
+    ) -> Result<Pin<Box<dyn Stream<Item = (String<8>, AudioMetadata)> + 'a>>, ()> {
+        let root = fs.root_dir();
+        let dir = root
+            .open_dir(FILE_DIR)
+            .await
+            .print_err("open files dir")
+            .ok_or(())?;
 
-    let mut files = alloc::vec::Vec::new();
-    let mut iter = dir.iter();
-    while let Some(entry) = iter.next().await {
-        if let Ok(entry) = entry {
-            if entry.is_file() {
-                if let Some(name) = basename(entry.short_file_name_as_bytes(), FILE_EXT) {
-                    let audio_file = AudioFile::new(name.clone());
-                    let metadata = audio_file.metadata(fs).await.unwrap_or_default();
-                    files.push((name, metadata));
-                } else {
-                    warn!(
-                        "Unknown file: \\FILES\\{}",
-                        entry.short_file_name_as_bytes()
-                    )
+        let stream = stream::unfold((dir.iter(), fs), |(mut iter, fs)| async move {
+            match iter.next().await {
+                Some(Ok(entry)) => {
+                    if entry.is_file() {
+                        if let Some(name) = basename(entry.short_file_name_as_bytes(), FILE_EXT) {
+                            let audio_file = AudioFile::new(name.clone());
+                            let metadata = audio_file.metadata(fs).await.unwrap_or_default();
+                            Some((Some((name, metadata)), (iter, fs)))
+                        } else {
+                            warn!(
+                                "Unknown file: \\FILES\\{}",
+                                entry.short_file_name_as_bytes()
+                            );
+                            Some((None, (iter, fs)))
+                        }
+                    } else {
+                        Some((None, (iter, fs)))
+                    }
                 }
+                Some(Err(_)) => Some((None, (iter, fs))),
+                None => None,
             }
-        }
-    }
+        })
+        .filter_map(|x| async { x });
 
-    Ok(stream::iter(files.into_iter()).map(Ok))
+        Ok(Box::pin(stream))
+    }
 }

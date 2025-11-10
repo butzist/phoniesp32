@@ -15,8 +15,8 @@ use picoserve::{
 use serde_json;
 
 use crate::{
-    entities::audio_file::{list_files, AudioFile},
-    web::{AppState, FileEntry, FileMetadata},
+    entities::audio_file::AudioFile,
+    web::{AppState, AudioMetadata, FileEntry},
 };
 
 pub struct AudioFileName(pub String<8>);
@@ -38,7 +38,7 @@ impl Chunks for StreamingFiles {
         self,
         mut writer: ChunkWriter<W>,
     ) -> Result<ChunksWritten, W::Error> {
-        let mut stream = match list_files(self.state.fs).await {
+        let mut stream = match AudioFile::list(self.state.fs).await {
             Ok(s) => s,
             Err(_) => {
                 writer.write_chunk(b"[]").await?;
@@ -48,27 +48,25 @@ impl Chunks for StreamingFiles {
 
         writer.write_chunk(b"[").await?;
         let mut first = true;
-        while let Some(item) = stream.next().await {
-            if let Ok((name, metadata)) = item {
-                let file_metadata = FileMetadata {
-                    artist: metadata.artist,
-                    title: metadata.title,
-                    album: metadata.album,
-                    duration: metadata.duration,
-                };
-                let file_entry = FileEntry {
-                    name,
-                    metadata: file_metadata,
-                };
+        while let Some((name, metadata)) = stream.next().await {
+            let file_metadata = AudioMetadata {
+                artist: metadata.artist,
+                title: metadata.title,
+                album: metadata.album,
+                duration: metadata.duration,
+            };
+            let file_entry = FileEntry {
+                name,
+                metadata: file_metadata,
+            };
 
-                if !first {
-                    writer.write_chunk(b",").await?;
-                }
-                first = false;
-
-                let json = serde_json::to_string(&file_entry).map_err(|_| ()).unwrap();
-                writer.write_chunk(json.as_bytes()).await?;
+            if !first {
+                writer.write_chunk(b",").await?;
             }
+            first = false;
+
+            let json = serde_json::to_string(&file_entry).map_err(|_| ()).unwrap();
+            writer.write_chunk(json.as_bytes()).await?;
         }
 
         writer.write_chunk(b"]").await?;
@@ -103,7 +101,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for GetMetadataService {
         let audio_file = AudioFile::new(name);
         match audio_file.metadata(state.fs).await {
             Ok(metadata) => {
-                let file_metadata = FileMetadata {
+                let file_metadata = AudioMetadata {
                     artist: metadata.artist,
                     title: metadata.title,
                     album: metadata.album,
