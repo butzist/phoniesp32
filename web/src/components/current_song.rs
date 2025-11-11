@@ -1,41 +1,74 @@
 use dioxus::prelude::*;
 use dioxus_bulma as b;
 
-use crate::services::playback::{get_status, State, Status};
+use crate::components::PlaybackControls;
+use crate::services::playback::{CurrentPlaylistResponse, PlaybackState, StatusResponse};
 
 #[component]
-pub fn CurrentSong() -> Element {
-    let mut status = use_signal(|| Status {
-        state: State::Stopped,
-        position_seconds: None,
-        metadata: None,
+pub fn CurrentSong(
+    status: ReadSignal<Option<StatusResponse>>,
+    current_playlist: ReadSignal<Option<CurrentPlaylistResponse>>,
+) -> Element {
+    let current_song = use_memo(move || {
+        let result: Option<String> = try {
+            let index = status().as_ref()?.index_in_playlist;
+            let playlist = current_playlist()?;
+            let current_file = playlist.files.get(index)?;
+
+            current_file
+                .metadata
+                .as_ref()
+                .map(|m| format!("{} - {}", m.artist, m.title))?
+        };
+
+        result.unwrap_or_else(|| "No song playing".to_string())
     });
 
-    use_future(move || async move {
-        loop {
-            match get_status().await {
-                Ok(new_status) => status.set(new_status),
-                Err(e) => {
-                    eprintln!("Failed to get status: {:?}", e);
-                    status.set(Status {
-                        state: State::Stopped,
-                        position_seconds: None,
-                        metadata: None,
-                    });
-                }
-            }
-            async_std::task::sleep(std::time::Duration::from_millis(2000)).await;
-        }
-    });
-
-    let current_song = status
-        .read()
-        .metadata
+    let (status_color_class, status_icon_name) = match status()
         .as_ref()
-        .map(|m| format!("{} - {}", m.artist, m.title))
-        .unwrap_or_else(|| "No song playing".to_string());
+        .map(|s| &s.state)
+        .unwrap_or(&PlaybackState::Stopped)
+    {
+        PlaybackState::Playing => ("success", "▶"),
+        PlaybackState::Paused => ("warning", "⏸"),
+        PlaybackState::Stopped => ("light", "⏹"),
+    };
+
+    let position_display = use_memo(move || {
+        status()
+            .as_ref()
+            .map(|s| {
+                if s.position_seconds > 0 {
+                    format!("{}:{:02}", s.position_seconds / 60, s.position_seconds % 60)
+                } else {
+                    "--:--".to_string()
+                }
+            })
+            .unwrap_or_else(|| "--:--".to_string())
+    });
 
     rsx! {
-        b::Title { size: b::TitleSize::Is3, class: "has-text-centered", "{current_song}" }
+        div {
+            b::Columns {
+                b::Column {
+                    b::Title { size: b::TitleSize::Is4, "{current_song}" }
+                }
+                b::Column {
+                    class: "has-text-centered",
+                    div {
+                        class: "has-text-centered",
+                        div {
+                            class: "icon is-large has-text-{status_color_class}",
+                            style: "font-size: 3rem;",
+                            "{status_icon_name}"
+                        }
+                        b::Title { size: b::TitleSize::Is5, class: "mt-2", "{position_display}" }
+                    }
+                }
+            }
+            div { class: "mt-4",
+                PlaybackControls { status }
+            }
+        }
     }
 }

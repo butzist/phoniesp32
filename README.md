@@ -54,7 +54,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [ ] Schematics
   - [ ] Custom PCB
   - [ ] Design and 3D print case
-- [ ] UI (Dioxus)
+- [x] UI (Dioxus)
   - [x] File transcoding
   - [x] Served from device
   - [x] Show last scanned RFID tag ID
@@ -63,10 +63,9 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Store RIFF INFO chunk for artist/title
   - [x] Associate file with RFID tag
   - [x] Configure Wi-Fi settings
-  - [ ] Playlists
+  - [x] Playlists
   - [x] List known tags
   - [x] List uploaded files
-  - [ ] Speed up transcoding
   - [x] Update to stable Dioxus 0.7
 - [ ] Firmware (Embassy)
   - [x] Fallback to Wi-Fi AP mode
@@ -74,21 +73,22 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] SD card access
   - [x] Playback control via buttons
   - [x] Playback control via RFID tags
-  - [ ] Pause playback
+  - [x] Pause playback
   - [ ] Turn off Wi-Fi when on battery power
   - [x] Playlists
   - [ ] mDNS responder
   - [x] Use RIFF INFO chunk for artist/title
   - [ ] Power management
+  - [ ] Fix concurrent access to file system
   - [ ] Speed up SD access/upload
   - [ ] SD card partitioning support
   - [ ] Async / IRQ for RFID reader
   - [ ] Playback control via BLE
   - [ ] Update to stable esp-hal 1.0
-- [ ] Web API (picoserve)
+- [x] Web API (picoserve)
   - [x] Associate file with RFID tag
   - [x] Playback control
-  - [ ] Playback status
+  - [x] Playback status
   - [x] Last scanned RFID tag ID
   - [x] Configure Wi-Fi settings
   - [x] List known tags
@@ -98,6 +98,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Build and bundle all components
   - [x] Build via GitHub actions
 - [ ] Documentation
+  - [x] [API Documentation](./API.md)
   - [ ] Full build instructions
   - [ ] Video tutorial
 

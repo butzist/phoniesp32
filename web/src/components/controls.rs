@@ -3,11 +3,15 @@ use dioxus_bulma as b;
 
 use crate::components::ControlsButton;
 use crate::services::playback;
-use dioxus_free_icons::icons::fa_regular_icons::*;
-use dioxus_free_icons::icons::fa_solid_icons::{FaVolumeHigh, FaVolumeLow};
+use dioxus_free_icons::icons::fa_solid_icons::{FaVolumeHigh, FaVolumeLow, FaCirclePlay, FaCirclePause, FaCircleStop, FaCircleLeft, FaCircleRight};
 
 #[component]
-pub fn Controls() -> Element {
+pub fn Controls(status: ReadOnlySignal<Option<playback::StatusResponse>>) -> Element {
+    let current_status = status.read();
+    let state = current_status.as_ref().map(|s| &s.state).unwrap_or(&playback::PlaybackState::Stopped);
+    
+    let is_playing = matches!(state, playback::PlaybackState::Playing);
+
     rsx! {
         div { style: "max-width: 600px; margin: 0 auto;",
             b::Columns {
@@ -19,18 +23,39 @@ pub fn Controls() -> Element {
                         ControlsButton {
                             icon: FaCircleLeft,
                             label: "Previous".to_string(),
-                            onclick: |_| {},
-                        }
-                        ControlsButton {
-                            icon: FaCirclePause,
-                            label: "Pause".to_string(),
                             onclick: |_| {
                                 spawn(async move {
-                                    if let Err(e) = playback::pause().await {
-                                        error!("Failed to pause: {:?}", e);
+                                    if let Err(e) = playback::previous().await {
+                                        error!("Failed to go to previous: {:?}", e);
                                     }
                                 });
                             },
+                            disabled: *state == playback::PlaybackState::Stopped,
+                        }
+                        if is_playing {
+                            ControlsButton {
+                                icon: FaCirclePause,
+                                label: "Pause".to_string(),
+                                onclick: move |_| {
+                                    spawn(async move {
+                                        if let Err(e) = playback::pause().await {
+                                            error!("Failed to pause: {:?}", e);
+                                        }
+                                    });
+                                },
+                            }
+                        } else {
+                            ControlsButton {
+                                icon: FaCirclePlay,
+                                label: "Play".to_string(),
+                                onclick: move |_| {
+                                    spawn(async move {
+                                        if let Err(e) = playback::play().await {
+                                            error!("Failed to play: {:?}", e);
+                                        }
+                                    });
+                                },
+                            }
                         }
                         ControlsButton {
                             icon: FaCircleStop,
@@ -42,11 +67,19 @@ pub fn Controls() -> Element {
                                     }
                                 });
                             },
+                            disabled: *state == playback::PlaybackState::Stopped,
                         }
                         ControlsButton {
                             icon: FaCircleRight,
                             label: "Next".to_string(),
-                            onclick: |_| {},
+                            onclick: |_| {
+                                spawn(async move {
+                                    if let Err(e) = playback::next().await {
+                                        error!("Failed to go to next: {:?}", e);
+                                    }
+                                });
+                            },
+                            disabled: *state == playback::PlaybackState::Stopped,
                         }
                     }
                 }

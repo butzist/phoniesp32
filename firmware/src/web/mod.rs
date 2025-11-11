@@ -60,6 +60,10 @@ impl AppWithStateBuilder for Application {
                 routing::get_service(fob::ListAssociationsService).post(fob::associate),
             )
             .route("/api/playback/status", routing::get(playback::status))
+            .route(
+                "/api/playback/current_playlist",
+                routing::get(playback::current_playlist),
+            )
             .route("/api/playback/play", routing::post(playback::play))
             .route("/api/playback/stop", routing::post(playback::stop))
             .route("/api/playback/pause", routing::post(playback::pause))
@@ -71,6 +75,8 @@ impl AppWithStateBuilder for Application {
                 "/api/playback/volume_down",
                 routing::post(playback::volume_down),
             )
+            .route("/api/playback/next", routing::post(playback::next))
+            .route("/api/playback/previous", routing::post(playback::previous))
             .route(
                 "/api/config",
                 routing::put(config::put).delete(config::delete),

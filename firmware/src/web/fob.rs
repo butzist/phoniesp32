@@ -37,7 +37,7 @@ pub struct LastFob {
 #[derive(Deserialize)]
 pub struct AssociationRequest {
     fob: String<8>,
-    file: String<8>,
+    files: Vec<String<8>>,
 }
 
 pub async fn last() -> impl IntoResponse {
@@ -49,10 +49,10 @@ pub async fn last() -> impl IntoResponse {
 
 pub async fn associate(
     extract::State(state): extract::State<AppState>,
-    extract::Json(req): extract::Json<AssociationRequest, 64>,
+    extract::Json(req): extract::Json<AssociationRequest, 256>,
 ) -> impl IntoResponse {
-    let audio_file = AudioFile::new(req.file);
-    Playlist::write(state.fs, req.fob, &[audio_file])
+    let audio_files: Vec<AudioFile> = req.files.into_iter().map(AudioFile::new).collect();
+    Playlist::write(state.fs, req.fob, &audio_files)
         .await
         .unwrap();
 }

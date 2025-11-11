@@ -1,5 +1,4 @@
-mod controls;
-pub use controls::Controls;
+
 
 mod controls_button;
 pub use controls_button::ControlsButton;
@@ -21,3 +20,9 @@ pub use upload::Upload;
 
 mod modal;
 pub use modal::Modal;
+
+mod current_playlist;
+pub use current_playlist::CurrentPlaylist;
+
+mod playback_controls;
+pub use playback_controls::PlaybackControls;

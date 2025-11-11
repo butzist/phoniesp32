@@ -17,7 +17,7 @@ pub struct Association {
 #[derive(Debug, Serialize)]
 struct AssociationRequest<'a> {
     fob: &'a str,
-    file: &'a str,
+    files: &'a [String],
 }
 
 pub(crate) async fn get_last_fob() -> Result<Option<String>> {
@@ -36,12 +36,12 @@ pub(crate) async fn list_associations() -> Result<Vec<Association>> {
     Ok(associations)
 }
 
-pub(crate) async fn associate_fob(fob: &str, file: &str) -> Result<()> {
+pub(crate) async fn associate_fob(fob: &str, files: &[String]) -> Result<()> {
     let url = resolve_relative_url("/api/associations")?;
     let client = reqwest::Client::default();
     client
         .post(url)
-        .json(&AssociationRequest { fob, file })
+        .json(&AssociationRequest { fob, files })
         .send()
         .await?
         .error_for_status()?;

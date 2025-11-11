@@ -15,7 +15,7 @@ use embassy_time::Timer;
 use esp_hal::clock::CpuClock;
 use esp_hal::timer::timg::TimerGroup;
 use firmware::controls::{AnyTouchPin, Controls};
-use firmware::player::{Player, PlayerCommand};
+use firmware::player::{Player, PlayerCommand, run_player};
 use firmware::radio::Radio;
 use firmware::rfid::Rfid;
 use firmware::sd::Sd;
@@ -65,7 +65,7 @@ async fn main(spawner: Spawner) {
     );
 
     let commands = make_static!(Channel::<NoopRawMutex, PlayerCommand, 2>::new());
-    spawner.must_spawn(firmware::player::run_player(
+    spawner.must_spawn(run_player(
         spawner,
         player,
         fs,

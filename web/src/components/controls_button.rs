@@ -8,6 +8,7 @@ pub fn ControlsButton<T: IconShape + PartialEq + Clone + 'static>(
     label: String,
     onclick: Option<EventHandler<MouseEvent>>,
     size: Option<b::BulmaSize>,
+    #[props(default)] disabled: bool,
 ) -> Element {
     let icon_size = match size {
         Some(b::BulmaSize::Small) => 12,
@@ -18,6 +19,7 @@ pub fn ControlsButton<T: IconShape + PartialEq + Clone + 'static>(
             color: b::BulmaColor::Primary,
             size: size,
             onclick: onclick,
+            disabled: disabled,
             Icon {
                 width: icon_size,
                 height: icon_size,
