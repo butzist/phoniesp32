@@ -94,14 +94,23 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
         let Some(file) = files.first().cloned() else {
             return;
         };
+
+        // initialize conversion status
         conversion_status.set(ConversionStatus::Running(0));
         metadata.set(None);
         edited_metadata.set(None);
         file_exists_warning.set(false);
         file_name.set(Some(file.name()));
         let data = file.read_bytes().await.expect("failed reading file");
+
+        // compute file name (hash) and check if already exists
         let computed = services::files::compute_file_name(&data);
+        match services::files::file_exists(computed.as_str()).await {
+            Ok(exists) => file_exists_warning.set(exists),
+            Err(err) => return conversion_status.set(ConversionStatus::Error(format!("{err:?}"))),
+        };
         computed_name.set(Some(computed));
+
         let progress = move |percent: usize, _total: usize| {
             if ConversionStatus::Running(percent as u8) != *conversion_status.read() {
                 conversion_status.set(ConversionStatus::Running(percent as u8));
@@ -136,9 +145,6 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                         .context("failed updating metadata")?;
                 }
             }
-
-            let exists = services::files::file_exists(computed_name.as_str()).await?;
-            file_exists_warning.set(exists);
 
             upload_status.set(UploadStatus::Pending);
 
