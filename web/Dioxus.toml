@@ -3,6 +3,9 @@
 [web]
 pre_compress = false
 
+[[web.proxy]]
+backend = "http://192.168.42.1/api/"
+
 [web.app]
 title = "web"
 
