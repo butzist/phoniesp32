@@ -14,12 +14,15 @@ pub fn Associations() -> Element {
                     b::Column {
                         b::Title { size: b::TitleSize::Is4, "Associations" }
                     }
-                    b::Column {
-                        class: "has-text-right",
+                    b::Column { class: "has-text-right",
                         Link { to: Route::NewAssociation {},
-                            b::Button {
-                                color: b::BulmaColor::Primary,
-                                dioxus_free_icons::Icon { icon: FaPlus, width: 16, height: 16, fill: "currentColor" }
+                            b::Button { color: b::BulmaColor::Primary,
+                                dioxus_free_icons::Icon {
+                                    icon: FaPlus,
+                                    width: 16,
+                                    height: 16,
+                                    fill: "currentColor",
+                                }
                                 " New Association"
                             }
                         }

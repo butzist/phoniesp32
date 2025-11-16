@@ -23,7 +23,12 @@ pub fn Layout(children: Element) -> Element {
                     b::NavbarItem {
                         Link { to: Route::Playback {},
                             span { class: "has-text-primary",
-                                Icon { icon: FaPlay, width: 16, height: 16, fill: "currentColor" }
+                                Icon {
+                                    icon: FaPlay,
+                                    width: 16,
+                                    height: 16,
+                                    fill: "currentColor",
+                                }
                                 " Playback"
                             }
                         }
@@ -31,7 +36,12 @@ pub fn Layout(children: Element) -> Element {
                     b::NavbarItem {
                         Link { to: Route::Files {},
                             span { class: "has-text-primary",
-                                Icon { icon: FaFile, width: 16, height: 16, fill: "currentColor" }
+                                Icon {
+                                    icon: FaFile,
+                                    width: 16,
+                                    height: 16,
+                                    fill: "currentColor",
+                                }
                                 " Files"
                             }
                         }
@@ -39,20 +49,28 @@ pub fn Layout(children: Element) -> Element {
                     b::NavbarItem {
                         Link { to: Route::Associations {},
                             span { class: "has-text-primary",
-                                Icon { icon: FaLink, width: 16, height: 16, fill: "currentColor" }
+                                Icon {
+                                    icon: FaLink,
+                                    width: 16,
+                                    height: 16,
+                                    fill: "currentColor",
+                                }
                                 " Associations"
                             }
                         }
                     }
                     b::NavbarItem { class: "has-dropdown is-hoverable",
-                        a { class: "navbar-link has-text-primary",
-                            "Create"
-                        }
+                        a { class: "navbar-link has-text-primary", "Create" }
                         div { class: "navbar-dropdown",
                             b::NavbarItem {
                                 Link { to: Route::UploadPage {},
                                     span { class: "has-text-primary",
-                                        Icon { icon: FaUpload, width: 16, height: 16, fill: "currentColor" }
+                                        Icon {
+                                            icon: FaUpload,
+                                            width: 16,
+                                            height: 16,
+                                            fill: "currentColor",
+                                        }
                                         " File"
                                     }
                                 }
@@ -60,7 +78,12 @@ pub fn Layout(children: Element) -> Element {
                             b::NavbarItem {
                                 Link { to: Route::NewAssociation {},
                                     span { class: "has-text-primary",
-                                        Icon { icon: FaLink, width: 16, height: 16, fill: "currentColor" }
+                                        Icon {
+                                            icon: FaLink,
+                                            width: 16,
+                                            height: 16,
+                                            fill: "currentColor",
+                                        }
                                         " Association"
                                     }
                                 }
@@ -70,7 +93,12 @@ pub fn Layout(children: Element) -> Element {
                     b::NavbarItem {
                         Link { to: Route::Settings {},
                             span { class: "has-text-primary",
-                                Icon { icon: FaWrench, width: 16, height: 16, fill: "currentColor" }
+                                Icon {
+                                    icon: FaWrench,
+                                    width: 16,
+                                    height: 16,
+                                    fill: "currentColor",
+                                }
                                 " Settings"
                             }
                         }

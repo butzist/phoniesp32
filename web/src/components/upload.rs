@@ -1,10 +1,9 @@
-use dioxus::html::FileData;
 use dioxus::prelude::*;
 use dioxus::web::WebEventExt;
 use dioxus_bulma as b;
 use wasm_bindgen::JsCast;
-use web_sys::{console, js_sys::JsString};
 
+use crate::components::use_toast;
 use crate::metadata;
 use crate::services;
 
@@ -63,9 +62,10 @@ impl ConversionStatus {
 pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
     let mut upload_status = use_signal(|| UploadStatus::NotReady);
     let mut conversion_status = use_signal(|| ConversionStatus::Idle);
+    let mut toast = use_toast();
 
     let mut input_element: Signal<Option<web_sys::HtmlInputElement>> = use_signal(|| None);
-    let mut file_name = use_signal(|| None);
+    let mut file_name = use_signal(|| None::<String>);
     let mut computed_name = use_signal(|| None::<String>);
     let mut metadata = use_signal(|| None::<metadata::Metadata>);
     let mut edited_metadata = use_signal(|| None::<metadata::Metadata>);
@@ -79,89 +79,18 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
         }
     });
 
-    // temporary solution for error reporting
-    use_effect(move || {
-        if let Some(err) = conversion_status.read().error() {
-            console::log_1(&JsString::from(err));
-        }
+    // Show toasts for errors
+    use_effect({
+        move || {
+            if let Some(err) = conversion_status.read().error() {
+                toast.show_error(err);
+            }
 
-        if let Some(err) = upload_status.read().error() {
-            console::log_1(&JsString::from(err));
+            if let Some(err) = upload_status.read().error() {
+                toast.show_error(err);
+            }
         }
     });
-
-    let process_files = move |files: Vec<FileData>| async move {
-        let Some(file) = files.first().cloned() else {
-            return;
-        };
-
-        // initialize conversion status
-        conversion_status.set(ConversionStatus::Running(0));
-        metadata.set(None);
-        edited_metadata.set(None);
-        file_exists_warning.set(false);
-        file_name.set(Some(file.name()));
-        let data = file.read_bytes().await.expect("failed reading file");
-
-        // compute file name (hash) and check if already exists
-        let computed = services::files::compute_file_name(&data);
-        match services::files::file_exists(computed.as_str()).await {
-            Ok(exists) => file_exists_warning.set(exists),
-            Err(err) => return conversion_status.set(ConversionStatus::Error(format!("{err:?}"))),
-        };
-        computed_name.set(Some(computed));
-
-        let progress = move |percent: usize, _total: usize| {
-            if ConversionStatus::Running(percent as u8) != *conversion_status.read() {
-                conversion_status.set(ConversionStatus::Running(percent as u8));
-            }
-        };
-
-        match services::transcoder::transcode(data.to_vec().into(), progress).await {
-            Ok(output) => {
-                let output_extracted = metadata::extract_metadata(&output).await;
-                metadata.set(Some(output_extracted.clone()));
-                edited_metadata.set(Some(output_extracted));
-                conversion_status.set(ConversionStatus::Complete(output));
-            }
-            Err(err) => conversion_status.set(ConversionStatus::Error(format!("{err:?}"))),
-        }
-    };
-
-    let perform_upload = move || async move {
-        let result: anyhow::Result<()> = try {
-            let computed_name = computed_name.as_ref().context("computed name not set")?;
-            let mut data = conversion_status
-                .take()
-                .take_file_data()
-                .context("file data not set")?;
-
-            let edited = edited_metadata().context("metadata not set")?;
-
-            if let Some(original) = metadata() {
-                if edited != original {
-                    metadata::update_metadata(&mut data, &edited)
-                        .await
-                        .context("failed updating metadata")?;
-                }
-            }
-
-            upload_status.set(UploadStatus::Pending);
-
-            services::files::put_file(computed_name.as_str(), data)
-                .await
-                .context("uploading file")?;
-        };
-
-        if let Err(err) = result {
-            upload_status.set(UploadStatus::Error(format!("{err:?}")))
-        } else {
-            upload_status.set(UploadStatus::Complete);
-            if let Some(on_complete) = on_complete {
-                on_complete.call(());
-            }
-        }
-    };
 
     rsx! {
         b::Section {
@@ -180,7 +109,70 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                                     },
                                     onchange: move |e| {
                                         e.prevent_default();
-                                        spawn(process_files(e.files()));
+
+                                        spawn(async move {
+                                            let Some(file) = e.files().first().cloned() else {
+                                                return;
+                                            };
+
+                                            // initialize conversion status
+                                            conversion_status.set(ConversionStatus::Running(0));
+                                            metadata.set(None);
+                                            edited_metadata.set(None);
+                                            file_exists_warning.set(false);
+                                            file_name.set(Some(file.name()));
+                                            let data = match file.read_bytes().await {
+                                                Ok(data) => data.to_vec(),
+                                                Err(err) => {
+                                                    conversion_status
+
+                                                        // compute file name (hash) and check if already exists
+                                                        .set(
+                                                            ConversionStatus::Error(
+
+                                                                format!("Failed to read file: {:?}", err),
+                                                            ),
+                                                        );
+                                                    return;
+                                                }
+                                            };
+                                            let computed = services::files::compute_file_name(&data);
+                                            match services::files::file_exists(computed.as_str()).await {
+                                                Ok(exists) => file_exists_warning.set(exists),
+                                                Err(err) => {
+                                                    conversion_status
+                                                        .set(
+                                                            ConversionStatus::Error(
+                                                                format!("Failed to check if file exists: {:?}", err),
+                                                            ),
+                                                        );
+                                                    return;
+                                                }
+                                            };
+                                            computed_name.set(Some(computed));
+                                            let progress = move |percent: usize, _total: usize| {
+                                                if ConversionStatus::Running(percent as u8) != *conversion_status.read()
+                                                {
+                                                    conversion_status.set(ConversionStatus::Running(percent as u8));
+                                                }
+                                            };
+                                            match services::transcoder::transcode(data.into(), progress).await {
+                                                Ok(output) => {
+                                                    let output_extracted = metadata::extract_metadata(&output).await;
+                                                    metadata.set(Some(output_extracted.clone()));
+                                                    edited_metadata.set(Some(output_extracted));
+                                                    conversion_status.set(ConversionStatus::Complete(output));
+                                                }
+                                                Err(err) => {
+                                                    conversion_status
+                                                        .set(
+                                                            ConversionStatus::Error(
+                                                                format!("Failed to transcode file: {:?}", err),
+                                                            ),
+                                                        );
+                                                }
+                                            }
+                                        });
                                     },
                                 }
                                 span { class: "file-cta",
@@ -189,78 +181,128 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                                     }
                                     span { class: "file-label", "Choose a file…" }
                                 }
-                                 span { class: "file-name", "{file_name().as_ref().map(|s| s.as_str()).unwrap_or(\"No file selected\")}" }
+                                span { class: "file-name",
+                                    "{file_name().as_ref().map(|s| s.as_str()).unwrap_or(\"No file selected\")}"
+                                }
                             }
                         }
                     }
                 }
-                {
-                    conversion_status.read().progress_percent().map(|percent| rsx! {
-                        b::Field {
-                            b::Control {
-                                b::Progress { value: percent as f32, max: 100.0, "Transcoding..." }
-                            }
+                {conversion_status.read().progress_percent().map(|percent| rsx! {
+                    b::Field {
+                        b::Control {
+                            b::Progress { value: percent as f32, max: 100.0, "Transcoding..." }
                         }
-                    })
-                }
+                    }
+                })}
 
                 {
-                    matches!(*conversion_status.read(), ConversionStatus::Complete(_)).then(|| rsx! {
-                        b::Field {
-                            b::Label { "Artist" }
-                            b::Control {
-                                 b::Input {
-                                     value: "{edited_metadata().as_ref().map(|m| m.artist.as_str()).unwrap_or(\"\")}",
-                                     oninput: move |e: dioxus::html::FormEvent| {
-                                         if let Some(mut m) = edited_metadata() {
-                                             m.artist = e.value().chars().take(31).collect::<heapless::String<31>>();
-                                             edited_metadata.set(Some(m));
-                                         }
-                                     },
-                                 }
+                    matches!(*conversion_status.read(), ConversionStatus::Complete(_))
+                        .then(|| rsx! {
+                            b::Field {
+                                b::Label { "Artist" }
+                                b::Control {
+                                    b::Input {
+                                        value: "{edited_metadata().as_ref().map(|m| m.artist.as_str()).unwrap_or(\"\")}",
+                                        oninput: move |e: dioxus::html::FormEvent| {
+                                            if let Some(mut m) = edited_metadata() {
+                                                m.artist = e.value().chars().take(31).collect::<heapless::String<31>>();
+                                                edited_metadata.set(Some(m));
+                                            }
+                                        },
+                                    }
+                                }
                             }
-                        }
-                        b::Field {
-                            b::Label { "Title" }
-                            b::Control {
-                                 b::Input {
-                                     value: "{edited_metadata().as_ref().map(|m| m.title.as_str()).unwrap_or(\"\")}",
-                                     oninput: move |e: dioxus::html::FormEvent| {
-                                         if let Some(mut m) = edited_metadata() {
-                                             m.title = e.value().chars().take(31).collect::<heapless::String<31>>();
-                                             edited_metadata.set(Some(m));
-                                         }
-                                     },
-                                 }
+                            b::Field {
+                                b::Label { "Title" }
+                                b::Control {
+                                    b::Input {
+                                        value: "{edited_metadata().as_ref().map(|m| m.title.as_str()).unwrap_or(\"\")}",
+                                        oninput: move |e: dioxus::html::FormEvent| {
+                                            if let Some(mut m) = edited_metadata() {
+                                                m.title = e.value().chars().take(31).collect::<heapless::String<31>>();
+                                                edited_metadata.set(Some(m));
+                                            }
+                                        },
+                                    }
+                                }
                             }
-                        }
-                        b::Field {
-                            b::Label { "Album" }
-                            b::Control {
-                                 b::Input {
-                                     value: "{edited_metadata().as_ref().map(|m| m.album.as_str()).unwrap_or(\"\")}",
-                                     oninput: move |e: dioxus::html::FormEvent| {
-                                         if let Some(mut m) = edited_metadata() {
-                                             m.album = e.value().chars().take(31).collect::<heapless::String<31>>();
-                                             edited_metadata.set(Some(m));
-                                         }
-                                     },
-                                 }
+                            b::Field {
+                                b::Label { "Album" }
+                                b::Control {
+                                    b::Input {
+                                        value: "{edited_metadata().as_ref().map(|m| m.album.as_str()).unwrap_or(\"\")}",
+                                        oninput: move |e: dioxus::html::FormEvent| {
+                                            if let Some(mut m) = edited_metadata() {
+                                                m.album = e.value().chars().take(31).collect::<heapless::String<31>>();
+                                                edited_metadata.set(Some(m));
+                                            }
+                                        },
+                                    }
+                                }
                             }
-                        }
-                    })
+                        })
                 }
-                 b::Field {
-                     b::Control {
-                         b::Button {
-                             color: if *file_exists_warning.read() { b::BulmaColor::Warning } else { b::BulmaColor::Primary },
-                             disabled: *upload_status.read() != UploadStatus::Ready,
-                             loading: *upload_status.read() == UploadStatus::Pending,
-                             onclick: move |_| async move { perform_upload().await },
-                             if *file_exists_warning.read() { "Upload (file exists)" } else { "Upload" }
-                         }
-                     }
-                 }
+                b::Field {
+                    b::Control {
+                        b::Button {
+                            color: if *file_exists_warning.read() { b::BulmaColor::Warning } else { b::BulmaColor::Primary },
+                            disabled: *upload_status.read() != UploadStatus::Ready,
+                            loading: *upload_status.read() == UploadStatus::Pending,
+                            onclick: {
+                                move |_| {
+                                    spawn(async move {
+                                        let result: anyhow::Result<()> = try {
+                                            let computed_name_ref = computed_name.read();
+                                            let computed_name = computed_name_ref
+
+                                                .as_ref()
+
+                                                .context("computed name not set")?;
+                                            let mut data = conversion_status
+                                                .take()
+                                                .take_file_data()
+                                                .context("file data not set")?;
+                                            let edited_ref = edited_metadata.read();
+                                            let edited = edited_ref.as_ref().context("metadata not set")?;
+                                            let metadata_ref = metadata.read();
+                                            if let Some(original) = metadata_ref.as_ref() {
+                                                if edited != original {
+                                                    metadata::update_metadata(&mut data, edited)
+                                                        .await
+                                                        .context("failed updating metadata")?;
+                                                }
+                                            }
+                                            upload_status.set(UploadStatus::Pending);
+                                            services::files::put_file(computed_name.as_str(), data)
+                                                .await
+                                                .context("uploading file")?;
+                                        };
+                                        if let Err(err) = result {
+                                            upload_status
+                                                .set(
+                                                    UploadStatus::Error(
+                                                        format!("Failed to upload file: {:?}", err),
+                                                    ),
+                                                );
+                                        } else {
+                                            upload_status.set(UploadStatus::Complete);
+                                            toast.show_success("File uploaded successfully!");
+                                            if let Some(on_complete) = on_complete {
+                                                on_complete.call(());
+                                            }
+                                        }
+                                    });
+                                }
+                            },
+                            if *file_exists_warning.read() {
+                                "Upload (file exists)"
+                            } else {
+                                "Upload"
+                            }
+                        }
+                    }
+                }
             }
         }
     }

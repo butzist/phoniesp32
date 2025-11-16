@@ -38,8 +38,7 @@ pub fn AssociationTable() -> Element {
 
     rsx! {
         if let Some(infos) = playlist_infos() {
-            b::Table {
-                fullwidth: true,
+            b::Table { fullwidth: true,
                 thead {
                     tr {
                         th { "Play" }
@@ -49,31 +48,38 @@ pub fn AssociationTable() -> Element {
                     }
                 }
                 tbody {
-                    {infos.clone().into_iter().map(|info| {
-                        let fob = info.fob.clone();
-                        rsx! {
-                            tr {
-                                td {
-                                    ControlsButton {
-                                        icon: FaPlay,
-                                        label: "Play Association".to_string(),
-                                        size: Some(b::BulmaSize::Small),
-                                onclick: Some(EventHandler::new(move |_| {
-                                        let value = fob.clone();
-                                        spawn(async move {
-                                            if let Err(e) = services::playback::play_playlist_ref(&value).await {
-                                                eprintln!("Failed to play playlist: {:?}", e);
+                    {
+                        infos
+                            .clone()
+                            .into_iter()
+                            .map(|info| {
+                                let fob = info.fob.clone();
+                                rsx! {
+                                    tr {
+                                        td {
+                                            ControlsButton {
+                                                icon: FaPlay,
+                                                label: "Play Association".to_string(),
+                                                size: Some(b::BulmaSize::Small),
+                                                onclick: Some(
+                                                    EventHandler::new(move |_| {
+                                                        let value = fob.clone();
+                                                        spawn(async move {
+                                                            if let Err(e) = services::playback::play_playlist_ref(&value).await {
+                                                                eprintln!("Failed to play playlist: {:?}", e);
+                                                            }
+                                                        });
+                                                    }),
+                                                ),
                                             }
-                                        });
-                                    })),
+                                        }
+                                        td { "{info.fob}" }
+                                        td { "{info.count}" }
+                                        td { "{info.duration_str}" }
                                     }
                                 }
-                                td { "{info.fob}" }
-                                td { "{info.count}" }
-                                td { "{info.duration_str}" }
-                            }
-                        }
-                    })}
+                            })
+                    }
                 }
             }
         } else {

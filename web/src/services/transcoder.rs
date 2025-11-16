@@ -75,11 +75,15 @@ fn process_message_from_worker(
         }
     } else if let Some(result) = get_prop(&data, "result") {
         if let Some(tx) = tx.take() {
-            tx.send(Ok(result)).unwrap();
+            if let Err(_) = tx.send(Ok(result)) {
+                web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str("Failed to send transcode result - receiver dropped"));
+            }
         }
     } else if let Some(error) = get_prop(&data, "error") {
         if let Some(tx) = tx.take() {
-            tx.send(Err(to_error(error))).unwrap();
+            if let Err(_) = tx.send(Err(to_error(error))) {
+                web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str("Failed to send transcode error - receiver dropped"));
+            }
         }
     }
 }
@@ -127,10 +131,18 @@ where
     let sem = FREE_WORKERS.get_or_init(|| Semaphore::new(N_WORKERS));
     let _permit = sem.acquire().await;
 
-    let worker = WORKERS.with_borrow_mut(|workers| workers.as_mut().unwrap().pop().unwrap());
+    let worker = WORKERS.with_borrow_mut(|workers| {
+        workers.as_mut()
+            .and_then(|w| w.pop())
+            .ok_or_else(|| anyhow::anyhow!("No available workers"))
+    })?;
     let res = f(worker.clone()).await;
 
-    WORKERS.with_borrow_mut(move |workers| workers.as_mut().unwrap().push(worker));
+    WORKERS.with_borrow_mut(move |workers| {
+        if let Some(workers) = workers.as_mut() {
+            workers.push(worker);
+        }
+    });
 
     Ok(res)
 }

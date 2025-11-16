@@ -14,11 +14,8 @@ pub fn Controls(status: ReadOnlySignal<Option<playback::StatusResponse>>) -> Ele
 
     rsx! {
         div { style: "max-width: 600px; margin: 0 auto;",
-            b::Columns {
-                multiline: true,
-                centered: true,
-                b::Column {
-                    size: b::ColumnSize::Half,
+            b::Columns { multiline: true, centered: true,
+                b::Column { size: b::ColumnSize::Half,
                     b::Buttons {
                         ControlsButton {
                             icon: FaCircleLeft,
@@ -83,8 +80,7 @@ pub fn Controls(status: ReadOnlySignal<Option<playback::StatusResponse>>) -> Ele
                         }
                     }
                 }
-                b::Column {
-                    size: b::ColumnSize::OneQuarter,
+                b::Column { size: b::ColumnSize::OneQuarter,
                     b::Buttons {
                         ControlsButton {
                             icon: FaVolumeLow,

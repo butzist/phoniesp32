@@ -7,6 +7,7 @@ pub(crate) mod metadata;
 pub(crate) mod pages;
 pub(crate) mod services;
 
+use components::ToastManager;
 use layouts::Layout;
 use pages::{Associations, Files, NewAssociation, Playback, Settings, UploadPage};
 
@@ -41,10 +42,13 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    use_context_provider(ToastManager::new);
+
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         b::BulmaProvider { theme: b::BulmaTheme::Auto, load_bulma_css: true,
             Router::<Route> {}
+            components::ToastContainer {}
         }
     }
 }

@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_bulma as b;
 
+use crate::components::use_toast;
 use crate::components::ControlsButton;
 use crate::services::playback::{
     next, previous, stop, toggle_pause, volume_down, volume_up, PlaybackState, StatusResponse,
@@ -18,23 +19,23 @@ pub fn PlaybackControls(status: ReadSignal<Option<StatusResponse>>) -> Element {
         .map(|s| &s.state)
         .unwrap_or(&PlaybackState::Stopped);
     let is_playing = matches!(state, PlaybackState::Playing);
+    let mut toast = use_toast();
 
     rsx! {
-        b::Columns {
-            multiline: true,
-            centered: true,
-            b::Column {
-                size: b::ColumnSize::Half,
+        b::Columns { multiline: true, centered: true,
+            b::Column { size: b::ColumnSize::Half,
                 b::Buttons {
                     ControlsButton {
                         icon: FaCircleLeft,
                         label: "Previous".to_string(),
-                        onclick: |_| {
-                            spawn(async move {
-                                if let Err(e) = previous().await {
-                                    error!("Failed to go to previous: {:?}", e);
-                                }
-                            });
+                        onclick: {
+                            move |_| {
+                                spawn(async move {
+                                    if let Err(_e) = previous().await {
+                                        toast.show_error("Failed to go to previous track");
+                                    }
+                                });
+                            }
                         },
                         disabled: *state == PlaybackState::Stopped,
                     }
@@ -42,24 +43,28 @@ pub fn PlaybackControls(status: ReadSignal<Option<StatusResponse>>) -> Element {
                         ControlsButton {
                             icon: FaCirclePause,
                             label: "Pause".to_string(),
-                            onclick: move |_| {
-                                spawn(async move {
-                                    if let Err(e) = toggle_pause().await {
-                                        error!("Failed to pause: {:?}", e);
-                                    }
-                                });
+                            onclick: {
+                                move |_| {
+                                    spawn(async move {
+                                        if let Err(_e) = toggle_pause().await {
+                                            toast.show_error("Failed to pause playback");
+                                        }
+                                    });
+                                }
                             },
                         }
                     } else {
                         ControlsButton {
                             icon: FaCirclePlay,
                             label: "Play".to_string(),
-                            onclick: move |_| {
-                                spawn(async move {
-                                    if let Err(e) = toggle_pause().await {
-                                        error!("Failed to unpause: {:?}", e);
-                                    }
-                                });
+                            onclick: {
+                                move |_| {
+                                    spawn(async move {
+                                        if let Err(_e) = toggle_pause().await {
+                                            toast.show_error("Failed to resume playback");
+                                        }
+                                    });
+                                }
                             },
                             disabled: *state == PlaybackState::Stopped,
                         }
@@ -67,52 +72,59 @@ pub fn PlaybackControls(status: ReadSignal<Option<StatusResponse>>) -> Element {
                     ControlsButton {
                         icon: FaCircleStop,
                         label: "Stop".to_string(),
-                        onclick: |_| {
-                            spawn(async move {
-                                if let Err(e) = stop().await {
-                                    error!("Failed to stop: {:?}", e);
-                                }
-                            });
+                        onclick: {
+                            move |_| {
+                                spawn(async move {
+                                    if let Err(_e) = stop().await {
+                                        toast.show_error("Failed to stop playback");
+                                    }
+                                });
+                            }
                         },
                         disabled: *state == PlaybackState::Stopped,
                     }
                     ControlsButton {
                         icon: FaCircleRight,
                         label: "Next".to_string(),
-                        onclick: |_| {
-                            spawn(async move {
-                                if let Err(e) = next().await {
-                                    error!("Failed to go to next: {:?}", e);
-                                }
-                            });
+                        onclick: {
+                            move |_| {
+                                spawn(async move {
+                                    if let Err(_e) = next().await {
+                                        toast.show_error("Failed to go to next track");
+                                    }
+                                });
+                            }
                         },
                         disabled: *state == PlaybackState::Stopped,
                     }
                 }
             }
-            b::Column {
-                size: b::ColumnSize::OneQuarter,
+            b::Column { size: b::ColumnSize::OneQuarter,
                 b::Buttons {
                     ControlsButton {
                         icon: FaVolumeLow,
                         label: "Volume Down".to_string(),
-                        onclick: |_| {
-                            spawn(async move {
-                                if let Err(e) = volume_down().await {
-                                    error!("Failed to volume down: {:?}", e);
-                                }
-                            });
+                        onclick: {
+                            move |_| {
+                                spawn(async move {
+                                    if let Err(_e) = volume_down().await {
+                                        toast.show_error("Failed to decrease volume");
+                                    }
+                                });
+                            }
                         },
                     }
                     ControlsButton {
                         icon: FaVolumeHigh,
                         label: "Volume Up".to_string(),
-                        onclick: |_| {
-                            spawn(async move {
-                                if let Err(e) = volume_up().await {
-                                    error!("Failed to volume up: {:?}", e);
-                                }
-                            });
+                        onclick: {
+                            move |_| {
+                                spawn(async move {
+                                    if let Err(_e) = volume_up().await {
+                                        toast.show_error("Failed to increase volume");
+                                    }
+                                });
+                            }
                         },
                     }
                 }
@@ -120,4 +132,3 @@ pub fn PlaybackControls(status: ReadSignal<Option<StatusResponse>>) -> Element {
         }
     }
 }
-

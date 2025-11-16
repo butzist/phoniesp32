@@ -1,42 +1,49 @@
+use crate::components::use_toast;
 use crate::services;
 use dioxus::prelude::*;
 use dioxus_bulma::{self as b, InputType};
 
 #[component]
 pub fn Settings() -> Element {
-    let mut ssid = use_signal(|| String::new());
-    let mut password = use_signal(|| String::new());
+    let mut ssid = use_signal(String::new);
+    let mut password = use_signal(String::new);
+    let mut toast = use_toast();
 
-    let set_config = move |_| {
-        let config = services::config::DeviceConfig {
-            ssid: ssid.read().clone(),
-            password: password.read().clone(),
-        };
-        spawn(async move {
-            if let Err(e) = services::config::put_config(&config).await {
-                eprintln!("Failed to set config: {:?}", e);
-            } else {
-                // Optionally reload or notify
-            }
-        });
+    let set_config = {
+        move |_| {
+            let config = services::config::DeviceConfig {
+                ssid: ssid.read().clone(),
+                password: password.read().clone(),
+            };
+
+            spawn(async move {
+                if let Err(_e) = services::config::put_config(&config).await {
+                    toast.show_error("Failed to set WiFi credentials");
+                } else {
+                    toast.show_success("WiFi credentials set successfully");
+                }
+            });
+        }
     };
 
-    let delete_config = move |_| {
-        spawn(async move {
-            if let Err(e) = services::config::delete_config().await {
-                eprintln!("Failed to delete config: {:?}", e);
-            } else {
-                ssid.set(String::new());
-                password.set(String::new());
-            }
-        });
+    let delete_config = {
+        move |_| {
+            spawn(async move {
+                if let Err(_e) = services::config::delete_config().await {
+                    toast.show_error("Failed to delete WiFi credentials");
+                } else {
+                    ssid.set(String::new());
+                    password.set(String::new());
+                    toast.show_success("WiFi credentials deleted successfully");
+                }
+            });
+        }
     };
 
     rsx! {
         b::Section {
             b::Container {
-                b::Notification {
-                    color: b::BulmaColor::Info,
+                b::Notification { color: b::BulmaColor::Info,
                     b::Title { size: b::TitleSize::Is5, "Access Point Mode" }
                     p {
                         "When no WiFi credentials are configured, the device will automatically start in Access Point (AP) mode. Connect to the network with SSID "
@@ -71,8 +78,7 @@ pub fn Settings() -> Element {
                     }
                 }
 
-                b::Field {
-                    grouped: true,
+                b::Field { grouped: true,
                     b::Control {
                         b::Button {
                             color: b::BulmaColor::Primary,
@@ -93,3 +99,4 @@ pub fn Settings() -> Element {
         }
     }
 }
+

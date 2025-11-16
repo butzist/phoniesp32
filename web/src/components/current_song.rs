@@ -53,10 +53,8 @@ pub fn CurrentSong(
                 b::Column {
                     b::Title { size: b::TitleSize::Is4, "{current_song}" }
                 }
-                b::Column {
-                    class: "has-text-centered",
-                    div {
-                        class: "has-text-centered",
+                b::Column { class: "has-text-centered",
+                    div { class: "has-text-centered",
                         div {
                             class: "icon is-large has-text-{status_color_class}",
                             style: "font-size: 3rem;",

@@ -18,8 +18,7 @@ pub fn FileTable() -> Element {
     });
 
     rsx! {
-        b::Table {
-            fullwidth: true,
+        b::Table { fullwidth: true,
             thead {
                 tr {
                     th { "Play" }
@@ -38,14 +37,16 @@ pub fn FileTable() -> Element {
                                     icon: FaPlay,
                                     label: "Play".to_string(),
                                     size: Some(b::BulmaSize::Small),
-                                    onclick: Some(EventHandler::new(move |_| {
-                                        let name = entry.name.clone();
-                                        spawn(async move {
-                                            if let Err(e) = services::playback::play_file(&name).await {
-                                                eprintln!("Failed to play file: {:?}", e);
-                                            }
-                                        });
-                                    })),
+                                    onclick: Some(
+                                        EventHandler::new(move |_| {
+                                            let name = entry.name.clone();
+                                            spawn(async move {
+                                                if let Err(e) = services::playback::play_file(&name).await {
+                                                    eprintln!("Failed to play file: {:?}", e);
+                                                }
+                                            });
+                                        }),
+                                    ),
                                 }
                             }
                             td { "{entry.metadata.artist}" }
@@ -61,11 +62,11 @@ pub fn FileTable() -> Element {
                             }
                         }
                     }
-                 } else {
-                     tr {
-                         td { colspan: 5, "Loading files..." }
-                     }
-                 }
+                } else {
+                    tr {
+                        td { colspan: 5, "Loading files..." }
+                    }
+                }
             }
         }
     }

@@ -17,15 +17,15 @@ pub fn ControlsButton<T: IconShape + PartialEq + Clone + 'static>(
     rsx! {
         b::Button {
             color: b::BulmaColor::Primary,
-            size: size,
-            onclick: onclick,
-            disabled: disabled,
+            size,
+            onclick,
+            disabled,
             Icon {
                 width: icon_size,
                 height: icon_size,
                 fill: "currentColor",
                 title: label,
-                icon: icon,
+                icon,
             }
         }
     }

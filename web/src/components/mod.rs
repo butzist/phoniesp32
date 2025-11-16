@@ -1,5 +1,3 @@
-
-
 mod controls_button;
 pub use controls_button::ControlsButton;
 
@@ -26,3 +24,7 @@ pub use current_playlist::CurrentPlaylist;
 
 mod playback_controls;
 pub use playback_controls::PlaybackControls;
+
+mod toast;
+pub use toast::{use_toast, ToastContainer, ToastManager};
+

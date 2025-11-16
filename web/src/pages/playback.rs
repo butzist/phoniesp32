@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_bulma as b;
 
+use crate::components::use_toast;
 use crate::components::{CurrentPlaylist, CurrentSong};
 use crate::services::playback::{self, get_status, StatusResponse};
 
@@ -8,28 +9,30 @@ use crate::services::playback::{self, get_status, StatusResponse};
 pub fn Playback() -> Element {
     let mut status = use_signal(|| None::<StatusResponse>);
     let mut last_status = use_signal(|| None::<StatusResponse>);
+    let mut toast = use_toast();
 
-    use_future(move || async move {
-        loop {
-            match get_status().await {
-                Ok(new_status) => {
-                    status.set(Some(new_status.clone()));
-                    last_status.set(Some(new_status));
+    use_future({
+        move || async move {
+            loop {
+                match get_status().await {
+                    Ok(new_status) => {
+                        status.set(Some(new_status.clone()));
+                        last_status.set(Some(new_status));
+                    }
+                    Err(e) => {
+                        toast.show_error(format!("Failed to get playback status: {:?}", e));
+                        status.set(None);
+                        last_status.set(None);
+                    }
                 }
-                Err(e) => {
-                    eprintln!("Failed to get status: {:?}", e);
-                    status.set(None);
-                    last_status.set(None);
-                }
+                async_std::task::sleep(std::time::Duration::from_millis(1000)).await;
             }
-            async_std::task::sleep(std::time::Duration::from_millis(1000)).await;
         }
     });
 
     // Only update playlist when playlist name actually changes
     let mut current_playlist = use_signal(|| None);
-    let playlist_name =
-        use_memo(move || status().as_ref().and_then(|s| s.playlist_name.clone()));
+    let playlist_name = use_memo(move || status().as_ref().and_then(|s| s.playlist_name.clone()));
 
     let playlist_resource = use_resource(move || async move {
         let playlist_name = playlist_name.read().clone();
@@ -56,9 +59,7 @@ pub fn Playback() -> Element {
                     b::Column {
                         b::Card {
                             b::CardHeader {
-                                b::CardHeaderTitle {
-                                    "Now Playing"
-                                }
+                                b::CardHeaderTitle { "Now Playing" }
                             }
                             b::CardContent {
                                 CurrentSong { status, current_playlist }

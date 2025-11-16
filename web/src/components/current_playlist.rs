@@ -13,25 +13,18 @@ pub fn CurrentPlaylist(
     rsx! {
         b::Card {
             b::CardHeader {
-                b::CardHeaderTitle {
-                    "Current Playlist"
-                }
+                b::CardHeaderTitle { "Current Playlist" }
             }
             b::CardContent {
                 if let Some(playlist) = playlist.as_ref() {
-                    div {
-                        style: "margin-bottom: 1rem;",
+                    div { style: "margin-bottom: 1rem;",
                         b::Title { size: b::TitleSize::Is6, "{playlist.playlist_name}" }
                         b::Tags {
-                            b::Tag {
-                                color: b::BulmaColor::Info,
-                                "{playlist.files.len()} files"
-                            }
+                            b::Tag { color: b::BulmaColor::Info, "{playlist.files.len()} files" }
                         }
                     }
 
-                    b::Table {
-                        fullwidth: true,
+                    b::Table { fullwidth: true,
                         thead {
                             tr {
                                 th { "Song" }
@@ -40,28 +33,22 @@ pub fn CurrentPlaylist(
                             }
                         }
                         tbody {
-                            for (index, file) in playlist.files.iter().enumerate() {
-                                tr {
-                                    key: "{index}",
+                            for (index , file) in playlist.files.iter().enumerate() {
+                                tr { key: "{index}",
                                     td {
                                         if let Some(metadata) = &file.metadata {
                                             div {
-                                                div {
-                                                    style: "font-weight: 500;",
+                                                div { style: "font-weight: 500;",
                                                     "{metadata.artist} - {metadata.title}"
                                                 }
                                                 if !metadata.album.is_empty() {
-                                                    div {
-                                                        class: "has-text-grey is-size-7",
+                                                    div { class: "has-text-grey is-size-7",
                                                         "{metadata.album}"
                                                     }
                                                 }
                                             }
                                         } else {
-                                            div {
-                                                style: "font-weight: 500;",
-                                                "{file.file}"
-                                            }
+                                            div { style: "font-weight: 500;", "{file.file}" }
                                         }
                                     }
                                     td {
@@ -73,10 +60,7 @@ pub fn CurrentPlaylist(
                                     }
                                     td {
                                         if Some(index) == current_file_index {
-                                            b::Tag {
-                                                color: b::BulmaColor::Success,
-                                                "Playing"
-                                            }
+                                            b::Tag { color: b::BulmaColor::Success, "Playing" }
                                         }
                                     }
                                 }
@@ -84,10 +68,7 @@ pub fn CurrentPlaylist(
                         }
                     }
                 } else {
-                    b::Notification {
-                        color: b::BulmaColor::Info,
-                        "No playlist currently loaded"
-                    }
+                    b::Notification { color: b::BulmaColor::Info, "No playlist currently loaded" }
                 }
             }
         }
