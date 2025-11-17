@@ -1,7 +1,7 @@
 [package]
-edition = "2021"
+edition = "2024"
 name = "firmware"
-rust-version = "1.86"
+rust-version = "1.88"
 version = "0.1.0"
 
 [[bin]]
@@ -13,9 +13,16 @@ walkdir = "2.5"
 mime_guess = "2.0"
 
 [dependencies]
+esp-hal = { version = "1.0.0", features = ["defmt", "esp32", "unstable"] }
+esp-rtos = { version = "0.2.0", features = [
+  "defmt",
+  "embassy",
+  "esp-alloc",
+  "esp-radio",
+  "esp32",
+] }
 defmt = "1.0.1"
-esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32"] }
-esp-hal = { version = "1.0.0-rc.0", features = ["defmt", "esp32", "unstable"] }
+esp-bootloader-esp-idf = { version = "0.4.0", features = ["defmt", "esp32"] }
 embassy-net = { version = "0.7.1", features = [
   "defmt",
   "dhcpv4",
@@ -23,55 +30,53 @@ embassy-net = { version = "0.7.1", features = [
   "tcp",
   "udp",
 ] }
-embedded-io = { version = "0.6.1", features = ["defmt-03"] }
-embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
-esp-alloc = { version = "0.8.0", features = ["defmt"] }
-esp-backtrace = { version = "0.17.0", features = [
+embedded-io = { version = "0.7.1", features = ["defmt"] }
+embedded-io-async = { version = "0.7.0", features = ["defmt"] }
+esp-alloc = { version = "0.9.0", features = ["defmt"] }
+esp-backtrace = { version = "0.18.1", features = [
   "defmt",
   "esp32",
-  "exception-handler",
   "panic-handler",
 ] }
-esp-println = { version = "0.15.0", features = ["defmt-espflash", "esp32"] }
-critical-section = "1.2.0"
-embassy-executor = { version = "0.7.0", features = [
-  "defmt",
-  "task-arena-size-32768",
-] }
+esp-println = { version = "0.16.0", features = ["defmt-espflash", "esp32"] }
+embassy-executor = { version = "0.9.1", features = ["defmt"] }
 embassy-time = { version = "0.5.0", features = ["defmt"] }
-esp-hal-embassy = { version = "0.9.1", features = ["defmt", "esp32"] }
-esp-wifi = { version = "0.15.0", default-features = false, features = [
-  "builtin-scheduler",
+esp-radio = { version = "0.17.0", features = [
   "defmt",
   "esp-alloc",
   "esp32",
   "smoltcp",
+  "unstable",
   "wifi",
 ] }
 smoltcp = { version = "0.12.0", default-features = false, features = [
-  "alloc",
   "defmt",
   "medium-ethernet",
+  "multicast",
   "proto-dhcpv4",
   "proto-ipv4",
+  "socket-icmp",
   "socket-tcp",
+  "socket-udp",
 ] }
+critical-section = "1.2.0"
 static_cell = { version = "2.1.1", features = ["nightly"] }
-picoserve = { version = "0.16.0", default-features = false, features = [
+picoserve = { version = "0.17.1", default-features = false, features = [
   "alloc",
   "embassy",
   "defmt",
+  "json",
 ] }
 embedded-hal-async = "1.0.0"
 embedded-hal-bus = { version = "0.3.0", features = ["async"] }
 aligned = "0.4.2"
-sdspi = { git = "https://github.com/MabezDev/embedded-fatfs", branch = "master", features = [
+sdspi = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", features = [
   "defmt",
 ] }
-block-device-adapters = { git = "https://github.com/MabezDev/embedded-fatfs", branch = "master", features = [
+block-device-adapters = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", features = [
   "defmt",
 ] }
-embedded-fatfs = { git = "https://github.com/MabezDev/embedded-fatfs", branch = "master", default-features = false, features = [
+embedded-fatfs = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", default-features = false, features = [
   "defmt",
 ] }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
@@ -79,7 +84,7 @@ serde_json = { version = "1.0.145", default-features = false, features = [
   "alloc",
 ] }
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
-heapless = { version = "0.8.0", features = ["serde", "defmt-03"] }
+heapless = { version = "0.9.2", features = ["serde", "defmt"] }
 enumset = "1"
 audio-codec-algorithms = "0.7.0"
 embassy-futures = "0.1"

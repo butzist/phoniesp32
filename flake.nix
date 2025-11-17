@@ -27,38 +27,9 @@
           extensions = ["rust-src"];
           targets = ["wasm32-unknown-unknown"];
         };
-
-        # Build dioxus-cli from GitHub
-        dioxusCli = pkgs.rustPlatform.buildRustPackage rec {
-          pname = "dioxus-cli";
-          version = "0.7.1";
-
-          src = pkgs.fetchFromGitHub {
-            owner = "DioxusLabs";
-            repo = "dioxus";
-            rev = "v${version}";
-            sha256 = "sha256-EzfuD3rWVuomyzqSv4b3SVA6MmQiWAeePbdfXEvkiRk=";
-          };
-
-          nativeBuildInputs = [
-            pkgs.cacert
-            pkgs.pkg-config
-          ];
-
-          buildInputs = [pkgs.openssl];
-
-          buildFeatures = [
-            "no-downloads"
-          ];
-
-          cargoHash = "sha256-cZe+p4pnXgkOvKxNSSylQzbQcBklqJuzf96YzsI3XX4=";
-          cargoBuildFlags = ["--package" "dioxus-cli"];
-          doCheck = false;
-        };
       in {
         packages = {
           default = pkgs.hello;
-          dioxusCli = dioxusCli;
         };
 
         devShells.default = pkgs.mkShell {
@@ -75,7 +46,7 @@
             pkgs.binaryen
             pkgs.lld
             pkgs.llvm
-            dioxusCli
+            pkgs.dioxus-cli
           ];
 
           shellHook = ''

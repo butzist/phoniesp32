@@ -2,14 +2,14 @@ use alloc::vec::Vec;
 use futures::stream::StreamExt;
 use heapless::String;
 use picoserve::{
+    ResponseSent,
     extract::{self, FromRequestParts},
     request::Request,
     response::{
-        chunked::{ChunkWriter, ChunkedResponse, Chunks, ChunksWritten},
         IntoResponse, Json, Response, ResponseWriter, StatusCode,
+        chunked::{ChunkWriter, ChunkedResponse, Chunks, ChunksWritten},
     },
     routing::RequestHandlerService,
-    ResponseSent,
 };
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -49,7 +49,7 @@ pub async fn last() -> impl IntoResponse {
 
 pub async fn associate(
     extract::State(state): extract::State<AppState>,
-    extract::Json(req): extract::Json<AssociationRequest, 256>,
+    extract::Json(req): extract::Json<AssociationRequest>,
 ) -> impl IntoResponse {
     let audio_files: Vec<AudioFile> = req.files.into_iter().map(AudioFile::new).collect();
     Playlist::write(state.fs, req.fob, &audio_files)
@@ -66,7 +66,7 @@ pub struct ListAssociationsService;
 
 impl RequestHandlerService<AppState> for ListAssociationsService {
     async fn call_request_handler_service<
-        R: embedded_io_async::Read,
+        R: picoserve::io::Read,
         W: ResponseWriter<Error = R::Error>,
     >(
         &self,

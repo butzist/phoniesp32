@@ -7,8 +7,8 @@ use serde::Serialize;
 
 use crate::entities::basename;
 use crate::sd::{FileHandle, SdFileSystem};
-use crate::{with_extension, PrintErr};
-use audio_file_utils::metadata::{extract_metadata, INFO_CHUNK_SIZE};
+use crate::{PrintErr, with_extension};
+use audio_file_utils::metadata::{INFO_CHUNK_SIZE, extract_metadata};
 use embedded_io_async::{Seek, SeekFrom};
 use futures::stream::{self, Stream, StreamExt};
 
@@ -89,7 +89,7 @@ impl AudioFile {
     }
 
     pub async fn data_reader<'a>(
-        &self,
+        &'a self,
         fs: &'a SdFileSystem<'a>,
     ) -> Result<impl embedded_io_async::Read<Error = impl defmt::Format> + use<'a>, ()> {
         let mut file = self.open(fs).await?;

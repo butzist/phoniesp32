@@ -7,19 +7,19 @@ use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use crate::entities::audio_file::AudioFile;
 use crate::player::control::Skip;
 use crate::player::status::{State, Status};
-use crate::{extend_to_static, PrintErr};
+use crate::{PrintErr, extend_to_static};
 use crate::{retry, sd::SdFileSystem};
-use audio_codec_algorithms::{decode_adpcm_ima, AdpcmImaState};
+use audio_codec_algorithms::{AdpcmImaState, decode_adpcm_ima};
 use defmt::{error, warn};
 use embassy_futures::join::join;
-use embassy_futures::select::{select3, Either3};
+use embassy_futures::select::{Either3, select3};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::lazy_lock::LazyLock;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::Timer;
 use esp_hal::dma::{AnyI2sDmaChannel, DmaDescriptor};
-use esp_hal::i2s::master::{asynch::I2sWriteDmaTransferAsync, I2s};
+use esp_hal::i2s::master::{I2s, asynch::I2sWriteDmaTransferAsync};
 
 use {esp_backtrace as _, esp_println as _};
 
@@ -65,14 +65,13 @@ impl Player {
     }
 
     pub fn transfer(&mut self) -> I2sWriteDmaTransferAsync<'_, &mut [u8; DMA_SIZE]> {
-        let i2s = I2s::new(
-            self.i2s.reborrow(),
-            esp_hal::i2s::master::Standard::Philips,
-            esp_hal::i2s::master::DataFormat::Data16Channel16,
-            esp_hal::time::Rate::from_hz(44100),
-            self.dma.reborrow(),
-        )
-        .into_async();
+        let config = esp_hal::i2s::master::Config::new_tdm_philips()
+            .with_sample_rate(esp_hal::time::Rate::from_hz(44100))
+            .with_data_format(esp_hal::i2s::master::DataFormat::Data16Channel16);
+
+        let i2s = I2s::new(self.i2s.reborrow(), self.dma.reborrow(), config)
+            .unwrap()
+            .into_async();
 
         // SAFETY: self.dma_descriptors live forever, the risk is rather that they will still be in
         // use when a new transfer is started. There does not seem to be any sane way to stop the

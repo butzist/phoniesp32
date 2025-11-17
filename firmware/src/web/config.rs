@@ -4,11 +4,11 @@ use picoserve::{
     response::{IntoResponse, Response, StatusCode},
 };
 
-use crate::{web::AppState, DeviceConfig};
+use crate::{DeviceConfig, web::AppState};
 
 pub async fn put(
     extract::State(state): extract::State<AppState>,
-    extract::Json(req): extract::Json<DeviceConfig, 128>,
+    extract::Json(req): extract::Json<DeviceConfig>,
 ) -> impl IntoResponse {
     let root = state.fs.root_dir();
 

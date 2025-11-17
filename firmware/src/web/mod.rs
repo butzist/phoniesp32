@@ -2,7 +2,7 @@ use embassy_net::Stack;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Sender};
 use embassy_time::Duration;
 use esp_alloc as _;
-use picoserve::{routing, AppRouter, AppWithStateBuilder, Router};
+use picoserve::{AppWithStateBuilder, Router, routing};
 use serde::{Deserialize, Serialize};
 
 use crate::{entities::audio_file::AudioMetadata, player::PlayerCommand, sd::SdFileSystem};
@@ -92,9 +92,9 @@ pub struct WebApp {
 
 impl Default for WebApp {
     fn default() -> Self {
-        let router = picoserve::make_static!(AppRouter<Application>, Application.build_app());
+        let router = mk_static!(Router<<Application as AppWithStateBuilder>::PathRouter, AppState>, Application.build_app());
 
-        let config = picoserve::make_static!(
+        let config = mk_static!(
             picoserve::Config<Duration>,
             picoserve::Config::new(picoserve::Timeouts {
                 start_read_request: None,
@@ -109,31 +109,29 @@ impl Default for WebApp {
     }
 }
 
-pub const WEB_TASK_POOL_SIZE: usize = 2;
+pub const WEB_TASK_POOL_SIZE: usize = 4;
 
 #[embassy_executor::task(pool_size = WEB_TASK_POOL_SIZE)]
 pub async fn web_task(
     id: usize,
     stack: Stack<'static>,
-    router: &'static AppRouter<Application>,
+    router: &'static Router<<Application as AppWithStateBuilder>::PathRouter, AppState>,
     config: &'static picoserve::Config<Duration>,
-    state: AppState,
+    state: &'static AppState,
 ) -> ! {
     let port = 80;
     let mut tcp_rx_buffer = alloc::vec![0; 1024];
     let mut tcp_tx_buffer = alloc::vec![0; 1024];
     let mut http_buffer = alloc::vec![0; 2048];
 
-    picoserve::listen_and_serve_with_state(
-        id,
-        router,
-        config,
-        stack,
-        port,
-        &mut tcp_rx_buffer,
-        &mut tcp_tx_buffer,
-        &mut http_buffer,
-        &state,
-    )
-    .await
+    let app_with_state = &router.shared().with_state(state);
+
+    loop {
+        let _shutdown_reason = picoserve::Server::new(app_with_state, config, &mut http_buffer)
+            .listen_and_serve(id, stack, port, &mut tcp_rx_buffer, &mut tcp_tx_buffer)
+            .await;
+
+        // NoGracefulShutdown has no variants, so we always continue
+        // This is expected behavior for servers that run forever
+    }
 }

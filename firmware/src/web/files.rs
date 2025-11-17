@@ -3,14 +3,13 @@ use core::str::FromStr;
 use futures::stream::StreamExt;
 use heapless::String;
 use picoserve::{
-    extract,
+    ResponseSent, extract,
     request::Request,
     response::{
-        chunked::{ChunkWriter, ChunkedResponse, Chunks, ChunksWritten},
         IntoResponse, Json, Response, ResponseWriter, StatusCode,
+        chunked::{ChunkWriter, ChunkedResponse, Chunks, ChunksWritten},
     },
     routing::RequestHandlerService,
-    ResponseSent,
 };
 use serde_json;
 
@@ -22,10 +21,10 @@ use crate::{
 pub struct AudioFileName(pub String<8>);
 
 impl FromStr for AudioFileName {
-    type Err = ();
+    type Err = heapless::CapacityError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        String::try_from(s).map(Self)
+        Ok(Self(String::try_from(s)?))
     }
 }
 
@@ -86,7 +85,7 @@ pub struct GetMetadataService;
 
 impl RequestHandlerService<AppState, (AudioFileName,)> for GetMetadataService {
     async fn call_request_handler_service<
-        R: embedded_io_async::Read,
+        R: picoserve::io::Read,
         W: ResponseWriter<Error = R::Error>,
     >(
         &self,
@@ -95,7 +94,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for GetMetadataService {
         request: Request<'_, R>,
         response_writer: W,
     ) -> Result<ResponseSent, W::Error> {
-        let name = path_parameters.0 .0;
+        let name = path_parameters.0.0;
         let connection = request.body_connection.finalize().await?;
 
         let audio_file = AudioFile::new(name);

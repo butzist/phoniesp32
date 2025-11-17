@@ -13,8 +13,8 @@ use crate::{
     },
     player::control::Skip,
     player::{
-        status::{PlaylistWithMetadata, State, Status},
         PlayerCommand,
+        status::{PlaylistWithMetadata, State, Status},
     },
     web::AppState,
 };
@@ -65,7 +65,7 @@ pub async fn current_playlist() -> impl IntoResponse {
 
 pub async fn play(
     extract::State(state): extract::State<AppState>,
-    extract::Json(req): extract::Json<PlayRequest, 16>,
+    extract::Json(req): extract::Json<PlayRequest>,
 ) -> impl IntoResponse {
     match req {
         PlayRequest::File(file) => {

@@ -1,24 +1,25 @@
 use alloc::vec;
 use embassy_futures::join::join;
-use embedded_io_async::{Read, Write};
+use embedded_io_async::Write as _;
+use picoserve::io::Read;
 use picoserve::{
+    ResponseSent,
     io::ReadExt,
     request::Request,
     response::{IntoResponse, ResponseWriter},
     routing::RequestHandlerService,
-    ResponseSent,
 };
 
 use crate::{
     entities::audio_file::AudioFile,
-    web::{files::AudioFileName, AppState},
+    web::{AppState, files::AudioFileName},
 };
 
 pub struct UploadService;
 
 impl RequestHandlerService<AppState, (AudioFileName,)> for UploadService {
     async fn call_request_handler_service<
-        R: embedded_io_async::Read,
+        R: picoserve::io::Read,
         W: ResponseWriter<Error = R::Error>,
     >(
         &self,
@@ -27,9 +28,9 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for UploadService {
         mut request: Request<'_, R>,
         response_writer: W,
     ) -> Result<ResponseSent, W::Error> {
-        let name = path_parameters.0 .0;
+        let name = path_parameters.0.0;
         let audio_file = AudioFile::new(name);
-        let mut file_handle = audio_file.create(&state.fs).await.unwrap();
+        let mut file_handle = audio_file.create(state.fs).await.unwrap();
 
         let mut body = request.body_connection.body().reader();
         let mut buffer1 = vec![0u8; 512];

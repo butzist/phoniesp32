@@ -25,6 +25,17 @@ pub struct DeviceConfig {
     pub password: String,
 }
 
+// When you are okay with using a nightly compiler it's better to use https://docs.rs/static_cell/2.1.0/static_cell/macro.make_static.html
+#[macro_export]
+macro_rules! mk_static {
+    ($t:ty,$val:expr) => {{
+        static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
+        #[deny(unused_attributes)]
+        let x = STATIC_CELL.uninit().write(($val));
+        x
+    }};
+}
+
 impl defmt::Format for DeviceConfig {
     fn format(&self, fmt: defmt::Formatter) {
         defmt::write!(
@@ -87,7 +98,7 @@ where
 /// deallocated, and you don't anticipate data races.
 pub unsafe fn extend_to_static<T>(r: &mut T) -> &'static mut T {
     let ptr = r as *mut T;
-    &mut *ptr
+    unsafe { &mut *ptr }
 }
 
 /// Allows to await an Option<Future>
@@ -98,7 +109,10 @@ where
     Some(f?.await)
 }
 
-pub fn with_extension(basename: &str, ext: &str) -> Result<heapless::String<12>, ()> {
+pub fn with_extension(
+    basename: &str,
+    ext: &str,
+) -> Result<heapless::String<12>, heapless::CapacityError> {
     let mut fname = heapless::String::<12>::new();
     fname.push_str(basename)?;
     fname.push_str(ext)?;

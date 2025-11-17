@@ -6,58 +6,43 @@ use embassy_time::{Duration, Timer};
 use enumset::EnumSet;
 use esp_hal::{
     gpio::{AnyPin, Level, Output, OutputConfig},
-    peripherals::{RNG, TIMG0, WIFI},
+    peripherals::WIFI,
     rng::Rng,
-    timer::timg::TimerGroup,
 };
 use esp_println::println;
-use esp_wifi::wifi::{
-    self, AccessPointConfiguration, WifiController, WifiDevice, WifiError, WifiEvent, WifiState,
+use esp_radio::wifi::{
+    self, AccessPointConfig, WifiApState, WifiController, WifiDevice, WifiError, WifiEvent,
+    WifiStaState,
 };
-use heapless::Vec;
-use static_cell::make_static;
 
-use crate::{extend_to_static, DeviceConfig};
+use crate::{DeviceConfig, extend_to_static};
 
 const NUM_SOCKETS: usize = crate::web::WEB_TASK_POOL_SIZE + 1;
 
 pub struct Radio {
     wifi: WIFI<'static>,
-    timer_group: TIMG0<'static>,
-    rng: RNG<'static>,
     led: AnyPin<'static>,
     config: Option<DeviceConfig>,
 }
 
 impl Radio {
-    pub fn new(
-        wifi: WIFI<'static>,
-        timer_group: TIMG0<'static>,
-        rng: RNG<'static>,
-        led: AnyPin<'static>,
-        config: Option<DeviceConfig>,
-    ) -> Self {
-        Self {
-            wifi,
-            timer_group,
-            rng,
-            led,
-            config,
-        }
+    pub fn new(wifi: WIFI<'static>, led: AnyPin<'static>, config: Option<DeviceConfig>) -> Self {
+        Self { wifi, led, config }
     }
 
     pub async fn start(self, spawner: &Spawner) -> Stack<'static> {
-        let mut rng = esp_hal::rng::Rng::new(self.rng);
-        let timer0 = TimerGroup::new(self.timer_group);
-        let wifi_init = make_static!(esp_wifi::init(timer0.timer0, rng).unwrap());
+        let mut rng = esp_hal::rng::Rng::new();
+        let radio_controller = mk_static!(esp_radio::Controller, esp_radio::init().unwrap());
 
         let wifi_led = Output::new(self.led, Level::Low, OutputConfig::default());
 
-        let (controller, interfaces) = esp_wifi::wifi::new(wifi_init, self.wifi).unwrap();
+        let (controller, interfaces) =
+            esp_radio::wifi::new(radio_controller, self.wifi, Default::default()).unwrap();
         println!("Device capabilities: {:?}", controller.capabilities());
 
-        let stack_resources = make_static!(StackResources::<NUM_SOCKETS>::new());
-        let stack = if let Some(config) = self.config {
+        let stack_resources = mk_static!(StackResources::<NUM_SOCKETS>, StackResources::new());
+
+        if let Some(config) = self.config {
             match start_wifi_sta(
                 controller,
                 wifi_led,
@@ -93,9 +78,7 @@ impl Radio {
                 spawner,
             )
             .await
-        };
-
-        stack
+        }
     }
 }
 
@@ -112,22 +95,20 @@ pub async fn start_wifi_ap(
     let net_config = embassy_net::Config::ipv4_static(StaticConfigV4 {
         address: Ipv4Cidr::new(Ipv4Addr::new(192, 168, 42, 1), 24),
         gateway: None,
-        dns_servers: Vec::new(),
+        dns_servers: Default::default(),
     });
 
     // Init network stack
     let (stack, runner) = embassy_net::new(device, net_config, stack_resources, net_seed);
 
-    let ap_config = AccessPointConfiguration {
-        ssid: "phoniesp32".into(),
-        password: "12345678".into(),
-        channel: 6,
-        auth_method: wifi::AuthMethod::WPA2Personal,
-        ..Default::default()
-    };
+    let ap_config = AccessPointConfig::default()
+        .with_ssid(alloc::string::String::from("phoniesp32"))
+        .with_password(alloc::string::String::from("12345678"))
+        .with_channel(6)
+        .with_auth_method(wifi::AuthMethod::Wpa2Personal);
 
     controller
-        .set_configuration(&wifi::Configuration::AccessPoint(ap_config))
+        .set_config(&wifi::ModeConfig::AccessPoint(ap_config))
         .unwrap();
     controller.start_async().await.unwrap();
 
@@ -207,10 +188,11 @@ async fn connection_task(
     mut pin: Output<'static>,
 ) {
     println!("start connection task");
-    let started_states = [WifiState::StaConnected, WifiState::ApStarted];
     let stopped_events = EnumSet::from_iter([WifiEvent::StaDisconnected, WifiEvent::ApStop]);
     loop {
-        if started_states.contains(&esp_wifi::wifi::wifi_state()) {
+        let connected = esp_radio::wifi::sta_state() == WifiStaState::Connected
+            || esp_radio::wifi::ap_state() == WifiApState::Started;
+        if connected {
             pin.set_high();
             // wait until we're no longer connected
             // TODO stop WIFI on battery power: controller.stop_async()
@@ -229,12 +211,13 @@ async fn wifi_connect(
     controller: &mut WifiController<'static>,
 ) -> Result<(), WifiError> {
     if !matches!(controller.is_started(), Ok(true)) {
-        let client_config = wifi::Configuration::Client(wifi::ClientConfiguration {
-            ssid: config.ssid.as_str().into(),
-            password: config.password.as_str().into(),
-            ..Default::default()
-        });
-        controller.set_configuration(&client_config).unwrap();
+        let client_config = wifi::ClientConfig::default()
+            .with_ssid(config.ssid.clone())
+            .with_password(config.password.clone());
+
+        controller
+            .set_config(&wifi::ModeConfig::Client(client_config))
+            .unwrap();
         println!("Starting wifi");
         controller.start_async().await.unwrap();
         println!("Wifi started!");
