@@ -1,7 +1,12 @@
 use dioxus::prelude::*;
 
 #[component]
-pub fn Modal(active: bool, title: String, on_close: Option<EventHandler<()>>, children: Element) -> Element {
+pub fn Modal(
+    active: bool,
+    title: String,
+    on_close: Option<EventHandler<()>>,
+    children: Element,
+) -> Element {
     rsx! {
         div { class: if active { "modal is-active" } else { "modal" },
             div {

@@ -2,7 +2,15 @@ use embassy_net::Stack;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Sender};
 use embassy_time::Duration;
 use esp_alloc as _;
-use picoserve::{AppWithStateBuilder, Router, routing};
+use picoserve::{
+    AppWithStateBuilder, ResponseSent, Router,
+    request::Request,
+    response::{File, ResponseWriter},
+    routing::{
+        self, MethodHandler, PathDescription, PathRouter, PathRouterService, RequestHandler,
+        RequestHandlerService,
+    },
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{entities::audio_file::AudioMetadata, player::PlayerCommand, sd::SdFileSystem};
@@ -42,17 +50,114 @@ pub struct FileEntry {
     pub metadata: AudioMetadata,
 }
 
+pub struct FileMethods;
+impl PathRouterService<AppState, ()> for FileMethods {
+    async fn call_request_handler_service<
+        R: picoserve::io::Read,
+        W: ResponseWriter<Error = R::Error>,
+    >(
+        &self,
+        state: &AppState,
+        current_path_parameters: (),
+        path: picoserve::request::Path<'_>,
+        request: Request<'_, R>,
+        response_writer: W,
+    ) -> Result<ResponseSent, W::Error> {
+        // workaround for https://github.com/sammhicks/picoserve/issues/101
+        let Ok(path_parameters) =
+            routing::parse_path_segment().parse_entire_path(current_path_parameters, path)
+        else {
+            return picoserve::routing::NotFound
+                .call_path_router(
+                    state,
+                    current_path_parameters,
+                    path,
+                    request,
+                    response_writer,
+                )
+                .await;
+        };
+
+        match request.parts.method() {
+            "PUT" => {
+                upload::UploadService
+                    .call_request_handler_service(state, path_parameters, request, response_writer)
+                    .await
+            }
+            "POST" => {
+                upload::CreateFileService
+                    .call_request_handler_service(state, path_parameters, request, response_writer)
+                    .await
+            }
+            "GET" => {
+                files::GetMetadataService
+                    .call_request_handler_service(state, path_parameters, request, response_writer)
+                    .await
+            }
+            "PATCH" => {
+                upload::PatchUploadService
+                    .call_request_handler_service(state, path_parameters, request, response_writer)
+                    .await
+            }
+            "HEAD" => {
+                upload::HeadFileService
+                    .call_request_handler_service(state, path_parameters, request, response_writer)
+                    .await
+            }
+            _ => {
+                routing::MethodNotAllowed
+                    .call_request_handler(state, path_parameters, request, response_writer)
+                    .await
+            }
+        }
+    }
+}
+
+pub struct Fallback;
+impl PathRouterService<AppState, ()> for Fallback {
+    async fn call_request_handler_service<
+        R: picoserve::io::Read,
+        W: ResponseWriter<Error = R::Error>,
+    >(
+        &self,
+        state: &AppState,
+        current_path_parameters: (),
+        path: picoserve::request::Path<'_>,
+        request: Request<'_, R>,
+        response_writer: W,
+    ) -> Result<ResponseSent, W::Error> {
+        if let Some((first, _path)) = path.split_first_segment()
+            && first == "api"
+        {
+            return routing::NotFound
+                .call_path_router(
+                    state,
+                    current_path_parameters,
+                    path,
+                    request,
+                    response_writer,
+                )
+                .await;
+        }
+
+        routing::get_service(File::with_content_type_and_headers(
+            "text/html",
+            include_bytes!("../../public/index.html.gz"),
+            &[("Content-Encoding", "gzip")],
+        ))
+        .call_method_handler(state, current_path_parameters, request, response_writer)
+        .await
+    }
+}
+
 pub struct Application;
 impl AppWithStateBuilder for Application {
     type PathRouter = impl routing::PathRouter<AppState>;
     type State = AppState;
 
     fn build_app(self) -> picoserve::Router<Self::PathRouter, AppState> {
-        let router = picoserve::Router::new()
-            .route(
-                ("/api/files", routing::parse_path_segment()),
-                routing::put_service(upload::UploadService).get_service(files::GetMetadataService),
-            )
+        let router = picoserve::Router::from_service(Fallback)
+            .nest_service("/api/files", FileMethods)
             .route("/api/files", routing::get(files::list))
             .route("/api/last_fob", routing::get(fob::last))
             .route(

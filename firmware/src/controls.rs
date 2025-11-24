@@ -1,12 +1,12 @@
 use alloc::vec;
-use embassy_futures::select::{select4, Either4};
+use embassy_futures::select::{Either4, select4};
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Sender;
 use embassy_time::Timer;
+use esp_hal::Async;
 use esp_hal::gpio::TouchPin;
 use esp_hal::peripherals::{self, LPWR, TOUCH};
 use esp_hal::touch::{Continuous, TouchPad};
-use esp_hal::Async;
 use esp_hal::{rtc_cntl::Rtc, touch::Touch};
 
 use crate::entities::audio_file::AudioFile;

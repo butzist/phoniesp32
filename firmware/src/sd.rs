@@ -12,7 +12,7 @@ use esp_hal::dma::{AnySpiDmaChannel, DmaRxBuf, DmaTxBuf};
 use esp_hal::gpio::{AnyPin, Level, Output, OutputConfig};
 use esp_hal::spi::master::{AnySpi, Spi, SpiDmaBus};
 use esp_hal::time::Rate;
-use esp_hal::{dma_buffers_chunk_size, spi, Async};
+use esp_hal::{Async, dma_buffers_chunk_size, spi};
 use sdspi::SdSpi;
 
 use {esp_backtrace as _, esp_println as _};
@@ -105,7 +105,7 @@ impl Sd {
                     .bus_mut()
                     .apply_config(
                         &spi::master::Config::default()
-                            .with_frequency(Rate::from_mhz(8))
+                            .with_frequency(Rate::from_mhz(10))
                             .with_mode(spi::Mode::_0),
                     )
                     .unwrap();

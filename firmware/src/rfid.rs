@@ -8,7 +8,7 @@ use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::gpio::{AnyPin, Level, Output, OutputConfig};
 use esp_hal::spi::master::{AnySpi, Spi};
 use esp_hal::time::Rate;
-use esp_hal::{spi, Blocking};
+use esp_hal::{Blocking, spi};
 use heapless::String;
 use mfrc522::comm::blocking::spi::{DummyDelay, SpiInterface};
 use mfrc522::{Initialized, Mfrc522};

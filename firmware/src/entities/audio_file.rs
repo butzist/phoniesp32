@@ -77,6 +77,67 @@ impl AudioFile {
         Ok(file)
     }
 
+    pub async fn exists(&self, fs: &SdFileSystem<'_>) -> Result<bool, ()> {
+        let root = fs.root_dir();
+        let fname = with_extension(&self.0, FILE_EXT).unwrap();
+        let dir = root
+            .open_dir(FILE_DIR)
+            .await
+            .print_err("Opening files directory")
+            .ok_or(())?;
+
+        let meta = dir
+            .open_meta(&fname)
+            .await
+            .print_err("Checking file existence")
+            .ok_or(())?;
+        Ok(meta.is_file())
+    }
+
+    pub async fn size(&self, fs: &SdFileSystem<'_>) -> Result<u64, ()> {
+        let root = fs.root_dir();
+        let fname = with_extension(&self.0, FILE_EXT).unwrap();
+        let dir = root
+            .open_dir(FILE_DIR)
+            .await
+            .print_err("Opening files directory")
+            .ok_or(())?;
+
+        let meta = dir
+            .open_meta(&fname)
+            .await
+            .print_err("Getting file metadata")
+            .ok_or(())?;
+        Ok(meta.len())
+    }
+
+    pub async fn append_at<'a>(
+        &self,
+        fs: &'a SdFileSystem<'a>,
+        offset: u64,
+    ) -> Result<FileHandle<'a>, ()> {
+        let root = fs.root_dir();
+        let fname = with_extension(&self.0, FILE_EXT).unwrap();
+        let dir = root
+            .open_dir(FILE_DIR)
+            .await
+            .print_err("Opening files directory")
+            .ok_or(())?;
+
+        let mut file = dir
+            .open_file(&fname)
+            .await
+            .print_err("Opening file for append at offset")
+            .ok_or(())?;
+
+        if let Err(e) = file.seek(SeekFrom::Start(offset)).await {
+            defmt::error!("Seeking to offset: {:?}", e);
+            return Err(());
+        }
+
+        Ok(file)
+    }
+
     pub fn from_path(path: &str) -> Option<Self> {
         if path.starts_with("..\\FILES\\") && path.ends_with(FILE_EXT) {
             let start = "..\\FILES\\".len();

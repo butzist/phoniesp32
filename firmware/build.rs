@@ -25,24 +25,23 @@ fn generate_assets() {
     code.push_str("{\n");
     code.push_str("    router\n");
 
-    for entry in WalkDir::new("public").into_iter().filter_map(Result::ok) {
+    for entry in WalkDir::new("public/assets")
+        .into_iter()
+        .filter_map(Result::ok)
+    {
         if entry.file_type().is_file() {
             let path = entry.path();
-            if let Some(ext) = path.extension() {
-                if ext == "gz" {
-                    let rel_path = path.strip_prefix("public").unwrap();
-                    let rel_str = rel_path.to_str().unwrap();
-                    let route_path = format!("/{}", rel_str.trim_end_matches(".gz"));
-                    let file_stem = Path::new(rel_str).file_stem().unwrap().to_str().unwrap();
-                    let mime = mime_guess::from_path(file_stem)
-                        .first_or_octet_stream()
-                        .to_string();
-                    code.push_str(&format!("        .route(\"{}\", routing::get_service(File::with_content_type_and_headers(\"{}\", include_bytes!(\"{}/public/{}\"), &[(\"Content-Encoding\", \"gzip\")])))\n", route_path, mime, manifest_dir, rel_str));
-                    if route_path.ends_with("/index.html") {
-                        let dir_route = route_path.trim_end_matches("index.html");
-                        code.push_str(&format!("        .route(\"{}\", routing::get_service(File::with_content_type_and_headers(\"{}\", include_bytes!(\"{}/public/{}\"), &[(\"Content-Encoding\", \"gzip\")])))\n", dir_route, mime, manifest_dir, rel_str));
-                    }
-                }
+            if let Some(ext) = path.extension()
+                && ext == "gz"
+            {
+                let rel_path = path.strip_prefix("public").unwrap();
+                let rel_str = rel_path.to_str().unwrap();
+                let route_path = format!("/{}", rel_str.trim_end_matches(".gz"));
+                let file_stem = Path::new(rel_str).file_stem().unwrap().to_str().unwrap();
+                let mime = mime_guess::from_path(file_stem)
+                    .first_or_octet_stream()
+                    .to_string();
+                code.push_str(&format!("        .route(\"{}\", routing::get_service(File::with_content_type_and_headers(\"{}\", include_bytes!(\"{}/public/{}\"), &[(\"Content-Encoding\", \"gzip\")])))\n", route_path, mime, manifest_dir, rel_str));
             }
         }
     }
@@ -63,7 +62,9 @@ fn linker_be_nice() {
             "undefined-symbol" => match what.as_str() {
                 "_defmt_timestamp" => {
                     eprintln!();
-                    eprintln!("💡 `defmt` not found - make sure `defmt.x` is added as a linker script and you have included `use defmt_rtt as _;`");
+                    eprintln!(
+                        "💡 `defmt` not found - make sure `defmt.x` is added as a linker script and you have included `use defmt_rtt as _;`"
+                    );
                     eprintln!();
                 }
                 "_stack_start" => {
@@ -71,16 +72,18 @@ fn linker_be_nice() {
                     eprintln!("💡 Is the linker script `linkall.x` missing?");
                     eprintln!();
                 }
-                "esp_rtos_initialized"
-                | "esp_rtos_yield_task"
-                | "esp_rtos_task_create" => {
+                "esp_rtos_initialized" | "esp_rtos_yield_task" | "esp_rtos_task_create" => {
                     eprintln!();
-                    eprintln!("💡 `esp-radio` has no scheduler enabled. Make sure you have initialized `esp-rtos` or provided an external scheduler.");
+                    eprintln!(
+                        "💡 `esp-radio` has no scheduler enabled. Make sure you have initialized `esp-rtos` or provided an external scheduler."
+                    );
                     eprintln!();
                 }
                 "embedded_test_linker_file_not_added_to_rustflags" => {
                     eprintln!();
-                    eprintln!("💡 `embedded-test` not found - make sure `embedded-test.x` is added as a linker script for tests");
+                    eprintln!(
+                        "💡 `embedded-test` not found - make sure `embedded-test.x` is added as a linker script for tests"
+                    );
                     eprintln!();
                 }
                 _ => (),

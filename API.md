@@ -105,9 +105,49 @@ Get metadata for a specific audio file.
 
 **Response:** `AudioMetadata` or 404 if not found
 
+#### POST /api/files/{filename}
+
+Create an empty audio file for chunked upload.
+
+**Parameters:**
+
+- `filename`: string (max 8 chars, without .wav extension)
+
+**Response:** 201 Created on success
+
+#### PATCH /api/files/{filename}
+
+Upload a chunk of data to an existing audio file.
+
+**Parameters:**
+
+- `filename`: string (max 8 chars, without .wav extension)
+
+**Headers:**
+
+- `Upload-Offset`: number - Byte offset to start writing at
+
+**Request Body:** Raw audio file chunk data
+
+**Response:** 204 No Content on success, 404 if file doesn't exist, 400 if offset is larger than file size
+
+#### HEAD /api/files/{filename}
+
+Get the current size of an audio file.
+
+**Parameters:**
+
+- `filename`: string (max 8 chars, without .wav extension)
+
+**Response Headers:**
+
+- `Upload-Offset`: number - Current file size in bytes
+
+**Response:** 200 OK on success, 404 if file doesn't exist
+
 #### PUT /api/files/{filename}
 
-Upload an audio file to the device.
+Upload an entire audio file to the device (legacy endpoint).
 
 **Parameters:**
 
@@ -117,6 +157,42 @@ Upload an audio file to the device.
 transcoder!
 
 **Response:** 204 No Content on success
+
+### Chunked Upload Workflow
+
+For reliable file uploads with resume capability:
+
+1. **Create file:** `POST /api/files/{filename}` - Creates empty file
+2. **Upload chunks:** `PATCH /api/files/{filename}` with `Upload-Offset` header - Upload data in chunks
+3. **On error:** Check progress with `HEAD /api/files/{filename}` and resume from last valid offset
+4. **Repeat steps 2-3** until upload complete
+
+**Example chunked upload with error handling:**
+```bash
+# Create empty file
+curl -X POST http://192.168.42.1/api/files/song1
+
+# Upload first chunk
+curl -X PATCH http://192.168.42.1/api/files/song1 \
+  -H "Upload-Offset: 0" \
+  --data-binary @chunk1.bin
+
+# Upload second chunk (simulating network error)
+curl -X PATCH http://192.168.42.1/api/files/song1 \
+  -H "Upload-Offset: 1024" \
+  --data-binary @chunk2.bin || echo "Upload failed, checking progress..."
+
+# Check current file size to resume from
+CURRENT_SIZE=$(curl -I http://192.168.42.1/api/files/song1 | grep Upload-Offset | cut -d' ' -f2 | tr -d '\r')
+echo "Current file size: $CURRENT_SIZE bytes"
+
+# Resume upload from current size
+curl -X PATCH http://192.168.42.1/api/files/song1 \
+  -H "Upload-Offset: $CURRENT_SIZE" \
+  --data-binary @chunk2.bin
+
+# Continue with remaining chunks...
+```
 
 ### Associations (RFID FOBs)
 

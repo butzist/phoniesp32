@@ -1,9 +1,9 @@
 use std::{cell::RefCell, sync::OnceLock};
 
 use anyhow::{Context, Error, Result};
+use async_lock::Semaphore;
 use dioxus::prelude::*;
 use futures::channel::oneshot::{channel, Sender};
-use async_lock::Semaphore;
 use wasm_bindgen::prelude::*;
 use web_sys::{
     js_sys::{self, Array, Uint8Array},
@@ -75,14 +75,18 @@ fn process_message_from_worker(
         }
     } else if let Some(result) = get_prop(&data, "result") {
         if let Some(tx) = tx.take() {
-            if let Err(_) = tx.send(Ok(result)) {
-                web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str("Failed to send transcode result - receiver dropped"));
+            if tx.send(Ok(result)).is_err() {
+                web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(
+                    "Failed to send transcode result - receiver dropped",
+                ));
             }
         }
     } else if let Some(error) = get_prop(&data, "error") {
         if let Some(tx) = tx.take() {
-            if let Err(_) = tx.send(Err(to_error(error))) {
-                web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str("Failed to send transcode error - receiver dropped"));
+            if tx.send(Err(to_error(error))).is_err() {
+                web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(
+                    "Failed to send transcode error - receiver dropped",
+                ));
             }
         }
     }
@@ -132,7 +136,8 @@ where
     let _permit = sem.acquire().await;
 
     let worker = WORKERS.with_borrow_mut(|workers| {
-        workers.as_mut()
+        workers
+            .as_mut()
             .and_then(|w| w.pop())
             .ok_or_else(|| anyhow::anyhow!("No available workers"))
     })?;

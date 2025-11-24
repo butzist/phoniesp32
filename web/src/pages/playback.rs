@@ -70,7 +70,6 @@ pub fn Playback() -> Element {
                         CurrentPlaylist { status, current_playlist }
                     }
                 }
-
             }
         }
     }

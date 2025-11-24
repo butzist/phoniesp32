@@ -1393,8 +1393,7 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 [[package]]
 name = "picoserve"
 version = "0.17.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "969ca99aadcb00ac7b93335b8dde99deef0b8c925cdaf5946ad85cc15c71c761"
+source = "git+https://github.com/sammhicks/picoserve#14ce0373ceb33b69a7599918eb54232e544733d3"
 dependencies = [
  "const-sha1",
  "defmt 1.0.1",
@@ -1411,9 +1410,8 @@ dependencies = [
 
 [[package]]
 name = "picoserve_derive"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82a7350bdbef1ef80e4f058b89ca974dcc6526b04ac4d2095763b69760abf7ea"
+version = "0.1.4"
+source = "git+https://github.com/sammhicks/picoserve#14ce0373ceb33b69a7599918eb54232e544733d3"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -3,7 +3,7 @@ use core::pin::Pin;
 use super::audio_file::AudioFile;
 use crate::entities::basename;
 use crate::sd::SdFileSystem;
-use crate::{with_extension, PrintErr};
+use crate::{PrintErr, with_extension};
 use alloc::{boxed::Box, string::ToString, vec::Vec};
 use defmt::error;
 

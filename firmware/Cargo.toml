@@ -61,7 +61,7 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
 ] }
 critical-section = "1.2.0"
 static_cell = { version = "2.1.1", features = ["nightly"] }
-picoserve = { version = "0.17.1", default-features = false, features = [
+picoserve = { git = "https://github.com/sammhicks/picoserve", default-features = false, features = [
   "alloc",
   "embassy",
   "defmt",

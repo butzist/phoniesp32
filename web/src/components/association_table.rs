@@ -87,4 +87,3 @@ pub fn AssociationTable() -> Element {
         }
     }
 }
-

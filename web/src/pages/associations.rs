@@ -33,4 +33,3 @@ pub fn Associations() -> Element {
         }
     }
 }
-

@@ -28,11 +28,7 @@ pub(crate) async fn put_config(config: &DeviceConfig) -> Result<()> {
 pub(crate) async fn delete_config() -> Result<()> {
     let url = resolve_relative_url("/api/config")?;
     let client = reqwest::Client::default();
-    client
-        .delete(url)
-        .send()
-        .await?
-        .error_for_status()?;
+    client.delete(url).send().await?.error_for_status()?;
 
     Ok(())
 }
