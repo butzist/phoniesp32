@@ -11,8 +11,8 @@ use esp_hal::{
 };
 use esp_println::println;
 use esp_radio::wifi::{
-    self, AccessPointConfig, WifiApState, WifiController, WifiDevice, WifiError, WifiEvent,
-    WifiStaState,
+    self, WifiAccessPointState, WifiController, WifiDevice, WifiError, WifiEvent, WifiStationState,
+    ap::AccessPointConfig,
 };
 
 use crate::{DeviceConfig, extend_to_static};
@@ -32,12 +32,9 @@ impl Radio {
 
     pub async fn start(self, spawner: &Spawner) -> Stack<'static> {
         let mut rng = esp_hal::rng::Rng::new();
-        let radio_controller = mk_static!(esp_radio::Controller, esp_radio::init().unwrap());
-
         let wifi_led = Output::new(self.led, Level::Low, OutputConfig::default());
 
-        let (controller, interfaces) =
-            esp_radio::wifi::new(radio_controller, self.wifi, Default::default()).unwrap();
+        let (controller, interfaces) = esp_radio::wifi::new(self.wifi, Default::default()).unwrap();
         println!("Device capabilities: {:?}", controller.capabilities());
 
         let stack_resources = mk_static!(StackResources::<NUM_SOCKETS>, StackResources::new());
@@ -46,7 +43,7 @@ impl Radio {
             match start_wifi_sta(
                 controller,
                 wifi_led,
-                interfaces.sta,
+                interfaces.station,
                 &mut rng,
                 // SAFETY: will only use stack resources if connection is successful
                 unsafe { extend_to_static(stack_resources) },
@@ -60,7 +57,7 @@ impl Radio {
                     start_wifi_ap(
                         controller,
                         wifi_led,
-                        interfaces.ap,
+                        interfaces.access_point,
                         &mut rng,
                         stack_resources,
                         spawner,
@@ -72,7 +69,7 @@ impl Radio {
             start_wifi_ap(
                 controller,
                 wifi_led,
-                interfaces.ap,
+                interfaces.access_point,
                 &mut rng,
                 stack_resources,
                 spawner,
@@ -188,10 +185,11 @@ async fn connection_task(
     mut pin: Output<'static>,
 ) {
     println!("start connection task");
-    let stopped_events = EnumSet::from_iter([WifiEvent::StaDisconnected, WifiEvent::ApStop]);
+    let stopped_events =
+        EnumSet::from_iter([WifiEvent::StationConnected, WifiEvent::AccessPointStop]);
     loop {
-        let connected = esp_radio::wifi::sta_state() == WifiStaState::Connected
-            || esp_radio::wifi::ap_state() == WifiApState::Started;
+        let connected = esp_radio::wifi::station_state() == WifiStationState::Connected
+            || esp_radio::wifi::access_point_state() == WifiAccessPointState::Started;
         if connected {
             pin.set_high();
             // wait until we're no longer connected
@@ -211,12 +209,12 @@ async fn wifi_connect(
     controller: &mut WifiController<'static>,
 ) -> Result<(), WifiError> {
     if !matches!(controller.is_started(), Ok(true)) {
-        let client_config = wifi::ClientConfig::default()
+        let station_config = wifi::sta::StationConfig::default()
             .with_ssid(config.ssid.clone())
             .with_password(config.password.clone());
 
         controller
-            .set_config(&wifi::ModeConfig::Client(client_config))
+            .set_config(&wifi::ModeConfig::Station(station_config))
             .unwrap();
         println!("Starting wifi");
         controller.start_async().await.unwrap();

@@ -13,6 +13,7 @@ use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::Timer;
 use esp_hal::clock::CpuClock;
+use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::timer::timg::TimerGroup;
 use firmware::controls::{AnyTouchPin, Controls};
 use firmware::player::{Player, run_player};
@@ -38,7 +39,8 @@ async fn main(spawner: Spawner) {
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 98768);
 
     let timer0 = TimerGroup::new(peripherals.TIMG1);
-    esp_rtos::start(timer0.timer0);
+    let sw_int = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
+    esp_rtos::start(timer0.timer0, sw_int.software_interrupt0);
 
     info!("Embassy initialized!");
 

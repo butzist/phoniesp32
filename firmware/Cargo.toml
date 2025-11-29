@@ -13,35 +13,36 @@ walkdir = "2.5"
 mime_guess = "2.0"
 
 [dependencies]
-esp-hal = { version = "1.0.0", features = ["defmt", "esp32", "unstable"] }
-esp-rtos = { version = "0.2.0", features = [
+audio-file-utils = { path = "../audio-file-utils" }
+
+# ESP32 HAL
+esp-hal = { git = "https://github.com/esp-rs/esp-hal", features = [
+  "defmt",
+  "esp32",
+  "unstable",
+] }
+esp-rtos = { git = "https://github.com/esp-rs/esp-hal", features = [
   "defmt",
   "embassy",
   "esp-alloc",
   "esp-radio",
   "esp32",
 ] }
-defmt = "1.0.1"
-esp-bootloader-esp-idf = { version = "0.4.0", features = ["defmt", "esp32"] }
-embassy-net = { version = "0.7.1", features = [
+esp-bootloader-esp-idf = { git = "https://github.com/esp-rs/esp-hal", features = [
   "defmt",
-  "dhcpv4",
-  "medium-ethernet",
-  "tcp",
-  "udp",
+  "esp32",
 ] }
-embedded-io = { version = "0.7.1", features = ["defmt"] }
-embedded-io-async = { version = "0.7.0", features = ["defmt"] }
-esp-alloc = { version = "0.9.0", features = ["defmt"] }
-esp-backtrace = { version = "0.18.1", features = [
+esp-alloc = { git = "https://github.com/esp-rs/esp-hal", features = ["defmt"] }
+esp-backtrace = { git = "https://github.com/esp-rs/esp-hal", features = [
   "defmt",
   "esp32",
   "panic-handler",
 ] }
-esp-println = { version = "0.16.0", features = ["defmt-espflash", "esp32"] }
-embassy-executor = { version = "0.9.1", features = ["defmt"] }
-embassy-time = { version = "0.5.0", features = ["defmt"] }
-esp-radio = { version = "0.17.0", features = [
+esp-println = { git = "https://github.com/esp-rs/esp-hal", features = [
+  "defmt-espflash",
+  "esp32",
+] }
+esp-radio = { git = "https://github.com/esp-rs/esp-hal", features = [
   "defmt",
   "esp-alloc",
   "esp32",
@@ -49,6 +50,41 @@ esp-radio = { version = "0.17.0", features = [
   "unstable",
   "wifi",
 ] }
+
+# Embassy
+embassy-executor = { version = "0.9.1", features = ["defmt"] }
+embassy-time = { version = "0.5.0", features = ["defmt"] }
+embassy-net = { version = "0.7.1", features = [
+  "defmt",
+  "dhcpv4",
+  "medium-ethernet",
+  "tcp",
+  "udp",
+] }
+embassy-futures = "0.1"
+embassy-sync = "0.7.2"
+
+# Embedded FAT
+sdspi = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", features = [
+  "defmt",
+] }
+block-device-adapters = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", features = [
+  "defmt",
+] }
+embedded-fatfs = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", default-features = false, features = [
+  "defmt",
+] }
+
+# RDID
+mfrc522 = "0.8.0"
+
+# Embedded libs
+embedded-io = { version = "0.7.1", features = ["defmt"] }
+embedded-io-async = { version = "0.7.0", features = ["defmt"] }
+embedded-hal-async = "1.0.0"
+embedded-hal-bus = { version = "0.3.0", features = ["async"] }
+
+# Networking
 smoltcp = { version = "0.12.0", default-features = false, features = [
   "defmt",
   "medium-ethernet",
@@ -59,39 +95,27 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
   "socket-tcp",
   "socket-udp",
 ] }
-critical-section = "1.2.0"
-static_cell = { version = "2.1.1", features = ["nightly"] }
 picoserve = { git = "https://github.com/sammhicks/picoserve", default-features = false, features = [
   "alloc",
   "embassy",
   "defmt",
   "json",
 ] }
-embedded-hal-async = "1.0.0"
-embedded-hal-bus = { version = "0.3.0", features = ["async"] }
+
+# Various
 aligned = "0.4.2"
-sdspi = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", features = [
-  "defmt",
-] }
-block-device-adapters = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", features = [
-  "defmt",
-] }
-embedded-fatfs = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", default-features = false, features = [
-  "defmt",
-] }
-serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+audio-codec-algorithms = "0.7.0"
+critical-section = "1.2.0"
+defmt = "1.0.1"
+enumset = "1"
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
+heapless = { version = "0.9.2", features = ["serde", "defmt"] }
+libm = "0.2"
 serde_json = { version = "1.0.145", default-features = false, features = [
   "alloc",
 ] }
-futures = { version = "0.3", default-features = false, features = ["alloc"] }
-heapless = { version = "0.9.2", features = ["serde", "defmt"] }
-enumset = "1"
-audio-codec-algorithms = "0.7.0"
-embassy-futures = "0.1"
-embassy-sync = "0.7.2"
-mfrc522 = "0.8.0"
-libm = "0.2"
-audio-file-utils = { path = "../audio-file-utils" }
+serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+static_cell = { version = "2.1.1", features = ["nightly"] }
 
 
 [profile.dev]
