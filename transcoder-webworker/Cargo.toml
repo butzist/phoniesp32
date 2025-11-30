@@ -16,5 +16,9 @@ strip = "symbols"
 wasm-bindgen = "=0.2.104"
 wasm-bindgen-futures = "0.4"
 js-sys = "*"
+futures = "0.3"
 
 transcoder = { path = "../transcoder" }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"

@@ -24,20 +24,16 @@ pub async fn transcode(input: &ArrayBuffer, progress: &Function) -> Result<Array
     let mut vec = vec![0u8; u8_array.length() as usize];
     u8_array.copy_to(vec.as_mut_slice());
 
-    let samples = transcoder::decode_and_normalize(vec.into(), progress)
+    let wav_data = transcoder::decode_and_normalize(vec.into(), progress)
         .await
         .map_err(|e| js_sys::Error::new(&e.to_string()))?;
 
-    // TODO: encode as IMA ADPCM
-    let output = unsafe {
-        std::slice::from_raw_parts(
-            samples.as_ptr() as *const u8,
-            samples.len() * std::mem::size_of::<f32>(),
-        )
-    };
-
-    let u8_array = Uint8Array::new_with_length(output.len() as u32);
-    u8_array.copy_from(output);
+    // The result is already a complete WAV file as Box<[u8]>, so just copy it directly
+    let u8_array = Uint8Array::new_with_length(wav_data.len() as u32);
+    u8_array.copy_from(&wav_data);
 
     Ok(u8_array.buffer())
 }
+
+#[cfg(test)]
+mod tests;

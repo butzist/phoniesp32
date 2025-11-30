@@ -21,6 +21,9 @@ all: deps optimize
 
 all-nodeps: optimize
 
+test:
+	wasm-pack test --node
+
 clean:
 	cargo clean
 	rm -rf {{TARGET_DIR}}/*
