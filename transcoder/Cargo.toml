@@ -24,3 +24,11 @@ tokio = { version = "1", default-features = false, features = [
 
 [features]
 tokio-runtime = ["tokio"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[[bin]]
+name = "transcoder-test"
+path = "src/bin/transcoder-test.rs"
+required-features = ["tokio-runtime"]

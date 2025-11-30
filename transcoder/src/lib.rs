@@ -7,10 +7,10 @@ mod resample;
 pub use error::TranscodeError;
 
 use audio_file_utils::metadata::Metadata;
-use symphonia::core::io::MediaSourceStream;
-use symphonia::core::probe::Hint;
-use symphonia::core::meta::{MetadataOptions, StandardTagKey};
 use symphonia::core::formats::FormatOptions;
+use symphonia::core::io::MediaSourceStream;
+use symphonia::core::meta::{MetadataOptions, StandardTagKey};
+use symphonia::core::probe::Hint;
 use symphonia::default;
 
 const OUT_RATE: u32 = 44100;
@@ -31,15 +31,15 @@ pub fn extract_metadata(input: &[u8]) -> Metadata {
     let mut title = None;
     let mut album = None;
 
-    if let Some(meta) = probed.metadata.get() {
-        if let Some(metadata) = meta.current() {
-            for tag in metadata.tags() {
-                match tag.std_key {
-                    Some(StandardTagKey::Artist) => artist = Some(tag.value.to_string()),
-                    Some(StandardTagKey::TrackTitle) => title = Some(tag.value.to_string()),
-                    Some(StandardTagKey::Album) => album = Some(tag.value.to_string()),
-                    _ => {}
-                }
+    if let Some(meta) = probed.metadata.get()
+        && let Some(metadata) = meta.current()
+    {
+        for tag in metadata.tags() {
+            match tag.std_key {
+                Some(StandardTagKey::Artist) => artist = Some(tag.value.to_string()),
+                Some(StandardTagKey::TrackTitle) => title = Some(tag.value.to_string()),
+                Some(StandardTagKey::Album) => album = Some(tag.value.to_string()),
+                _ => {}
             }
         }
     }
@@ -49,9 +49,18 @@ pub fn extract_metadata(input: &[u8]) -> Metadata {
     let album_str = album.unwrap_or("Unknown".to_string());
 
     Metadata {
-        artist: artist_str.as_str().try_into().unwrap_or("Unknown".try_into().unwrap()),
-        title: title_str.as_str().try_into().unwrap_or("Unknown".try_into().unwrap()),
-        album: album_str.as_str().try_into().unwrap_or("Unknown".try_into().unwrap()),
+        artist: artist_str
+            .as_str()
+            .try_into()
+            .unwrap_or("Unknown".try_into().unwrap()),
+        title: title_str
+            .as_str()
+            .try_into()
+            .unwrap_or("Unknown".try_into().unwrap()),
+        album: album_str
+            .as_str()
+            .try_into()
+            .unwrap_or("Unknown".try_into().unwrap()),
     }
 }
 
@@ -99,3 +108,6 @@ fn to_i16(samples: Box<[f32]>) -> Box<[i16]> {
 
     result.into()
 }
+
+#[cfg(test)]
+mod tests;

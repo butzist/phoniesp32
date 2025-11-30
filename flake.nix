@@ -40,6 +40,7 @@
             pkgs.espup
             pkgs.espflash
             pkgs.esp-generate
+            pkgs.ffmpeg
             pkgs.rustup
             pkgs.just
             pkgs.wasm-bindgen-cli_0_2_104
