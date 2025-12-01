@@ -44,6 +44,7 @@
             pkgs.rustup
             pkgs.just
             pkgs.wasm-bindgen-cli_0_2_104
+            pkgs.wasm-pack
             pkgs.binaryen
             pkgs.lld
             pkgs.llvm

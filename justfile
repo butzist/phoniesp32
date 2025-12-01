@@ -5,6 +5,12 @@ all:
 	cd firmware && just all
 	cp firmware/target/xtensa-esp32-none-elf/release/firmware ./firmware.bin
 
+# Test all components
+test:
+	cd audio-file-utils && cargo test
+	cd transcoder && just test
+	cd transcoder-webworker && just test
+
 # Clean all sub-projects
 clean:
 	cd transcoder && just clean
