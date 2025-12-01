@@ -37,7 +37,7 @@ pub(crate) fn compute_file_name(content: &[u8]) -> String {
     encoded.chars().take(8).collect()
 }
 
-pub(crate) async fn create_file(name: &str) -> Result<()> {
+async fn create_file(name: &str) -> Result<()> {
     let path = format!("/api/files/{name}");
     let url = resolve_relative_url(&path)?;
     let client = reqwest::Client::default();
@@ -109,12 +109,7 @@ pub(crate) async fn get_file_size(name: &str) -> Result<u64> {
         .context("missing or invalid Upload-Offset header")
 }
 
-pub(crate) async fn upload_chunk(
-    name: &str,
-    offset: u64,
-    chunk: &[u8],
-    max_retries: u32,
-) -> Result<()> {
+async fn upload_chunk(name: &str, offset: u64, chunk: &[u8], max_retries: u32) -> Result<()> {
     let path = format!("/api/files/{name}");
     let url = resolve_relative_url(&path)?;
     let client = reqwest::Client::default();
@@ -156,18 +151,21 @@ where
 {
     let total_size = content.len() as u64;
 
-    // Check if file already exists and get current size
-    let mut uploaded = match get_file_size(name).await {
-        Ok(current_size) => {
-            // File exists, resume from current size
-            progress_callback(current_size, total_size);
-            current_size
-        }
-        Err(_) => {
-            // File doesn't exist, create it first
+    // Check if file already exists and determine action
+    let file_exists_action = file_exists_with_size(name, total_size).await?;
+
+    let mut uploaded = match file_exists_action {
+        FileExistsAction::New | FileExistsAction::Overwrite => {
+            // File doesn't exist, create it first - or already exists and should be overwritten
             create_file(name).await.context("creating empty file")?;
             progress_callback(0, total_size);
             0
+        }
+        FileExistsAction::Continue => {
+            // File exists and can be resumed, get current size
+            let current_size = get_file_size(name).await?;
+            progress_callback(current_size, total_size);
+            current_size
         }
     };
 
