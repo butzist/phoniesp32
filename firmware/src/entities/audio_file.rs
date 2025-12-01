@@ -47,7 +47,7 @@ impl AudioFile {
         &self.0
     }
 
-    pub async fn open<'a>(&self, fs: &'a SdFileSystem<'a>) -> Result<FileHandle<'a>, ()> {
+    pub async fn open<'a>(&self, fs: &'a SdFileSystem) -> Result<FileHandle<'a>, ()> {
         let root = fs.root_dir();
         let fname = with_extension(&self.0, FILE_EXT).unwrap();
         let dir = root
@@ -62,7 +62,7 @@ impl AudioFile {
             .ok_or(())
     }
 
-    pub async fn create<'a>(&self, fs: &'a SdFileSystem<'a>) -> Result<FileHandle<'a>, ()> {
+    pub async fn create<'a>(&self, fs: &'a SdFileSystem) -> Result<FileHandle<'a>, ()> {
         let root = fs.root_dir();
         let fname = with_extension(&self.0, FILE_EXT).unwrap();
         let dir = if !root.dir_exists(FILE_DIR).await.unwrap_or(false) {
@@ -77,7 +77,7 @@ impl AudioFile {
         Ok(file)
     }
 
-    pub async fn exists(&self, fs: &SdFileSystem<'_>) -> Result<bool, ()> {
+    pub async fn exists(&self, fs: &SdFileSystem) -> Result<bool, ()> {
         let root = fs.root_dir();
         let fname = with_extension(&self.0, FILE_EXT).unwrap();
         let dir = root
@@ -94,7 +94,7 @@ impl AudioFile {
         Ok(meta.is_file())
     }
 
-    pub async fn size(&self, fs: &SdFileSystem<'_>) -> Result<u64, ()> {
+    pub async fn size(&self, fs: &SdFileSystem) -> Result<u64, ()> {
         let root = fs.root_dir();
         let fname = with_extension(&self.0, FILE_EXT).unwrap();
         let dir = root
@@ -113,7 +113,7 @@ impl AudioFile {
 
     pub async fn append_at<'a>(
         &self,
-        fs: &'a SdFileSystem<'a>,
+        fs: &'a SdFileSystem,
         offset: u64,
     ) -> Result<FileHandle<'a>, ()> {
         let root = fs.root_dir();
@@ -151,7 +151,7 @@ impl AudioFile {
 
     pub async fn data_reader<'a>(
         &'a self,
-        fs: &'a SdFileSystem<'a>,
+        fs: &'a SdFileSystem,
     ) -> Result<impl embedded_io_async::Read<Error = impl defmt::Format> + use<'a>, ()> {
         let mut file = self.open(fs).await?;
 
@@ -162,7 +162,7 @@ impl AudioFile {
         Ok(file)
     }
 
-    pub async fn metadata(&self, fs: &SdFileSystem<'_>) -> Result<AudioMetadata, ()> {
+    pub async fn metadata(&self, fs: &SdFileSystem) -> Result<AudioMetadata, ()> {
         let root = fs.root_dir();
         let fname = with_extension(&self.0, FILE_EXT).unwrap();
         let dir = root
@@ -201,7 +201,7 @@ impl AudioFile {
     }
 
     pub async fn list<'a>(
-        fs: &'a SdFileSystem<'static>,
+        fs: &'a SdFileSystem,
     ) -> Result<Pin<Box<dyn Stream<Item = (String<8>, AudioMetadata)> + 'a>>, ()> {
         let root = fs.root_dir();
         let dir = root

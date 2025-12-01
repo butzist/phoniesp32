@@ -13,7 +13,7 @@ use picoserve::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{entities::audio_file::AudioMetadata, player::PlayerCommand, sd::SdFileSystem};
+use crate::{entities::audio_file::AudioMetadata, player::PlayerCommand};
 
 mod assets {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));
@@ -26,13 +26,13 @@ mod upload;
 
 #[derive(Clone)]
 pub struct AppState {
-    fs: &'static SdFileSystem<'static>,
+    fs: &'static crate::sd::SdFsWrapper,
     commands: Sender<'static, NoopRawMutex, PlayerCommand, 2>,
 }
 
 impl AppState {
     pub fn new(
-        fs: &'static SdFileSystem<'static>,
+        fs: &'static crate::sd::SdFsWrapper,
         commands: Sender<'static, NoopRawMutex, PlayerCommand, 2>,
     ) -> Self {
         Self { fs, commands }

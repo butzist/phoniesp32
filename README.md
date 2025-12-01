@@ -67,6 +67,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] List known tags
   - [x] List uploaded files
   - [ ] Styling
+  - [ ] Do not use CDN
   - [x] Update to stable Dioxus 0.7
 - [ ] Firmware (Embassy)
   - [x] Fallback to Wi-Fi AP mode
@@ -77,7 +78,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Pause playback
   - [x] Playlists
   - [x] Use RIFF INFO chunk for artist/title
-  - [ ] Fix concurrent access to file system
+  - [x] Fix concurrent access to file system
   - [ ] Fix/speed up SD access/upload
   - [ ] mDNS responder
   - [ ] Turn off Wi-Fi when on battery power

@@ -37,7 +37,8 @@ impl Chunks for StreamingFiles {
         self,
         mut writer: ChunkWriter<W>,
     ) -> Result<ChunksWritten, W::Error> {
-        let mut stream = match AudioFile::list(self.state.fs).await {
+        let fs_guard = self.state.fs.borrow_mut().await;
+        let mut stream = match AudioFile::list(&fs_guard).await {
             Ok(s) => s,
             Err(_) => {
                 writer.write_chunk(b"[]").await?;
@@ -98,7 +99,8 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for GetMetadataService {
         let connection = request.body_connection.finalize().await?;
 
         let audio_file = AudioFile::new(name);
-        match audio_file.metadata(state.fs).await {
+        let fs_guard = state.fs.borrow_mut().await;
+        match audio_file.metadata(&fs_guard).await {
             Ok(metadata) => {
                 let file_metadata = AudioMetadata {
                     artist: metadata.artist,

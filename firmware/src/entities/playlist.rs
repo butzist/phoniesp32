@@ -26,7 +26,7 @@ impl PlayListRef {
         &self.0
     }
 
-    pub async fn read(self, fs: &SdFileSystem<'_>) -> Result<Playlist, ()> {
+    pub async fn read(self, fs: &SdFileSystem) -> Result<Playlist, ()> {
         let root = fs.root_dir();
         let dir = root
             .open_dir(PLAYLIST_DIR)
@@ -88,11 +88,7 @@ impl Playlist {
         &self.name
     }
 
-    pub async fn write(
-        fs: &SdFileSystem<'_>,
-        name: String<8>,
-        files: &[AudioFile],
-    ) -> Result<(), ()> {
+    pub async fn write(fs: &SdFileSystem, name: String<8>, files: &[AudioFile]) -> Result<(), ()> {
         let root = fs.root_dir();
         let dir = if !root.dir_exists(PLAYLIST_DIR).await.unwrap_or(false) {
             root.create_dir(PLAYLIST_DIR).await.unwrap()
@@ -127,7 +123,7 @@ impl Playlist {
     }
 
     pub async fn list<'a>(
-        fs: &'a SdFileSystem<'static>,
+        fs: &'a SdFileSystem,
     ) -> Result<Pin<Box<dyn Stream<Item = Playlist> + 'a>>, ()> {
         let root = fs.root_dir();
         let dir = root.open_dir(PLAYLIST_DIR).await.map_err(|_| ())?;

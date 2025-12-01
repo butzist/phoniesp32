@@ -6,6 +6,7 @@ pub mod playback;
 pub mod status;
 
 // Re-export the main types for backwards compatibility
+
 pub use control::{PlayerCommand, handle_command};
 pub use playback::{Player, get_volume, play_files, stop_player, volume_down, volume_up};
 
@@ -15,7 +16,7 @@ use crate::player::status::Status;
 pub async fn run_player(
     spawner: embassy_executor::Spawner,
     mut player: Player,
-    fs: &'static crate::sd::SdFileSystem<'static>,
+    fs: &'static crate::sd::SdFsWrapper,
     commands: Receiver<'static, NoopRawMutex, PlayerCommand, 2>,
 ) {
     // Initialize status watches

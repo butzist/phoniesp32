@@ -52,7 +52,8 @@ pub async fn associate(
     extract::Json(req): extract::Json<AssociationRequest>,
 ) -> impl IntoResponse {
     let audio_files: Vec<AudioFile> = req.files.into_iter().map(AudioFile::new).collect();
-    Playlist::write(state.fs, req.fob, &audio_files)
+    let fs_guard = state.fs.borrow_mut().await;
+    Playlist::write(&fs_guard, req.fob, &audio_files)
         .await
         .unwrap();
 }
@@ -82,9 +83,10 @@ impl RequestHandlerService<AppState> for ListAssociationsService {
         let connection = request.body_connection.finalize().await?;
 
         if let Some(extract::Query(ListQuery { fob: Some(fob) })) = query {
-            let playlist = PlayListRef::new(fob.clone()).read(state.fs).await.ok();
+            let fs_guard = state.fs.borrow_mut().await;
+            let playlist = PlayListRef::new(fob.clone()).read(&fs_guard).await.ok();
             if let Some(playlist) = playlist {
-                let association = playlist_to_association(playlist, state.fs).await;
+                let association = playlist_to_association(playlist, &fs_guard).await;
 
                 Json(association)
                     .write_to(connection, response_writer)
@@ -113,7 +115,8 @@ impl Chunks for StreamingAssociations {
         self,
         mut writer: ChunkWriter<W>,
     ) -> Result<ChunksWritten, W::Error> {
-        let mut stream = match Playlist::list(self.state.fs).await {
+        let fs_guard = self.state.fs.borrow_mut().await;
+        let mut stream = match Playlist::list(&fs_guard).await {
             Ok(s) => s,
             Err(_) => {
                 // TODO: how to report error?
@@ -125,7 +128,7 @@ impl Chunks for StreamingAssociations {
         writer.write_chunk(b"[").await?;
         let mut first = true;
         while let Some(playlist) = stream.next().await {
-            let association = playlist_to_association(playlist, self.state.fs).await;
+            let association = playlist_to_association(playlist, &fs_guard).await;
 
             if !first {
                 writer.write_chunk(b",").await?;
@@ -145,7 +148,7 @@ impl Chunks for StreamingAssociations {
     }
 }
 
-async fn playlist_to_association(playlist: Playlist, fs: &SdFileSystem<'_>) -> Association {
+async fn playlist_to_association(playlist: Playlist, fs: &SdFileSystem) -> Association {
     let name = playlist.name;
     let files = playlist.files;
     let mut file_entries = Vec::new();

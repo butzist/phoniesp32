@@ -7,8 +7,9 @@ use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use crate::entities::audio_file::AudioFile;
 use crate::player::control::Skip;
 use crate::player::status::{State, Status};
+use crate::retry;
+use crate::sd::{PlaybackGuard, SdFileSystem};
 use crate::{PrintErr, extend_to_static};
-use crate::{retry, sd::SdFileSystem};
 use audio_codec_algorithms::{AdpcmImaState, decode_adpcm_ima};
 use defmt::{error, warn};
 use embassy_futures::join::join;
@@ -29,7 +30,8 @@ use alloc::vec::Vec;
 const DMA_SIZE: usize = 6 * 4096;
 const DMA_CHUNKS: usize = 7;
 
-static STOP_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+// FIXME: find a better (encapsulated) way to share this signal
+pub static STOP_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 static SKIP_SIGNAL: Signal<CriticalSectionRawMutex, super::control::Skip> = Signal::new();
 static VOLUME: AtomicU8 = AtomicU8::new(8);
 static PAUSED: AtomicBool = AtomicBool::new(false);
@@ -94,12 +96,12 @@ impl Player {
 }
 
 pub async fn play_files(
-    fs: &'static SdFileSystem<'static>,
+    fs: &'static crate::sd::SdFsWrapper,
     files: Vec<AudioFile>,
     player: &mut Player,
     spawner: &embassy_executor::Spawner,
 ) {
-    stop_player().await;
+    let fs_guard = fs.borrow_for_playback().await;
 
     // SAFETY: a spawned task needs static lifetimes because it might run forever. In our case the task will be
     // terminated though, before it is restarted with a new file.
@@ -109,12 +111,12 @@ pub async fn play_files(
             I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
         >(player.transfer())
     };
-    spawner.must_spawn(play_files_task(fs, files, dma_transfer));
+    spawner.must_spawn(play_files_task(fs_guard, files, dma_transfer));
 }
 
 #[embassy_executor::task]
 async fn play_files_task(
-    fs: &'static SdFileSystem<'static>,
+    fs: PlaybackGuard<'static>,
     files: Vec<AudioFile>,
     mut dma_transfer: I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
 ) {
@@ -133,7 +135,7 @@ enum ExitReason {
 }
 
 async fn play_files_task_inner(
-    fs: &'static SdFileSystem<'static>,
+    fs: PlaybackGuard<'static>,
     files: Vec<AudioFile>,
     mut dma_transfer: I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
 ) {
@@ -155,7 +157,7 @@ async fn play_files_task_inner(
         warn!("current: {}", current_index);
         Status::get().update_file(current_index);
         let file = files_vec[current_index].clone();
-        let reason = play_file(fs, file, &mut dma_transfer).await;
+        let reason = play_file(&fs, file, &mut dma_transfer).await;
 
         match reason {
             ExitReason::Finished => current_index += 1,
@@ -244,7 +246,7 @@ async fn play_samples_from_iterator(
 }
 
 async fn play_file<'a>(
-    fs: &'a SdFileSystem<'a>,
+    fs: &'a SdFileSystem,
     file: AudioFile,
     dma_transfer: &'a mut I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
 ) -> ExitReason {

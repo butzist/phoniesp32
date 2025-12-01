@@ -10,7 +10,8 @@ pub async fn put(
     extract::State(state): extract::State<AppState>,
     extract::Json(req): extract::Json<DeviceConfig>,
 ) -> impl IntoResponse {
-    let root = state.fs.root_dir();
+    let fs_guard = state.fs.borrow_mut().await;
+    let root = fs_guard.root_dir();
 
     let mut file = root.create_file("config.jsn").await.unwrap();
     file.truncate().await.unwrap();
@@ -19,13 +20,14 @@ pub async fn put(
     file.write_all(&buffer).await.unwrap();
     file.close().await.unwrap();
 
-    state.fs.flush().await.unwrap();
+    fs_guard.flush().await.unwrap();
 
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn delete(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
-    let root = state.fs.root_dir();
+    let fs_guard = state.fs.borrow_mut().await;
+    let root = fs_guard.root_dir();
 
     match root.remove("config.jsn").await {
         Ok(_) => {}
@@ -35,7 +37,7 @@ pub async fn delete(extract::State(state): extract::State<AppState>) -> impl Int
         Err(_) => panic!("FIXME filesystem error"),
     }
 
-    state.fs.flush().await.unwrap();
+    fs_guard.flush().await.unwrap();
 
     Response::new(StatusCode::NO_CONTENT, "")
 }

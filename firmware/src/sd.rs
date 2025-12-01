@@ -1,8 +1,13 @@
+use crate::player::playback::STOP_SIGNAL;
 use crate::{DeviceConfig, PrintErr};
 
 use alloc::vec::Vec;
 use block_device_adapters::BufStream;
+use core::sync::atomic::{AtomicBool, Ordering};
 use defmt::{info, warn};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::mutex::{Mutex, MutexGuard};
+
 use embassy_time::Delay;
 use embedded_fatfs::{FileSystem, FsOptions, LossyOemCpConverter, NullTimeProvider};
 use embedded_hal_async::delay::DelayNs;
@@ -17,7 +22,7 @@ use sdspi::SdSpi;
 
 use {esp_backtrace as _, esp_println as _};
 
-pub type SdFileSystem<'a> = FileSystem<
+pub type SdFileSystem = FileSystem<
     BufStream<
         SdSpi<
             ExclusiveDevice<SpiDmaBus<'static, Async>, Output<'static>, Delay>,
@@ -43,6 +48,75 @@ pub type FileHandle<'a> = embedded_fatfs::File<
     NullTimeProvider,
     LossyOemCpConverter,
 >;
+
+// Simple wrapper for controlled filesystem access
+pub struct SdFsWrapper {
+    fs: Mutex<CriticalSectionRawMutex, SdFileSystem>,
+    playback_borrowed: AtomicBool,
+}
+
+impl SdFsWrapper {
+    pub fn new(fs: SdFileSystem) -> Self {
+        Self {
+            fs: Mutex::new(fs),
+            playback_borrowed: AtomicBool::new(false),
+        }
+    }
+
+    pub async fn borrow_for_playback(&self) -> PlaybackGuard<'_> {
+        let was_borrowed = self.playback_borrowed.swap(true, Ordering::SeqCst);
+        if was_borrowed {
+            warn!("Stopping running player");
+            self.stop_playback().await;
+        }
+
+        self.playback_borrowed.store(true, Ordering::SeqCst); // previous task has probably
+        // finished and written false here
+
+        let guard = self.fs.lock().await;
+
+        PlaybackGuard {
+            wrapper: self,
+            fs: guard,
+        }
+    }
+
+    pub async fn borrow_mut(&self) -> MutexGuard<'_, CriticalSectionRawMutex, SdFileSystem> {
+        if self.playback_borrowed.load(Ordering::SeqCst) {
+            warn!("Stopping running player");
+            self.stop_playback().await;
+        }
+
+        self.fs.lock().await
+    }
+
+    async fn stop_playback(&self) {
+        STOP_SIGNAL.signal(());
+        embassy_time::Timer::after_millis(100).await;
+        STOP_SIGNAL.reset();
+    }
+}
+
+pub struct PlaybackGuard<'a> {
+    wrapper: &'a SdFsWrapper,
+    fs: MutexGuard<'a, CriticalSectionRawMutex, SdFileSystem>,
+}
+
+impl<'a> core::ops::Deref for PlaybackGuard<'a> {
+    type Target = SdFileSystem;
+
+    fn deref(&self) -> &Self::Target {
+        &self.fs
+    }
+}
+
+impl<'a> Drop for PlaybackGuard<'a> {
+    fn drop(&mut self) {
+        self.wrapper
+            .playback_borrowed
+            .store(false, Ordering::SeqCst);
+    }
+}
 
 pub struct Sd {
     bus: SpiDmaBus<'static, Async>,
@@ -83,7 +157,7 @@ impl Sd {
         Self { bus, cs }
     }
 
-    pub async fn init(mut self) -> (Option<DeviceConfig>, SdFileSystem<'static>) {
+    pub async fn init(mut self) -> (Option<DeviceConfig>, SdFsWrapper) {
         loop {
             match sdspi::sd_init(&mut self.bus, &mut self.cs).await {
                 Ok(_) => break,
@@ -150,6 +224,8 @@ impl Sd {
         drop(config_file);
         drop(root_dir);
 
-        (config, fs)
+        let fs_wrapper = SdFsWrapper::new(fs);
+
+        (config, fs_wrapper)
     }
 }

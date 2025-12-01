@@ -20,7 +20,7 @@ use firmware::player::{Player, run_player};
 use firmware::radio::Radio;
 use firmware::rfid::Rfid;
 use firmware::sd::Sd;
-use firmware::{mk_static, player::PlayerCommand, sd::SdFileSystem};
+use firmware::{mk_static, player::PlayerCommand, sd::SdFsWrapper};
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
@@ -54,7 +54,7 @@ async fn main(spawner: Spawner) {
     );
 
     let (device_config, fs) = sd.init().await;
-    let fs = mk_static!(SdFileSystem, fs);
+    let fs = mk_static!(SdFsWrapper, fs);
     info!("Config: {:?}", &device_config);
 
     let player = Player::new(

@@ -2,7 +2,7 @@ use crate::PrintErr;
 use crate::entities::playlist::{PlayListRef, Playlist};
 use crate::player::playback::toggle_pause_player;
 use crate::player::status::{AudioFileWithMetadata, PlaylistWithMetadata};
-use crate::sd::SdFileSystem;
+
 use alloc::vec::Vec;
 use defmt::info;
 
@@ -26,7 +26,7 @@ pub enum PlayerCommand {
 
 pub async fn handle_command(
     command: PlayerCommand,
-    fs: &'static SdFileSystem<'static>,
+    fs: &'static crate::sd::SdFsWrapper,
     player: &mut super::playback::Player,
     status: &super::status::Status,
     spawner: &embassy_executor::Spawner,
@@ -67,11 +67,14 @@ pub async fn handle_command(
             play_playlist(playlist, fs, player, status, spawner).await;
         }
         PlayerCommand::PlaylistRef(playlist_ref) => {
+            let fs_guard = fs.borrow_mut().await;
             if let Some(playlist) = playlist_ref
-                .read(fs)
+                .read(&fs_guard)
                 .await
                 .print_err("Failed to read playlist")
             {
+                drop(fs_guard);
+
                 info!(
                     "Player command: PLAY LIST REF with {} files",
                     playlist.files.len()
@@ -85,7 +88,7 @@ pub async fn handle_command(
 
 async fn play_playlist(
     playlist: Playlist,
-    fs: &'static SdFileSystem<'_>,
+    fs: &'static crate::sd::SdFsWrapper,
     player: &mut super::Player,
     status: &super::Status,
     spawner: &embassy_executor::Spawner,
@@ -98,12 +101,13 @@ async fn play_playlist(
 
 async fn playlist_with_metadata_from_playlist(
     playlist: &Playlist,
-    fs: &crate::sd::SdFileSystem<'_>,
+    fs: &crate::sd::SdFsWrapper,
 ) -> PlaylistWithMetadata {
     let mut files_with_metadata = Vec::new();
 
+    let fs_guard = fs.borrow_mut().await;
     for file in &playlist.files {
-        let metadata = file.metadata(fs).await.unwrap_or_default();
+        let metadata = file.metadata(&fs_guard).await.unwrap_or_default();
         files_with_metadata.push(AudioFileWithMetadata {
             file: file.clone(),
             metadata,

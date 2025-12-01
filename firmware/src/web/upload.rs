@@ -40,7 +40,8 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for CreateFileService {
         let audio_file = AudioFile::new(name.clone());
 
         // Create empty file
-        audio_file.create(state.fs).await.unwrap();
+        let fs_guard = state.fs.borrow_mut().await;
+        audio_file.create(&fs_guard).await.unwrap();
 
         let connection = request.body_connection.finalize().await?;
         let location = format!("/api/files/{}", name);
@@ -66,7 +67,8 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for UploadService {
         let audio_file = AudioFile::new(name);
 
         // Create empty file first
-        let mut file_handle = match audio_file.create(state.fs).await {
+        let fs_guard = state.fs.borrow_mut().await;
+        let mut file_handle = match audio_file.create(&fs_guard).await {
             Ok(handle) => handle,
             Err(_) => {
                 let connection = request.body_connection.finalize().await?;
@@ -190,7 +192,8 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for PatchUploadService {
         };
 
         // Check if file exists
-        match audio_file.exists(state.fs).await {
+        let fs_guard = state.fs.borrow_mut().await;
+        match audio_file.exists(&fs_guard).await {
             Ok(true) => {}
             Ok(false) => {
                 let connection = request.body_connection.finalize().await?;
@@ -207,7 +210,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for PatchUploadService {
         }
 
         // Check if offset is valid (not beyond file size)
-        match audio_file.size(state.fs).await {
+        match audio_file.size(&fs_guard).await {
             Ok(file_size) => {
                 if upload_offset > file_size {
                     let connection = request.body_connection.finalize().await?;
@@ -228,7 +231,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for PatchUploadService {
         }
 
         // Open file at specified offset
-        let mut file_handle = match audio_file.append_at(state.fs, upload_offset).await {
+        let mut file_handle = match audio_file.append_at(&fs_guard, upload_offset).await {
             Ok(handle) => handle,
             Err(_) => {
                 let connection = request.body_connection.finalize().await?;
@@ -294,7 +297,8 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for HeadFileService {
 
         let connection = request.body_connection.finalize().await?;
 
-        match audio_file.size(state.fs).await {
+        let fs_guard = state.fs.borrow_mut().await;
+        match audio_file.size(&fs_guard).await {
             Ok(file_size) => {
                 picoserve::response::Response::new(StatusCode::OK, "")
                     .with_header("Upload-Offset", file_size.to_string())
