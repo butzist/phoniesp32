@@ -17,7 +17,7 @@ use esp_radio::wifi::{
 
 use crate::{DeviceConfig, extend_to_static};
 
-const NUM_SOCKETS: usize = crate::web::WEB_TASK_POOL_SIZE + 1;
+const NUM_SOCKETS: usize = crate::web::WEB_TASK_POOL_SIZE + 2;
 
 pub struct Radio {
     wifi: WIFI<'static>,

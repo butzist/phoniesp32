@@ -4,7 +4,7 @@
 pre_compress = false
 
 [[web.proxy]]
-backend = "http://192.168.42.1/api/"
+backend = "http://phoniesp32.local/api/"
 
 [web.app]
 title = "web"

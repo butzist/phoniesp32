@@ -66,6 +66,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Playlists
   - [x] List known tags
   - [x] List uploaded files
+  - [ ] Continue file upload
   - [ ] Styling
   - [ ] Do not use CDN
   - [x] Update to stable Dioxus 0.7
@@ -79,9 +80,9 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Playlists
   - [x] Use RIFF INFO chunk for artist/title
   - [x] Fix concurrent access to file system
-  - [ ] Fix/speed up SD access/upload
-  - [ ] mDNS responder
+  - [x] mDNS responder
   - [ ] Turn off Wi-Fi when on battery power
+  - [ ] Fix/speed up SD access/upload
   - [ ] SD card partitioning support
   - [ ] Async / IRQ for RFID reader
   - [ ] Power management

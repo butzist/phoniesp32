@@ -16,6 +16,7 @@ use esp_hal::clock::CpuClock;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::timer::timg::TimerGroup;
 use firmware::controls::{AnyTouchPin, Controls};
+use firmware::mdns::mdns_responder;
 use firmware::player::{Player, run_player};
 use firmware::radio::Radio;
 use firmware::rfid::Rfid;
@@ -94,6 +95,8 @@ async fn main(spawner: Spawner) {
 
     let radio = Radio::new(peripherals.WIFI, peripherals.GPIO2.into(), device_config);
     let stack = radio.start(&spawner).await;
+
+    spawner.must_spawn(mdns_responder(stack));
 
     let web_app = firmware::web::WebApp::default();
     let web_app_state = mk_static!(

@@ -121,6 +121,7 @@ pub fn with_extension(
 
 pub mod controls;
 pub mod entities;
+pub mod mdns;
 pub mod player;
 pub mod radio;
 pub mod rfid;
