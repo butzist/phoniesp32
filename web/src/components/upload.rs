@@ -1,8 +1,6 @@
 use dioxus::html::FileData;
 use dioxus::prelude::*;
-use dioxus::web::WebEventExt;
 use dioxus_bulma as b;
-use wasm_bindgen::JsCast;
 
 use crate::components::use_toast;
 use crate::metadata;
@@ -13,13 +11,19 @@ use crate::services::files::FileExistsAction;
 enum UploadStatus {
     #[default]
     NotReady,
-    Ready,
-    Pending,
-    Complete,
+    Ready(FileExistsAction),
+    Running(UploadProgress),
     Error(String),
 }
 
 impl UploadStatus {
+    fn progress_percent(&self) -> Option<f32> {
+        match self {
+            UploadStatus::Running(p) => Some(p.percent()),
+            _ => None,
+        }
+    }
+
     fn error(&self) -> Option<&str> {
         match self {
             UploadStatus::Error(err) => Some(err),
@@ -28,7 +32,7 @@ impl UploadStatus {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 struct UploadProgress {
     uploaded: u64,
     total: u64,
@@ -49,19 +53,19 @@ enum ConversionStatus {
     #[default]
     Idle,
     Running(u8),
-    Complete(Box<[u8]>),
+    Complete(ConversionResult),
     Error(String),
 }
 
 impl ConversionStatus {
-    fn progress_percent(&self) -> Option<u8> {
+    fn progress_percent(&self) -> Option<f32> {
         match self {
-            ConversionStatus::Running(p) => Some(*p),
+            ConversionStatus::Running(p) => Some(*p as f32),
             _ => None,
         }
     }
 
-    fn take_file_data(self) -> Option<Box<[u8]>> {
+    fn take_result(self) -> Option<ConversionResult> {
         match self {
             ConversionStatus::Complete(d) => Some(d),
             _ => None,
@@ -76,20 +80,22 @@ impl ConversionStatus {
     }
 }
 
+#[derive(Debug, Default, Clone, PartialEq)]
+struct ConversionResult {
+    name: String,
+    data: Box<[u8]>,
+}
+
 #[component]
 pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
+    let mut toast = use_toast();
     let mut upload_status = use_signal(|| UploadStatus::NotReady);
     let mut conversion_status = use_signal(|| ConversionStatus::Idle);
-    let mut upload_progress = use_signal(UploadProgress::default);
-    let mut toast = use_toast();
 
-    let mut input_element: Signal<Option<web_sys::HtmlInputElement>> = use_signal(|| None);
     let mut file_name = use_signal(|| None::<String>);
     let mut selected_files = use_signal(Vec::<FileData>::new);
-    let mut computed_name = use_signal(|| None::<String>);
     let mut metadata = use_signal(|| None::<metadata::Metadata>);
     let mut edited_metadata = use_signal(|| None::<metadata::Metadata>);
-    let mut file_exists_action = use_signal(|| FileExistsAction::New);
 
     // Start conversion
     use_effect(move || {
@@ -100,9 +106,9 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
         spawn(async move {
             // initialize conversion status
             conversion_status.set(ConversionStatus::Running(0));
+            upload_status.set(UploadStatus::default());
             metadata.set(None);
             edited_metadata.set(None);
-            file_exists_action.set(FileExistsAction::New);
             file_name.set(Some(file.name()));
 
             // read file data
@@ -121,7 +127,6 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
 
             // update status
             let computed = services::files::compute_file_name(&data);
-            computed_name.set(Some(computed));
 
             // start conversion
             let mut conversion_status = conversion_status;
@@ -135,7 +140,10 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                     let output_extracted = metadata::extract_metadata(&output).await;
                     metadata.set(Some(output_extracted.clone()));
                     edited_metadata.set(Some(output_extracted));
-                    conversion_status.set(ConversionStatus::Complete(output));
+                    conversion_status.set(ConversionStatus::Complete(ConversionResult {
+                        name: computed,
+                        data: output,
+                    }));
                 }
                 Err(err) => {
                     conversion_status.set(ConversionStatus::Error(format!(
@@ -147,20 +155,21 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
         });
     });
 
-    // React on conversion complete
-    use_effect(move || {
-        if let (Some(computed_name), ConversionStatus::Complete(transcoded_data)) =
-            (computed_name.read().cloned(), &*conversion_status.read())
+    let check_target_file_exists = move || {
+        if let ConversionStatus::Complete(ConversionResult {
+            name: computed_name,
+            data: transcoded_data,
+        }) = &*conversion_status.read()
         {
             let transcoded_data_len = transcoded_data.len() as u64;
+            let computed_name = computed_name.clone();
 
             spawn(async move {
                 match services::files::file_exists_with_size(&computed_name, transcoded_data_len)
                     .await
                 {
                     Ok(action) => {
-                        upload_status.set(UploadStatus::Ready);
-                        file_exists_action.set(action);
+                        upload_status.set(UploadStatus::Ready(action));
                     }
                     Err(_) => {
                         upload_status.set(UploadStatus::Error(
@@ -170,6 +179,11 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                 }
             });
         }
+    };
+
+    // React on conversion complete
+    use_effect(move || {
+        check_target_file_exists();
     });
 
     // Show toasts for errors
@@ -186,38 +200,35 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
     });
 
     let mut start_upload = async move || {
+        let Some(mut conversion_result) = conversion_status.take().take_result() else {
+            return;
+        };
+
         let result: anyhow::Result<()> = try {
-            let computed_name = computed_name.read();
-            let computed_name = computed_name.as_ref().context("computed name not set")?;
-            let mut data = conversion_status
-                .take()
-                .take_file_data()
-                .context("file data not set")?;
             let edited = edited_metadata.read();
             let edited = edited.as_ref().context("metadata not set")?;
             let metadata = metadata.read();
             if let Some(original) = metadata.as_ref() {
                 if edited != original {
-                    metadata::update_metadata(&mut data, edited)
+                    metadata::update_metadata(&mut conversion_result.data, edited)
                         .await
                         .context("failed updating metadata")?;
                 }
             }
-            upload_status.set(UploadStatus::Pending);
 
-            let total_size = data.len() as u64;
-            upload_progress.set(UploadProgress {
+            let total_size = conversion_result.data.len() as u64;
+            upload_status.set(UploadStatus::Running(UploadProgress {
                 uploaded: 0,
                 total: total_size,
-            });
+            }));
 
             let progress_callback = |uploaded: u64, total: u64| {
-                upload_progress.set(UploadProgress { uploaded, total });
+                upload_status.set(UploadStatus::Running(UploadProgress { uploaded, total }));
             };
 
             services::files::upload_file_chunked(
-                computed_name.as_str(),
-                data,
+                conversion_result.name.as_str(),
+                conversion_result.data.clone(),
                 128 * 1024,
                 3,
                 progress_callback,
@@ -228,9 +239,10 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
 
         if let Err(err) = result {
             toast.show_error(format!("Failed to upload file: {err:?}"));
-            upload_status.set(UploadStatus::Ready);
+            conversion_status.set(ConversionStatus::Complete(conversion_result));
+            check_target_file_exists();
         } else {
-            upload_status.set(UploadStatus::Complete);
+            upload_status.set(UploadStatus::default());
             toast.show_success("File uploaded successfully!");
             if let Some(on_complete) = on_complete {
                 on_complete.call(());
@@ -248,11 +260,6 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                                 input {
                                     class: "file-input",
                                     r#type: "file",
-                                    onmounted: move |element| {
-                                        let element = element.as_web_event();
-                                        let input = element.dyn_into().ok();
-                                        input_element.set(input);
-                                    },
                                     onchange: move |e| {
                                         e.prevent_default();
                                         let files = e.files();
@@ -275,20 +282,17 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                 {conversion_status.read().progress_percent().map(|percent| rsx! {
                     b::Field {
                         b::Control {
-                            b::Progress { value: percent as f32, max: 100.0, "Transcoding..." }
+                            b::Progress { value: percent, max: 100.0, "Transcoding..." }
                         }
                     }
                 })}
-                {matches!(*upload_status.read(), UploadStatus::Pending).then(|| rsx! {
+                {upload_status.read().progress_percent().map(|percent| rsx! {
                     b::Field {
                         b::Control {
-                            b::Progress { value: upload_progress.read().percent(), max: 100.0,
-                                "Uploading... ({upload_progress.read().uploaded}/{upload_progress.read().total} bytes)"
-                            }
+                            b::Progress { value: percent, max: 100.0, "Uploading..." }
                         }
                     }
                 })}
-
                 {
                     matches!(*conversion_status.read(), ConversionStatus::Complete(_))
                         .then(|| rsx! {
@@ -340,20 +344,20 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                 b::Field {
                     b::Control {
                         b::Button {
-                            color: match *file_exists_action.read() {
-                                services::files::FileExistsAction::New => b::BulmaColor::Primary,
-                                services::files::FileExistsAction::Continue => b::BulmaColor::Warning,
-                                services::files::FileExistsAction::Overwrite => b::BulmaColor::Danger,
+                            color: match *upload_status.read() {
+                                UploadStatus::Ready(FileExistsAction::Continue) => b::BulmaColor::Warning,
+                                UploadStatus::Ready(FileExistsAction::Overwrite) => b::BulmaColor::Danger,
+                                _ => b::BulmaColor::Primary,
                             },
-                            disabled: *upload_status.read() != UploadStatus::Ready,
-                            loading: *upload_status.read() == UploadStatus::Pending,
+                            disabled: !matches!(*upload_status.read(), UploadStatus::Ready(_)),
+                            loading: matches!(*upload_status.read(), UploadStatus::Running(_)),
                             onclick: move |_| {
                                 spawn(async move { start_upload().await });
                             },
-                            match *file_exists_action.read() {
-                                services::files::FileExistsAction::New => "Upload",
-                                services::files::FileExistsAction::Continue => "Upload (continue)",
-                                services::files::FileExistsAction::Overwrite => "Upload (overwrite)",
+                            match *upload_status.read() {
+                                UploadStatus::Ready(FileExistsAction::Continue) => "Upload (continue)",
+                                UploadStatus::Ready(FileExistsAction::Overwrite) => "Upload (overwrite)",
+                                _ => "Upload",
                             }
                         }
                     }

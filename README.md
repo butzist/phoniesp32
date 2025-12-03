@@ -66,7 +66,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Playlists
   - [x] List known tags
   - [x] List uploaded files
-  - [ ] Continue file upload
+  - [x] Continue file upload
   - [ ] Styling
   - [ ] Do not use CDN
   - [x] Update to stable Dioxus 0.7
