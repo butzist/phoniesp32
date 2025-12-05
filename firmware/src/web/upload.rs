@@ -18,7 +18,7 @@ use crate::{
     web::{AppState, files::AudioFileName},
 };
 
-const BUFFER_SIZE: usize = 4096;
+const BUFFER_SIZE: usize = 1024;
 
 pub struct CreateFileService;
 pub struct UploadService;
@@ -85,7 +85,6 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for UploadService {
         let mut read_buffer = &mut buffer1;
         let mut write_buffer = &mut buffer2;
         let mut last_read_size = 0;
-        let mut total_read_size = 0;
 
         loop {
             // TODO delete file on error
@@ -96,8 +95,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for UploadService {
             .await;
             write_res.unwrap();
             last_read_size = read_res?;
-            total_read_size += last_read_size;
-            error!("total {} bytes read", total_read_size);
+            error!("read OK");
 
             (write_buffer, read_buffer) = (read_buffer, write_buffer);
 
@@ -248,7 +246,6 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for PatchUploadService {
         let mut read_buffer = &mut buffer1;
         let mut write_buffer = &mut buffer2;
         let mut last_read_size = 0;
-        let mut total_read_size = 0;
 
         loop {
             let (read_res, write_res) = join(
@@ -258,8 +255,6 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for PatchUploadService {
             .await;
             write_res.unwrap();
             last_read_size = read_res?;
-            total_read_size += last_read_size;
-            error!("total {} bytes read", total_read_size);
 
             (write_buffer, read_buffer) = (read_buffer, write_buffer);
 
@@ -324,7 +319,6 @@ async fn read_max<R: Read>(r: &mut R, buf: &mut [u8]) -> Result<usize, R::Error>
                 break;
             }
             Ok(n) => {
-                error!("read {} bytes", n);
                 buffer_pos += n;
             }
             Err(e) => {
@@ -333,6 +327,6 @@ async fn read_max<R: Read>(r: &mut R, buf: &mut [u8]) -> Result<usize, R::Error>
             }
         }
     }
-    error!("read {} bytes total", buffer_pos);
+    error!("read OK");
     Ok(buffer_pos)
 }
