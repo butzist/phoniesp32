@@ -31,7 +31,7 @@ pub fn CurrentSong(
     {
         PlaybackState::Playing => ("success", "▶"),
         PlaybackState::Paused => ("warning", "⏸"),
-        PlaybackState::Stopped => ("light", "⏹"),
+        PlaybackState::Stopped => ("primary", "⏹"),
     };
 
     let position_display = use_memo(move || {

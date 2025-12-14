@@ -16,7 +16,9 @@ pub fn Associations() -> Element {
                     }
                     b::Column { class: "has-text-right",
                         Link { to: Route::NewAssociation {},
-                            b::Button { color: b::BulmaColor::Primary,
+                            b::Button { 
+                                class: "is-button-gradient-primary",
+                                color: b::BulmaColor::Primary,
                                 dioxus_free_icons::Icon {
                                     icon: FaPlus,
                                     width: 16,

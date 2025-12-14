@@ -35,6 +35,7 @@ enum Route {
 }
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
+const STYLES: Asset = asset!("/assets/styles.scss");
 
 fn main() {
     dioxus::launch(App);
@@ -46,7 +47,8 @@ fn App() -> Element {
 
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
-        b::BulmaProvider { theme: b::BulmaTheme::Auto, load_bulma_css: true,
+        document::Stylesheet { href: STYLES }
+        b::BulmaProvider { theme: b::BulmaTheme::Auto, load_bulma_css: false,
             Router::<Route> {}
             components::ToastContainer {}
         }

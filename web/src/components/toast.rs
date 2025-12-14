@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_bulma as b;
+use crate::components::Notification;
 use std::time::Duration;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -134,7 +135,7 @@ pub fn ToastContainer() -> Element {
                         let toast_message = toast_item.message.clone();
                         let toast_color = toast_item.color;
                         rsx! {
-                            b::Notification {
+                            Notification {
                                 key: "{toast_id}",
                                 color: toast_color,
                                 onclose: move |_| {

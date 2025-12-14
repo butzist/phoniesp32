@@ -14,7 +14,7 @@ pub fn Layout(children: Element) -> Element {
         b::Navbar { class: if is_active() { "is-active" } else { "" },
             b::NavbarBrand {
                 b::NavbarItem {
-                    b::Title { size: b::TitleSize::Is4, "Phoniesp32" }
+                    b::Title { class: "rainbow-text", size: b::TitleSize::Is4, "🎵 PhoniESP32 🎵" }
                 }
                 NavbarBurger { is_active }
             }

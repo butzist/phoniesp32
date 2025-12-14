@@ -15,6 +15,7 @@ pub fn Files() -> Element {
                     }
                     b::Column { class: "has-text-right",
                         b::Button {
+                            class: "is-button-gradient-primary",
                             color: b::BulmaColor::Primary,
                             onclick: move |_| modal_open.set(true),
                             dioxus_free_icons::Icon {

@@ -4,6 +4,7 @@ use dioxus_free_icons::icons::fa_solid_icons::{FaGripVertical, FaMinus, FaPlus};
 
 use crate::components::use_toast;
 use crate::components::ControlsButton;
+use crate::components::Notification;
 use crate::services;
 use crate::services::utils::FileEntry;
 
@@ -68,7 +69,8 @@ pub fn NewAssociation() -> Element {
         b::Section {
             b::Container {
                 b::Title { size: b::TitleSize::Is4, "New Association" }
-                b::Notification { color: if last_fob().is_some() { b::BulmaColor::Info } else { b::BulmaColor::Warning },
+                Notification { 
+                    color: if last_fob().is_some() { b::BulmaColor::Info } else { b::BulmaColor::Warning },
                     if let Some(fob) = last_fob() {
                         span {
                             "Create a playlist to associate with last scanned FOB: "
@@ -82,7 +84,9 @@ pub fn NewAssociation() -> Element {
                     b::Columns { multiline: true,
                         b::Column { size: b::ColumnSize::Half,
                             b::Card {
+                                class: "has-background-primary-soft is-card-hover-lift",
                                 b::CardHeader {
+                                    class: "is-card-header-gradient",
                                     b::CardHeaderTitle { "Playlist" }
                                 }
                                 b::CardContent {
@@ -238,9 +242,12 @@ pub fn NewAssociation() -> Element {
                                         }
                                     }
                                     if let Some(status) = save_status() {
-                                        b::Notification { color: save_status_type(), "{status}" }
+                                        Notification { 
+                                            color: save_status_type(), "{status}" 
+                                        }
                                     }
                                     b::Button {
+                                        class: "is-button-gradient-primary",
                                         color: b::BulmaColor::Primary,
                                         disabled: last_fob().is_none() || playlist().is_empty(),
                                         onclick: {
@@ -274,7 +281,9 @@ pub fn NewAssociation() -> Element {
                         }
                         b::Column { size: b::ColumnSize::Half,
                             b::Card {
+                                class: "has-background-primary-soft is-card-hover-lift",
                                 b::CardHeader {
+                                    class: "is-card-header-gradient",
                                     b::CardHeaderTitle { "All Files" }
                                 }
                                 b::CardContent {

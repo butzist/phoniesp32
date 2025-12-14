@@ -25,5 +25,8 @@ pub use current_playlist::CurrentPlaylist;
 mod playback_controls;
 pub use playback_controls::PlaybackControls;
 
+mod notification;
+pub use notification::Notification;
+
 mod toast;
 pub use toast::{use_toast, ToastContainer, ToastManager};

@@ -1,4 +1,5 @@
 use crate::services::playback;
+use crate::components::Notification;
 use dioxus::prelude::*;
 use dioxus_bulma as b;
 
@@ -12,7 +13,9 @@ pub fn CurrentPlaylist(
 
     rsx! {
         b::Card {
+            class: "has-background-primary-soft is-card-hover-lift",
             b::CardHeader {
+                class: "is-card-header-gradient",
                 b::CardHeaderTitle { "Current Playlist" }
             }
             b::CardContent {
@@ -68,7 +71,10 @@ pub fn CurrentPlaylist(
                         }
                     }
                 } else {
-                    b::Notification { color: b::BulmaColor::Info, "No playlist currently loaded" }
+                    Notification { 
+                        color: b::BulmaColor::Info, 
+                        "No playlist currently loaded" 
+                    }
                 }
             }
         }

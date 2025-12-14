@@ -1,4 +1,5 @@
 use crate::components::use_toast;
+use crate::components::Notification;
 use crate::services;
 use dioxus::prelude::*;
 use dioxus_bulma::{self as b, InputType};
@@ -43,7 +44,8 @@ pub fn Settings() -> Element {
     rsx! {
         b::Section {
             b::Container {
-                b::Notification { color: b::BulmaColor::Info,
+                Notification {
+                    color: b::BulmaColor::Info,
                     b::Title { size: b::TitleSize::Is5, "Access Point Mode" }
                     p {
                         "When no WiFi credentials are configured, the device will automatically start in Access Point (AP) mode. Connect to the network with SSID "

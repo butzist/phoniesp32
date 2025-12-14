@@ -1,0 +1,135 @@
+$family-sans-serif: 'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', 'Inter', 'SF Pro', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+
+@use "../bulma/sass" with ( // Kid-friendly color palette
+  $family-primary: $family-sans-serif,
+
+  $primary: #FF6B6B,
+  $link: #4ECDC4,
+  $success: #96CEB4,
+  $info: #45B7D1,
+  $warning: #FFEAA7,
+  $danger: #FF7675,
+
+  $background: #1A1A2E,
+  $shadow-color: #4ECDC4,
+);
+
+// Gradient button classes
+.is-button-gradient-primary {
+  background: linear-gradient(135deg, var(--bulma-primary), var(--bulma-link));
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: linear-gradient(135deg, var(--bulma-link), var(--bulma-primary));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.is-button-gradient-link {
+  background: linear-gradient(135deg, var(--bulma-link), var(--bulma-primary));
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: linear-gradient(135deg, var(--bulma-primary), var(--bulma-link));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+  }
+}
+
+// Gradient notification classes
+.is-notification-gradient-primary {
+  color: var(--bulma-primary-on-scheme);
+  background: linear-gradient(135deg, rgba(var(--bulma-primary-rgb), 0.2), rgba(var(--bulma-link-rgb), 0.15));
+  border-left: 4px solid var(--bulma-primary);
+}
+
+.is-notification-gradient-link {
+  color: var(--bulma-link-on-scheme);
+  background: linear-gradient(135deg, rgba(var(--bulma-link-rgb), 0.2), rgba(var(--bulma-primary-rgb), 0.15));
+  border-left: 4px solid var(--bulma-link);
+}
+
+.is-notification-gradient-info {
+  color: var(--bulma-info-on-scheme);
+  background: linear-gradient(135deg, rgba(var(--bulma-info-rgb), 0.2), rgba(var(--bulma-link-rgb), 0.15));
+  border-left: 4px solid var(--bulma-info);
+}
+
+.is-notification-gradient-success {
+  color: var(--bulma-success-on-scheme);
+  background: linear-gradient(135deg, rgba(var(--bulma-success-rgb), 0.2), rgba(var(--bulma-info-rgb), 0.15));
+  border-left: 4px solid var(--bulma-success);
+}
+
+.is-notification-gradient-warning {
+  color: var(--bulma-warning-on-scheme);
+  background: linear-gradient(135deg, rgba(var(--bulma-warning-rgb), 0.2), rgba(var(--bulma-danger-rgb), 0.15));
+  border-left: 4px solid var(--bulma-warning);
+}
+
+.is-notification-gradient-danger {
+  color: var(--bulma-danger-on-scheme);
+  background: linear-gradient(135deg, rgba(var(--bulma-danger-rgb), 0.2), rgba(var(--bulma-warning-rgb), 0.15));
+  border-left: 4px solid var(--bulma-danger);
+}
+
+// Card header gradient class
+.is-card-header-gradient {
+  background: linear-gradient(135deg, var(--bulma-primary), var(--bulma-link));
+  color: white;
+}
+
+// Card hover lift class
+.is-card-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.rainbow-text {
+  background: linear-gradient(45deg,
+      var(--bulma-primary),
+      var(--bulma-link),
+      var(--bulma-success),
+      var(--bulma-info),
+      var(--bulma-warning),
+      var(--bulma-danger),
+      var(--bulma-link),
+      var(--bulma-link),
+    );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 200%;
+  animation: rainbow-shift 3s ease-in-out infinite;
+}
+
+@keyframes rainbow-shift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+// Make tables more colorful
+.table {
+  thead {
+    background: linear-gradient(135deg, var(--bulma-primary), var(--bulma-link));
+    color: white;
+    font-weight: 600;
+  }
+
+  tbody {
+    tr {
+      &:hover {
+        background-color: rgba(var(--bulma-primary-rgb), 0.1);
+      }
+    }
+  }
+}
