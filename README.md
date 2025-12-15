@@ -54,7 +54,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [ ] Schematics
   - [ ] Custom PCB
   - [ ] Design and 3D print case
-- [ ] UI (Dioxus)
+- [x] UI (Dioxus)
   - [x] File transcoding
   - [x] Served from device
   - [x] Show last scanned RFID tag ID
@@ -67,8 +67,8 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] List known tags
   - [x] List uploaded files
   - [x] Continue file upload
-  - [ ] Styling
-  - [ ] Do not use CDN
+  - [x] Styling
+  - [x] Do not use CDN
   - [x] Update to stable Dioxus 0.7
 - [ ] Firmware (Embassy)
   - [x] Fallback to Wi-Fi AP mode
@@ -83,8 +83,6 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] mDNS responder
   - [ ] Turn off Wi-Fi when on battery power
   - [ ] Fix/speed up SD access/upload
-  - [ ] SD card partitioning support
-  - [ ] Async / IRQ for RFID reader
   - [ ] Power management
   - [ ] Playback control via BLE
   - [x] Update to stable esp-hal 1.0
@@ -97,9 +95,18 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] List known tags
   - [x] List uploaded files
   - [x] Playlists
+- [ ] Command line utility
+  - [ ] Transcode
+  - [ ] Upload
+  - [ ] Playback control
+  - [ ] Associate
 - [x] Build system
   - [x] Build and bundle all components
   - [x] Build via GitHub actions
+- [ ] Upstream fixes
+  - [ ] `dioxus`: Support sass:color.channel()
+  - [ ] `embedded-fatfs`: SD card partitioning support
+  - [ ] `mfrc522`: async / IRQ support
 - [ ] Documentation
   - [x] [API Documentation](./API.md)
   - [ ] Full build instructions
