@@ -15,6 +15,7 @@ use embassy_time::Timer;
 use esp_hal::clock::CpuClock;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::timer::timg::TimerGroup;
+use firmware::charger::Charger;
 use firmware::controls::{AnyTouchPin, Controls};
 use firmware::mdns::mdns_responder;
 use firmware::player::{Player, run_player};
@@ -93,8 +94,9 @@ async fn main(spawner: Spawner) {
         commands.sender(),
     );
 
+    let charger = mk_static!(Charger, Charger::new(peripherals.GPIO34.into()));
     let radio = Radio::new(peripherals.WIFI, peripherals.GPIO2.into(), device_config);
-    let stack = radio.start(&spawner).await;
+    let stack = radio.start(charger, &spawner).await;
 
     spawner.must_spawn(mdns_responder(stack));
 
@@ -103,6 +105,7 @@ async fn main(spawner: Spawner) {
         firmware::web::AppState,
         firmware::web::AppState::new(fs, commands.sender())
     );
+
     for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
         spawner.must_spawn(firmware::web::web_task(
             id,
@@ -112,6 +115,7 @@ async fn main(spawner: Spawner) {
             web_app_state,
         ));
     }
+
     info!("Web server started...");
 
     loop {

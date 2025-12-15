@@ -1,6 +1,7 @@
 use core::net::Ipv4Addr;
 
 use embassy_executor::Spawner;
+use embassy_futures::select::{Either, select};
 use embassy_net::{DhcpConfig, Ipv4Cidr, Runner, Stack, StackResources, StaticConfigV4};
 use embassy_time::{Duration, Timer};
 use enumset::EnumSet;
@@ -15,7 +16,7 @@ use esp_radio::wifi::{
     ap::AccessPointConfig,
 };
 
-use crate::{DeviceConfig, extend_to_static};
+use crate::{DeviceConfig, charger::Charger, extend_to_static};
 
 const NUM_SOCKETS: usize = crate::web::WEB_TASK_POOL_SIZE + 2;
 
@@ -30,7 +31,7 @@ impl Radio {
         Self { wifi, led, config }
     }
 
-    pub async fn start(self, spawner: &Spawner) -> Stack<'static> {
+    pub async fn start(self, charger: &'static Charger, spawner: &Spawner) -> Stack<'static> {
         let mut rng = esp_hal::rng::Rng::new();
         let wifi_led = Output::new(self.led, Level::Low, OutputConfig::default());
 
@@ -39,7 +40,8 @@ impl Radio {
 
         let stack_resources = mk_static!(StackResources::<NUM_SOCKETS>, StackResources::new());
 
-        if let Some(config) = self.config {
+        // try to connect to AP if credentials are configured
+        let (controller, wifi_led) = if let Some(config) = self.config {
             match start_wifi_sta(
                 controller,
                 wifi_led,
@@ -48,34 +50,29 @@ impl Radio {
                 // SAFETY: will only use stack resources if connection is successful
                 unsafe { extend_to_static(stack_resources) },
                 config,
+                charger,
                 spawner,
             )
             .await
             {
-                Ok(stack) => stack,
-                Err((_, controller, wifi_led)) => {
-                    start_wifi_ap(
-                        controller,
-                        wifi_led,
-                        interfaces.access_point,
-                        &mut rng,
-                        stack_resources,
-                        spawner,
-                    )
-                    .await
-                }
+                Ok(stack) => return stack,
+                Err((_, controller, wifi_led)) => (controller, wifi_led),
             }
         } else {
-            start_wifi_ap(
-                controller,
-                wifi_led,
-                interfaces.access_point,
-                &mut rng,
-                stack_resources,
-                spawner,
-            )
-            .await
-        }
+            (controller, wifi_led)
+        };
+
+        // Otherwise fall back to start in AP mode
+        start_wifi_ap(
+            controller,
+            wifi_led,
+            interfaces.access_point,
+            &mut rng,
+            stack_resources,
+            charger,
+            spawner,
+        )
+        .await
     }
 }
 
@@ -85,6 +82,7 @@ pub async fn start_wifi_ap(
     device: WifiDevice<'static>,
     rng: &mut Rng,
     stack_resources: &'static mut StackResources<NUM_SOCKETS>,
+    charger: &'static Charger,
     spawner: &Spawner,
 ) -> Stack<'static> {
     let net_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
@@ -98,18 +96,11 @@ pub async fn start_wifi_ap(
     // Init network stack
     let (stack, runner) = embassy_net::new(device, net_config, stack_resources, net_seed);
 
-    let ap_config = AccessPointConfig::default()
-        .with_ssid(alloc::string::String::from("phoniesp32"))
-        .with_password(alloc::string::String::from("12345678"))
-        .with_channel(6)
-        .with_auth_method(wifi::AuthMethod::Wpa2Personal);
+    wifi_listen(&mut controller).await;
 
-    controller
-        .set_config(&wifi::ModeConfig::AccessPoint(ap_config))
-        .unwrap();
-    controller.start_async().await.unwrap();
-
-    spawner.spawn(connection_task(None, controller, led)).ok();
+    spawner
+        .spawn(connection_task(None, controller, led, charger))
+        .ok();
     spawner.spawn(net_task(runner)).ok();
 
     wait_for_connection(stack).await;
@@ -124,6 +115,7 @@ pub async fn start_wifi_sta(
     rng: &mut Rng,
     stack_resources: &'static mut StackResources<NUM_SOCKETS>,
     config: DeviceConfig,
+    charger: &'static Charger,
     spawner: &Spawner,
 ) -> Result<Stack<'static>, (WifiError, WifiController<'static>, Output<'static>)> {
     let net_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
@@ -150,7 +142,7 @@ pub async fn start_wifi_sta(
     }
 
     spawner
-        .spawn(connection_task(Some(config), controller, led))
+        .spawn(connection_task(Some(config), controller, led, charger))
         .ok();
     spawner.spawn(net_task(runner)).ok();
 
@@ -183,23 +175,64 @@ async fn connection_task(
     config: Option<DeviceConfig>,
     mut controller: WifiController<'static>,
     mut pin: Output<'static>,
+    charger: &'static Charger,
 ) {
     println!("start connection task");
-    let stopped_events =
-        EnumSet::from_iter([WifiEvent::StationConnected, WifiEvent::AccessPointStop]);
+    let stopped_events = EnumSet::from_iter([
+        WifiEvent::StationDisconnected,
+        WifiEvent::StationStop,
+        WifiEvent::AccessPointStop,
+    ]);
     loop {
-        let connected = esp_radio::wifi::station_state() == WifiStationState::Connected
-            || esp_radio::wifi::access_point_state() == WifiAccessPointState::Started;
-        if connected {
-            pin.set_high();
-            // wait until we're no longer connected
-            // TODO stop WIFI on battery power: controller.stop_async()
-            controller.wait_for_events(stopped_events, false).await;
-            pin.set_low();
-            Timer::after(Duration::from_millis(5000)).await
-        }
-        if let Some(config) = &config {
-            wifi_connect(config, &mut controller).await.ok();
+        let desired_state = charger.is_connected();
+        let actual_state = !matches!(controller.is_started(), Ok(true));
+
+        match (desired_state, actual_state) {
+            (true, true) => {
+                println!("Wifi running");
+
+                let connected = esp_radio::wifi::station_state() == WifiStationState::Connected
+                    || esp_radio::wifi::access_point_state() == WifiAccessPointState::Started;
+                if connected {
+                    pin.set_high();
+
+                    // wait until we're no longer connected
+                    let controller_future = controller.wait_for_events(stopped_events, false);
+                    let charger_future = charger.wait_for_event();
+                    match select(controller_future, charger_future).await {
+                        Either::First(_) => {
+                            // disconnected
+                        }
+                        Either::Second(_) => {
+                            continue;
+                        }
+                    }
+                }
+
+                println!("Wifi disconnected");
+                controller.stop_async().await.unwrap();
+                pin.set_low();
+            }
+            (true, false) => {
+                println!("Wifi needs to be started");
+
+                if let Some(config) = &config {
+                    wifi_connect(config, &mut controller).await.ok();
+                } else {
+                    wifi_listen(&mut controller).await;
+                }
+            }
+            (false, true) => {
+                println!("Wifi stopping...");
+
+                controller.stop_async().await.unwrap();
+            }
+            (false, false) => {
+                println!("Wifi off - waiting for charger plugged in");
+
+                pin.set_low();
+                charger.wait_for_event().await;
+            }
         }
     }
 }
@@ -234,6 +267,24 @@ async fn wifi_connect(
     }
 
     connect_result
+}
+
+async fn wifi_listen(controller: &mut WifiController<'static>) {
+    if !matches!(controller.is_started(), Ok(true)) {
+        let ap_config = AccessPointConfig::default()
+            .with_ssid(alloc::string::String::from("phoniesp32"))
+            .with_password(alloc::string::String::from("12345678"))
+            .with_channel(6)
+            .with_auth_method(wifi::AuthMethod::Wpa2Personal);
+
+        controller
+            .set_config(&wifi::ModeConfig::AccessPoint(ap_config))
+            .unwrap();
+
+        println!("Starting wifi AP");
+        controller.start_async().await.unwrap();
+        println!("Wifi AP started!");
+    }
 }
 
 #[embassy_executor::task]

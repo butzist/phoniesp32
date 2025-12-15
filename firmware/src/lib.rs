@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 extern crate alloc;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct DeviceConfig {
     #[serde(alias = "SSID")]
     pub ssid: String,
@@ -119,6 +119,7 @@ pub fn with_extension(
     Ok(fname)
 }
 
+pub mod charger;
 pub mod controls;
 pub mod entities;
 pub mod mdns;
