@@ -13,6 +13,7 @@ use esp_hal::clock::CpuClock;
 use esp_hal::dma::DmaChannelConvert;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::timer::timg::TimerGroup;
+use firmware::charger::Charger;
 use firmware::mdns::MdnsResponder;
 use firmware::player::Player;
 use firmware::radio::Radio;
@@ -91,9 +92,13 @@ async fn main(spawner: Spawner) {
     .await;
     rfid.spawn(&spawner);
 
+    info!("Starting charger");
+    let charger = Charger::new(peripherals.GPIO11.into());
+    let charger_monitor = charger.spawn(&spawner);
+
     info!("Starting radio");
     let radio = Radio::new(peripherals.WIFI, peripherals.GPIO2.into(), device_config);
-    let stack = radio.spawn(&spawner).await;
+    let stack = radio.spawn(charger_monitor, &spawner).await;
 
     info!("Starting mDNS responder");
     let mdns = MdnsResponder::new(stack);
@@ -104,11 +109,13 @@ async fn main(spawner: Spawner) {
         firmware::web::AppState,
         firmware::web::AppState::new(fs, player_handle.clone())
     );
+
     for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
         info!("Starting web task");
         let web_task = WebTask::new(id, stack, web_app.router, web_app.config, web_app_state);
         web_task.spawn(&spawner);
     }
+
     info!("Web server started...");
 
     loop {

@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 extern crate alloc;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct DeviceConfig {
     #[serde(alias = "SSID")]
     pub ssid: String,
@@ -32,7 +32,7 @@ macro_rules! mk_static {
     ($t:ty,$val:expr) => {{
         static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
         #[deny(unused_attributes)]
-        let x = STATIC_CELL.uninit().write(($val));
+        let x = STATIC_CELL.uninit().write($val);
         x
     }};
 }
@@ -120,7 +120,7 @@ pub fn with_extension(
     Ok(fname)
 }
 
-//pub mod controls;
+pub mod charger;
 pub mod entities;
 pub mod mdns;
 pub mod player;

@@ -32,8 +32,6 @@ impl MdnsResponder {
 async fn mdns_responder(stack: Stack<'static>) {
     println!("Starting mDNS responder for {}", SERVICE_NAME);
 
-    let ipv4 = wait_for_network_ready(&stack).await;
-
     let (recv_buf, send_buf) = mk_static!(
         (
             VecBufAccess<NoopRawMutex, 1500>,
@@ -43,11 +41,12 @@ async fn mdns_responder(stack: Stack<'static>) {
     );
 
     let udp_buffers = mk_static!(UdpBuffers<1>, UdpBuffers::new());
-    let udp = Udp::new(stack, udp_buffers);
 
     let signal = Signal::new();
 
     loop {
+        let ipv4 = wait_for_network_ready(&stack).await;
+        let udp = Udp::new(stack, udp_buffers);
         match run_mdns(udp, &*recv_buf, &*send_buf, &signal, ipv4).await {
             Ok(_) => {
                 println!("mDNS responder completed successfully");
