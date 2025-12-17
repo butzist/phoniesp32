@@ -1,5 +1,5 @@
-use crate::services::playback;
 use crate::components::Notification;
+use crate::services::playback;
 use dioxus::prelude::*;
 use dioxus_bulma as b;
 
@@ -71,9 +71,9 @@ pub fn CurrentPlaylist(
                         }
                     }
                 } else {
-                    Notification { 
-                        color: b::BulmaColor::Info, 
-                        "No playlist currently loaded" 
+                    Notification {
+                        color: b::BulmaColor::Info,
+                        "No playlist currently loaded"
                     }
                 }
             }

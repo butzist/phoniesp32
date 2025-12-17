@@ -6,6 +6,26 @@ mod resample;
 
 pub use error::TranscodeError;
 
+use base32::encode;
+use sha1::{Digest, Sha1};
+
+#[derive(Debug, Clone)]
+pub struct TranscodeResult {
+    pub filename: String,
+    pub data: Box<[u8]>,
+}
+
+pub fn compute_filename(content: &[u8]) -> String {
+    let mut hasher = Sha1::new();
+    hasher.update(content);
+    let hash = hasher.finalize();
+    let encoded = encode(base32::Alphabet::Rfc4648 { padding: false }, &hash);
+    format!(
+        "{}.wav",
+        encoded.chars().take(8).collect::<String>().to_uppercase()
+    )
+}
+
 use audio_file_utils::metadata::Metadata;
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
@@ -67,8 +87,11 @@ pub fn extract_metadata(input: &[u8]) -> Metadata {
 pub async fn decode_and_normalize(
     input: Box<[u8]>,
     mut progress: impl FnMut(usize, usize) + Clone,
-) -> Result<Box<[u8]>, TranscodeError> {
+) -> Result<TranscodeResult, TranscodeError> {
     let metadata = extract_metadata(&input);
+
+    // Compute filename before we move the input
+    let filename = compute_filename(&input);
 
     let make_progress = |from: usize, to: usize| {
         let mut progress = progress.clone();
@@ -96,7 +119,10 @@ pub async fn decode_and_normalize(
     let file = encode::encode_ima_adpcm_wav(&samples, OUT_RATE, &metadata).await?;
 
     progress(100, 100);
-    Ok(file)
+    Ok(TranscodeResult {
+        filename,
+        data: file,
+    })
 }
 
 fn to_i16(samples: Box<[f32]>) -> Box<[i16]> {

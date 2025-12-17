@@ -1,6 +1,6 @@
+use crate::components::Notification;
 use dioxus::prelude::*;
 use dioxus_bulma as b;
-use crate::components::Notification;
 use std::time::Duration;
 
 #[derive(Clone, Debug, PartialEq)]

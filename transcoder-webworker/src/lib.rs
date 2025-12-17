@@ -1,8 +1,8 @@
-use js_sys::{ArrayBuffer, Function, Uint8Array};
+use js_sys::{ArrayBuffer, Function, Object, Uint8Array};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub async fn transcode(input: &ArrayBuffer, progress: &Function) -> Result<ArrayBuffer, JsValue> {
+pub async fn transcode(input: &ArrayBuffer, progress: &Function) -> Result<Object, JsValue> {
     let mut last_position: usize = 0;
     let progress = move |position: usize, total: usize| {
         if last_position == position {
@@ -24,15 +24,25 @@ pub async fn transcode(input: &ArrayBuffer, progress: &Function) -> Result<Array
     let mut vec = vec![0u8; u8_array.length() as usize];
     u8_array.copy_to(vec.as_mut_slice());
 
-    let wav_data = transcoder::decode_and_normalize(vec.into(), progress)
+    let transcode_result = transcoder::decode_and_normalize(vec.into(), progress)
         .await
         .map_err(|e| js_sys::Error::new(&e.to_string()))?;
 
-    // The result is already a complete WAV file as Box<[u8]>, so just copy it directly
-    let u8_array = Uint8Array::new_with_length(wav_data.len() as u32);
-    u8_array.copy_from(&wav_data);
+    // Create result object with filename and data
+    let result = Object::new();
+    js_sys::Reflect::set(
+        &result,
+        &JsValue::from_str("filename"),
+        &JsValue::from_str(&transcode_result.filename),
+    )?;
 
-    Ok(u8_array.buffer())
+    // Copy the WAV data to a Uint8Array
+    let u8_array = Uint8Array::new_with_length(transcode_result.data.len() as u32);
+    u8_array.copy_from(&transcode_result.data);
+
+    js_sys::Reflect::set(&result, &JsValue::from_str("data"), &u8_array.buffer())?;
+
+    Ok(result)
 }
 
 #[cfg(test)]

@@ -1,8 +1,6 @@
 use anyhow::{Context, Result};
-use base32::encode;
 use dioxus::core::bail;
 use reqwest::{Method, Response, StatusCode};
-use sha1::{Digest, Sha1};
 
 use super::utils::{resolve_relative_url, FileEntry};
 use super::REQUEST_TIMEOUT;
@@ -27,14 +25,6 @@ pub(crate) async fn list_files() -> Result<Vec<FileEntry>> {
     let files: Vec<FileEntry> = response.json().await.context("reading response")?;
 
     Ok(files)
-}
-
-pub(crate) fn compute_file_name(content: &[u8]) -> String {
-    let mut hasher = Sha1::new();
-    hasher.update(content);
-    let hash = hasher.finalize();
-    let encoded = encode(base32::Alphabet::RFC4648 { padding: false }, &hash);
-    encoded.chars().take(8).collect()
 }
 
 async fn create_file(name: &str) -> Result<()> {

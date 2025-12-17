@@ -77,16 +77,27 @@ async fn test_transcode_mp3_with_metadata() {
         "Transcoding MP3 with metadata should succeed"
     );
 
-    let output_data = result.unwrap();
-    assert!(!output_data.is_empty(), "Output should not be empty");
+    let transcode_result = result.unwrap();
+    assert!(
+        !transcode_result.data.is_empty(),
+        "Output should not be empty"
+    );
 
     // Verify output is a valid WAV file
     assert!(
-        output_data.len() > 44,
+        transcode_result.data.len() > 44,
         "Output should be larger than WAV header"
     );
-    assert_eq!(&output_data[0..4], b"RIFF", "Should have RIFF header");
-    assert_eq!(&output_data[8..12], b"WAVE", "Should have WAVE format");
+    assert_eq!(
+        &transcode_result.data[0..4],
+        b"RIFF",
+        "Should have RIFF header"
+    );
+    assert_eq!(
+        &transcode_result.data[8..12],
+        b"WAVE",
+        "Should have WAVE format"
+    );
 }
 
 #[tokio::test]
@@ -103,8 +114,11 @@ async fn test_decode_and_normalize_with_metadata() {
 
     assert!(result.is_ok(), "Transcoding should succeed");
 
-    let output_data = result.unwrap();
-    assert!(!output_data.is_empty(), "Output should not be empty");
+    let transcode_result = result.unwrap();
+    assert!(
+        !transcode_result.data.is_empty(),
+        "Output should not be empty"
+    );
 
     // Check that progress was reported
     let calls = progress_calls.lock().unwrap();
@@ -124,22 +138,24 @@ async fn test_resampling_preserves_duration() {
     let progress_calls = Arc::new(Mutex::new(Vec::new()));
     let progress_calls_clone = progress_calls.clone();
 
-    let result: Result<Box<[u8]>, _> =
-        decode_and_normalize(ogg_data.as_slice().into(), move |current, total| {
-            progress_calls_clone.lock().unwrap().push((current, total));
-        })
-        .await;
+    let result = decode_and_normalize(ogg_data.as_slice().into(), move |current, total| {
+        progress_calls_clone.lock().unwrap().push((current, total));
+    })
+    .await;
 
     assert!(
         result.is_ok(),
         "Transcoding 48000 Hz OGG file should succeed"
     );
 
-    let output_data = result.unwrap();
-    assert!(!output_data.is_empty(), "Output should not be empty");
+    let transcode_result = result.unwrap();
+    assert!(
+        !transcode_result.data.is_empty(),
+        "Output should not be empty"
+    );
 
     // Calculate output duration from WAV header
-    let output_duration = get_wav_duration(&output_data);
+    let output_duration = get_wav_duration(&transcode_result.data);
     assert!(
         output_duration > 0.0,
         "Output file should have positive duration"
@@ -159,13 +175,12 @@ async fn test_resampling_preserves_duration() {
 async fn test_different_sample_rates() {
     let wav_data = include_bytes!("test_data/test_22050hz.wav");
 
-    let result: Result<Box<[u8]>, _> =
-        decode_and_normalize(wav_data.as_slice().into(), |_, _| {}).await;
+    let result = decode_and_normalize(wav_data.as_slice().into(), |_, _| {}).await;
 
     assert!(result.is_ok(), "Transcoding 22050 Hz file should succeed");
 
-    let output_data = result.unwrap();
-    let output_duration = get_wav_duration(&output_data);
+    let transcode_result = result.unwrap();
+    let output_duration = get_wav_duration(&transcode_result.data);
 
     // Verify that transcoding produces a reasonable duration
     assert!(
@@ -182,25 +197,35 @@ async fn test_wav_header_and_chunk_sizes() {
     let ogg_data = include_bytes!("test_data/test_48000hz.ogg");
 
     // Transcode the file
-    let result: Result<Box<[u8]>, _> =
-        decode_and_normalize(ogg_data.as_slice().into(), |_, _| {}).await;
+    let result = decode_and_normalize(ogg_data.as_slice().into(), |_, _| {}).await;
     assert!(result.is_ok(), "Transcoding should succeed");
 
-    let output_data = result.unwrap();
-    assert!(!output_data.is_empty(), "Output should not be empty");
+    let transcode_result = result.unwrap();
+    assert!(
+        !transcode_result.data.is_empty(),
+        "Output should not be empty"
+    );
 
     // Verify basic WAV structure
-    assert_eq!(&output_data[0..4], b"RIFF", "Should have RIFF header");
-    assert_eq!(&output_data[8..12], b"WAVE", "Should have WAVE format");
+    assert_eq!(
+        &transcode_result.data[0..4],
+        b"RIFF",
+        "Should have RIFF header"
+    );
+    assert_eq!(
+        &transcode_result.data[8..12],
+        b"WAVE",
+        "Should have WAVE format"
+    );
 
     // Parse RIFF header
     let riff_size = u32::from_le_bytes([
-        output_data[4],
-        output_data[5],
-        output_data[6],
-        output_data[7],
+        transcode_result.data[4],
+        transcode_result.data[5],
+        transcode_result.data[6],
+        transcode_result.data[7],
     ]) as usize;
-    let expected_file_size = output_data.len() - 8; // RIFF size excludes the first 8 bytes
+    let expected_file_size = transcode_result.data.len() - 8; // RIFF size excludes the first 8 bytes
     assert_eq!(
         riff_size, expected_file_size,
         "RIFF chunk size should match actual file size minus 8 bytes"
@@ -214,13 +239,13 @@ async fn test_wav_header_and_chunk_sizes() {
     let mut sample_rate = 0u32;
     let mut samples_per_block = 0u16;
 
-    while offset + 8 <= output_data.len() {
-        let chunk_id = String::from_utf8_lossy(&output_data[offset..offset + 4]);
+    while offset + 8 <= transcode_result.data.len() {
+        let chunk_id = String::from_utf8_lossy(&transcode_result.data[offset..offset + 4]);
         let chunk_size = u32::from_le_bytes([
-            output_data[offset + 4],
-            output_data[offset + 5],
-            output_data[offset + 6],
-            output_data[offset + 7],
+            transcode_result.data[offset + 4],
+            transcode_result.data[offset + 5],
+            transcode_result.data[offset + 6],
+            transcode_result.data[offset + 7],
         ]) as usize;
 
         match chunk_id.as_ref() {
@@ -229,34 +254,44 @@ async fn test_wav_header_and_chunk_sizes() {
                 assert_eq!(chunk_size, 20, "fmt chunk should be 20 bytes for IMA ADPCM");
 
                 // Validate IMA ADPCM format
-                let audio_format =
-                    u16::from_le_bytes([output_data[offset + 8], output_data[offset + 9]]);
+                let audio_format = u16::from_le_bytes([
+                    transcode_result.data[offset + 8],
+                    transcode_result.data[offset + 9],
+                ]);
                 assert_eq!(audio_format, 0x0011, "Should be IMA ADPCM format (0x0011)");
 
-                let channels =
-                    u16::from_le_bytes([output_data[offset + 10], output_data[offset + 11]]);
+                let channels = u16::from_le_bytes([
+                    transcode_result.data[offset + 10],
+                    transcode_result.data[offset + 11],
+                ]);
                 assert_eq!(channels, 1, "Should be mono");
 
                 sample_rate = u32::from_le_bytes([
-                    output_data[offset + 12],
-                    output_data[offset + 13],
-                    output_data[offset + 14],
-                    output_data[offset + 15],
+                    transcode_result.data[offset + 12],
+                    transcode_result.data[offset + 13],
+                    transcode_result.data[offset + 14],
+                    transcode_result.data[offset + 15],
                 ]);
 
-                let bits_per_sample =
-                    u16::from_le_bytes([output_data[offset + 22], output_data[offset + 23]]);
+                let bits_per_sample = u16::from_le_bytes([
+                    transcode_result.data[offset + 22],
+                    transcode_result.data[offset + 23],
+                ]);
                 assert_eq!(
                     bits_per_sample, 4,
                     "Should be 4 bits per sample for IMA ADPCM"
                 );
 
-                let block_align =
-                    u16::from_le_bytes([output_data[offset + 20], output_data[offset + 21]]);
+                let block_align = u16::from_le_bytes([
+                    transcode_result.data[offset + 20],
+                    transcode_result.data[offset + 21],
+                ]);
                 assert_eq!(block_align, 1024, "Block align should be 1024 bytes");
 
-                samples_per_block =
-                    u16::from_le_bytes([output_data[offset + 26], output_data[offset + 27]]);
+                samples_per_block = u16::from_le_bytes([
+                    transcode_result.data[offset + 26],
+                    transcode_result.data[offset + 27],
+                ]);
                 assert_eq!(samples_per_block, 2041, "Samples per block should be 2041");
             }
             "data" => {
@@ -264,7 +299,7 @@ async fn test_wav_header_and_chunk_sizes() {
 
                 // Validate data chunk size matches actual data
                 let data_start = offset + 8;
-                let expected_data_size = output_data.len() - data_start;
+                let expected_data_size = transcode_result.data.len() - data_start;
                 assert_eq!(
                     chunk_size, expected_data_size,
                     "Data chunk size should match actual data size"
@@ -282,7 +317,7 @@ async fn test_wav_header_and_chunk_sizes() {
                 let expected_samples = blocks * samples_per_block as usize;
 
                 // Verify this matches what we'd expect from the duration
-                let duration = get_wav_duration(&output_data);
+                let duration = get_wav_duration(&transcode_result.data);
                 let expected_duration = expected_samples as f64 / sample_rate as f64;
                 let duration_diff = (duration - expected_duration).abs();
 
@@ -299,8 +334,9 @@ async fn test_wav_header_and_chunk_sizes() {
                     "LIST chunk should contain at least INFO identifier"
                 );
 
-                if offset + 12 <= output_data.len() {
-                    let info_id = String::from_utf8_lossy(&output_data[offset + 8..offset + 12]);
+                if offset + 12 <= transcode_result.data.len() {
+                    let info_id =
+                        String::from_utf8_lossy(&transcode_result.data[offset + 8..offset + 12]);
                     assert_eq!(info_id, "INFO", "LIST should contain INFO sub-chunk");
                 }
             }
@@ -321,16 +357,19 @@ async fn test_wav_header_and_chunk_sizes() {
     // Expected size ≈ 5s * 22.05kHz * 4 bits/sample / 8 ≈ 55KB + headers
     let reasonable_max_size = 200 * 1024; // 200KB should be more than enough
     assert!(
-        output_data.len() < reasonable_max_size,
+        transcode_result.data.len() < reasonable_max_size,
         "Output file size ({}) should be reasonable (< {} bytes)",
-        output_data.len(),
+        transcode_result.data.len(),
         reasonable_max_size
     );
 
     println!("WAV file validation passed:");
-    println!("  Total size: {} bytes", output_data.len());
+    println!("  Total size: {} bytes", transcode_result.data.len());
     println!("  RIFF size: {} bytes", riff_size);
-    println!("  Duration: {:.3}s", get_wav_duration(&output_data));
+    println!(
+        "  Duration: {:.3}s",
+        get_wav_duration(&transcode_result.data)
+    );
 }
 
 #[test]
