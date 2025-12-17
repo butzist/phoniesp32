@@ -87,3 +87,12 @@ jobs:
         with:
           name: firmware
           path: firmware.bin
+
+      - name: Build CLI
+        run: nix develop --command just cli
+
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli
+          path: pecli

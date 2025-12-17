@@ -1,0 +1,12 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.5.53", features = ["derive"] }
+comfy-table = "7.2.1"
+indicatif = "0.18.3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+transcoder = { path = "../transcoder" }
+audio-file-utils = { path = "../audio-file-utils", features = ["std"] }

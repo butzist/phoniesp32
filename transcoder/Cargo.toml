@@ -19,18 +19,6 @@ audio-file-utils = { path = "../audio-file-utils", features = ["std"] }
 embedded-io-async = "0.7"
 base32 = "0.5"
 sha1 = "0.10"
-tokio = { version = "1", default-features = false, features = [
-  "macros",
-  "rt-multi-thread",
-], optional = true }
-
-[features]
-tokio-runtime = ["tokio"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-
-[[bin]]
-name = "transcoder-test"
-path = "src/bin/transcoder-test.rs"
-required-features = ["tokio-runtime"]
