@@ -1,0 +1,16 @@
+deps:
+
+all:
+	cargo build --release
+
+test:
+	cargo test
+
+build:
+	cargo build --release
+
+run:
+	cargo run --release
+
+clean:
+	cargo clean

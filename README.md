@@ -96,7 +96,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] List uploaded files
   - [x] Playlists
 - [ ] Command line utility
-  - [ ] Transcode
+  - [x] Transcode
   - [ ] Upload
   - [ ] Playback control
   - [ ] Associate
