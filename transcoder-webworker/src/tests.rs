@@ -1,6 +1,6 @@
 use crate::transcode;
-use js_sys::{ArrayBuffer, Function, Uint8Array};
-use wasm_bindgen::JsValue;
+use js_sys::{ArrayBuffer, Function, Object, Reflect, Uint8Array};
+use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_test::*;
 
 fn create_test_progress_function() -> Function {
@@ -12,6 +12,12 @@ fn create_array_buffer_from_bytes(bytes: &[u8]) -> ArrayBuffer {
     let u8_array = Uint8Array::new(&array_buffer);
     u8_array.copy_from(bytes);
     array_buffer
+}
+
+fn extract_wav_data_from_result(result: &Object) -> Option<ArrayBuffer> {
+    Reflect::get(result, &JsValue::from_str("data"))
+        .ok()
+        .and_then(|data| data.dyn_into::<ArrayBuffer>().ok())
 }
 
 fn extract_wav_header_data(output_array: &ArrayBuffer) -> Option<(usize, [u8; 12])> {
@@ -56,7 +62,7 @@ async fn test_transcode_invalid_input() {
     let input_array = create_array_buffer_from_bytes(&test_data);
     let progress = create_test_progress_function();
 
-    let result: Result<ArrayBuffer, JsValue> = transcode(&input_array, &progress).await;
+    let result: Result<Object, JsValue> = transcode(&input_array, &progress).await;
 
     // Should handle invalid input gracefully
     assert!(result.is_err(), "Transcoding invalid input should fail");
@@ -68,7 +74,7 @@ async fn test_transcode_empty_input() {
     let input_array = create_array_buffer_from_bytes(&test_data);
     let progress = create_test_progress_function();
 
-    let result: Result<ArrayBuffer, JsValue> = transcode(&input_array, &progress).await;
+    let result: Result<Object, JsValue> = transcode(&input_array, &progress).await;
 
     // Should handle empty input gracefully
     assert!(result.is_err(), "Transcoding empty input should fail");
@@ -84,13 +90,15 @@ async fn test_transcode_minimal_valid_input() {
     let input_array = create_array_buffer_from_bytes(&test_data);
     let progress = create_test_progress_function();
 
-    let result: Result<ArrayBuffer, JsValue> = transcode(&input_array, &progress).await;
+    let result: Result<Object, JsValue> = transcode(&input_array, &progress).await;
 
     // This might fail due to incomplete MP3, but shouldn't panic
     // The important thing is that it handles the error gracefully
     match result {
-        Ok(output_array) => {
+        Ok(result_obj) => {
             // If it succeeds, validate the output
+            let output_array =
+                extract_wav_data_from_result(&result_obj).expect("Should have WAV data in result");
             let (output_len, header) =
                 extract_wav_header_data(&output_array).expect("Should have valid WAV header");
 
@@ -113,10 +121,12 @@ async fn test_output_file_size_reasonableness() {
         let input_array = create_array_buffer_from_bytes(&test_data);
         let progress = create_test_progress_function();
 
-        let result: Result<ArrayBuffer, JsValue> = transcode(&input_array, &progress).await;
+        let result: Result<Object, JsValue> = transcode(&input_array, &progress).await;
 
         // Even if transcoding fails due to invalid data, it shouldn't create unreasonably large outputs
-        if let Ok(output_array) = result {
+        if let Ok(result_obj) = result {
+            let output_array =
+                extract_wav_data_from_result(&result_obj).expect("Should have WAV data in result");
             let output_u8_array = Uint8Array::new(&output_array);
             let output_len = output_u8_array.length() as usize;
 
@@ -146,7 +156,7 @@ async fn test_progress_callback_handling() {
     let input_array = create_array_buffer_from_bytes(&test_data);
     let progress = create_test_progress_function();
 
-    let result: Result<ArrayBuffer, JsValue> = transcode(&input_array, &progress).await;
+    let result: Result<Object, JsValue> = transcode(&input_array, &progress).await;
 
     // The important thing is that the progress function doesn't cause panics
     // Even if transcoding fails, the progress handling should be robust
@@ -160,10 +170,12 @@ async fn test_memory_safety_with_large_inputs() {
     let input_array = create_array_buffer_from_bytes(&large_test_data);
     let progress = create_test_progress_function();
 
-    let result: Result<ArrayBuffer, JsValue> = transcode(&input_array, &progress).await;
+    let result: Result<Object, JsValue> = transcode(&input_array, &progress).await;
 
     match result {
-        Ok(output_array) => {
+        Ok(result_obj) => {
+            let output_array =
+                extract_wav_data_from_result(&result_obj).expect("Should have WAV data in result");
             let output_u8_array = Uint8Array::new(&output_array);
             let output_len = output_u8_array.length() as usize;
 
@@ -216,9 +228,11 @@ async fn test_wav_header_validation() {
     let input_array = create_array_buffer_from_bytes(&test_data);
     let progress = create_test_progress_function();
 
-    let result: Result<ArrayBuffer, JsValue> = transcode(&input_array, &progress).await;
+    let result: Result<Object, JsValue> = transcode(&input_array, &progress).await;
 
-    if let Ok(output_array) = result {
+    if let Ok(result_obj) = result {
+        let output_array =
+            extract_wav_data_from_result(&result_obj).expect("Should have WAV data in result");
         let (output_len, header) =
             extract_wav_header_data(&output_array).expect("Should have WAV header data");
 
@@ -251,9 +265,11 @@ async fn test_file_size_limits() {
         let input_array = create_array_buffer_from_bytes(&test_data);
         let progress = create_test_progress_function();
 
-        let result: Result<ArrayBuffer, JsValue> = transcode(&input_array, &progress).await;
+        let result: Result<Object, JsValue> = transcode(&input_array, &progress).await;
 
-        if let Ok(output_array) = result {
+        if let Ok(result_obj) = result {
+            let output_array =
+                extract_wav_data_from_result(&result_obj).expect("Should have WAV data in result");
             let output_u8_array = Uint8Array::new(&output_array);
             let output_len = output_u8_array.length() as usize;
 
@@ -288,7 +304,7 @@ async fn test_progress_callback_error_handling() {
         "throw new Error('Progress callback error');",
     );
 
-    let result: Result<ArrayBuffer, JsValue> = transcode(&input_array, &progress).await;
+    let result: Result<Object, JsValue> = transcode(&input_array, &progress).await;
 
     // Should handle progress callback errors gracefully
     // The transcoding might still succeed or fail, but shouldn't panic
@@ -308,13 +324,15 @@ async fn test_array_buffer_boundary_conditions() {
         let input_array = create_array_buffer_from_bytes(&test_data);
         let progress = create_test_progress_function();
 
-        let result: Result<ArrayBuffer, JsValue> = transcode(&input_array, &progress).await;
+        let result: Result<Object, JsValue> = transcode(&input_array, &progress).await;
 
         // All should handle gracefully without panicking
         match result {
-            Ok(output_array) => {
+            Ok(result_obj) => {
                 // If successful, validate basic structure
-                if let Some((output_len, header)) = extract_wav_header_data(&output_array) {
+                if let Some(output_array) = extract_wav_data_from_result(&result_obj)
+                    && let Some((output_len, header)) = extract_wav_header_data(&output_array)
+                {
                     let _ = validate_wav_structure(output_len, &header);
                 }
             }
@@ -325,4 +343,53 @@ async fn test_array_buffer_boundary_conditions() {
 
         println!("Test case {} completed successfully", i + 1);
     }
+}
+
+#[wasm_bindgen_test]
+async fn test_result_contains_filename() {
+    // Test that the result object contains a filename field with 8.3 format
+    let test_data = vec![
+        0xFF, 0xFB, 0x90, 0x00, // MP3 frame header
+        0x00, 0x00, 0x00, 0x00, // Some audio data
+    ];
+    let input_array = create_array_buffer_from_bytes(&test_data);
+    let progress = create_test_progress_function();
+
+    let result: Result<Object, JsValue> = transcode(&input_array, &progress).await;
+
+    if let Ok(result_obj) = result {
+        // Check that filename exists and is a string
+        let filename = Reflect::get(&result_obj, &JsValue::from_str("filename"))
+            .expect("Should have filename field");
+
+        assert!(filename.is_string(), "Filename should be a string");
+
+        let filename_str = filename
+            .as_string()
+            .expect("Filename should be convertible to string");
+
+        // Check 8.3 format: up to 8 characters, dot, exactly 3 characters
+        let parts: Vec<&str> = filename_str.split('.').collect();
+        assert_eq!(parts.len(), 2, "Filename should have exactly one dot");
+
+        let name_part = parts[0];
+        let extension = parts[1];
+
+        assert_eq!(extension, "wav", "Extension should be 'wav'");
+        assert!(
+            name_part.len() == 8,
+            "Name part should be 8 characters, got {}",
+            name_part.len()
+        );
+
+        // Verify name part contains only valid 8.3 characters (alphanumeric and some symbols)
+        for ch in name_part.chars() {
+            assert!(
+                ch.is_ascii_alphanumeric() || "~!@#$%^&()-'_`".contains(ch),
+                "Filename contains invalid character: {}",
+                ch
+            );
+        }
+    }
+    // If transcoding fails, that's okay for this test - we're just testing the structure
 }

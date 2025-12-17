@@ -125,9 +125,6 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                 }
             };
 
-            // update status
-            let computed = services::files::compute_file_name(&data);
-
             // start conversion
             let mut conversion_status = conversion_status;
             let progress = move |percent: usize, _total: usize| {
@@ -136,13 +133,13 @@ pub fn Upload(on_complete: Option<EventHandler<()>>) -> Element {
                 }
             };
             match services::transcoder::transcode(data.into(), progress).await {
-                Ok(output) => {
-                    let output_extracted = metadata::extract_metadata(&output).await;
+                Ok(transcode_result) => {
+                    let output_extracted = metadata::extract_metadata(&transcode_result.data).await;
                     metadata.set(Some(output_extracted.clone()));
                     edited_metadata.set(Some(output_extracted));
                     conversion_status.set(ConversionStatus::Complete(ConversionResult {
-                        name: computed,
-                        data: output,
+                        name: transcode_result.filename,
+                        data: transcode_result.data,
                     }));
                 }
                 Err(err) => {

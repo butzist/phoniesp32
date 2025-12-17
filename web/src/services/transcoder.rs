@@ -10,6 +10,12 @@ use web_sys::{
     MessageEvent, Worker, WorkerOptions, WorkerType,
 };
 
+#[derive(Debug, Clone)]
+pub struct TranscodeResult {
+    pub filename: String,
+    pub data: Box<[u8]>,
+}
+
 const WORKER_DIR: Asset = asset!("/assets/worker");
 const N_WORKERS: usize = 4;
 
@@ -21,13 +27,26 @@ static FREE_WORKERS: OnceLock<Semaphore> = OnceLock::new();
 pub(crate) async fn transcode(
     input: Box<[u8]>,
     progress: impl FnMut(usize, usize),
-) -> Result<Box<[u8]>> {
+) -> Result<TranscodeResult> {
     let result: JsValue = transcode_in_worker(input, progress).await?;
-    let u8_array = Uint8Array::new(&result);
+
+    // Extract filename and data from the result object
+    let filename = get_prop(&result, "filename")
+        .and_then(|v| v.as_string())
+        .and_then(|v| v.strip_suffix(".wav").map(ToString::to_string))
+        .ok_or_else(|| anyhow::anyhow!("Missing filename in transcode result"))?;
+
+    let data_value = get_prop(&result, "data")
+        .ok_or_else(|| anyhow::anyhow!("Missing data in transcode result"))?;
+
+    let u8_array = Uint8Array::new(&data_value);
     let mut vec = vec![0u8; u8_array.length() as usize];
     u8_array.copy_to(vec.as_mut_slice());
 
-    Ok(vec.into())
+    Ok(TranscodeResult {
+        filename,
+        data: vec.into(),
+    })
 }
 
 async fn transcode_in_worker(

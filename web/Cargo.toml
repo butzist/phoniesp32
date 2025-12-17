@@ -36,8 +36,6 @@ dioxus-bulma = { git = "https://github.com/butzist/dioxus-bulma", branch = "diox
 ] }
 futures = "0.3"
 bytes = "1"
-sha1 = "0.10"
-base32 = "0.4"
 
 
 [features]

@@ -69,7 +69,7 @@ pub fn NewAssociation() -> Element {
         b::Section {
             b::Container {
                 b::Title { size: b::TitleSize::Is4, "New Association" }
-                Notification { 
+                Notification {
                     color: if last_fob().is_some() { b::BulmaColor::Info } else { b::BulmaColor::Warning },
                     if let Some(fob) = last_fob() {
                         span {
@@ -242,8 +242,8 @@ pub fn NewAssociation() -> Element {
                                         }
                                     }
                                     if let Some(status) = save_status() {
-                                        Notification { 
-                                            color: save_status_type(), "{status}" 
+                                        Notification {
+                                            color: save_status_type(), "{status}"
                                         }
                                     }
                                     b::Button {

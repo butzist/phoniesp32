@@ -35,8 +35,12 @@ self.onmessage = async (ev) => {
     await ensureWasm();
     const output = await transcode(input, progress);
 
+    // Extract filename and data from the result object
+    const filename = output.filename;
+    const data = output.data;
+
     // transfer ownership of output buffer
-    self.postMessage({result: output}, [output]);
+    self.postMessage({result: {filename, data}}, [data]);
   } catch (err) {
     self.postMessage({error: String(err)});
   }

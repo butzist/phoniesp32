@@ -23,4 +23,3 @@ pub fn Notification(mut props: b::NotificationProps) -> Element {
 
     b::Notification(props)
 }
-
