@@ -9,12 +9,12 @@ pub enum ChargerEvent {
     Disconnected,
 }
 
-pub struct Charger {
+pub struct ChargerMonitor {
     pin: Input<'static>,
     signal: Signal<CriticalSectionRawMutex, Level>,
 }
 
-impl Charger {
+impl ChargerMonitor {
     pub fn new(pin: AnyPin<'static>) -> Self {
         let pin = Input::new(pin, InputConfig::default().with_pull(Pull::None));
         let signal = Signal::new();
@@ -70,4 +70,25 @@ impl Charger {
 #[embassy_executor::task]
 pub async fn charger_monitor_task(mut charger: Charger) {
     charger.monitor().await;
+}
+
+pub struct Charger {}
+
+impl Charger {
+    pub fn new(pin: AnyPin<'static>) -> Self {
+        let pin = Input::new(pin, InputConfig::default().with_pull(Pull::None));
+        let signal = Signal::new();
+        Self { pin, signal }
+    }
+
+    pub fn is_connected(&self) -> bool {
+        self.pin.is_high()
+    }
+
+    pub async fn wait_for_event(&self) -> ChargerEvent {
+        match self.signal.wait().await {
+            Level::Low => ChargerEvent::Disconnected,
+            Level::High => ChargerEvent::Connected,
+        }
+    }
 }

@@ -15,7 +15,7 @@ use embassy_time::Timer;
 use esp_hal::clock::CpuClock;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::timer::timg::TimerGroup;
-use firmware::charger::Charger;
+use firmware::charger::{Charger, charger_monitor_task};
 use firmware::controls::{AnyTouchPin, Controls};
 use firmware::mdns::mdns_responder;
 use firmware::player::{Player, run_player};
@@ -94,7 +94,12 @@ async fn main(spawner: Spawner) {
         commands.sender(),
     );
 
-    let charger = mk_static!(Charger, Charger::new(peripherals.GPIO34.into()));
+    let (charger_monitor, charger) = mk_static!(
+        (ChargerMonitor, Charger),
+        Charger::new(peripherals.GPIO34.into())
+    );
+    charger_monitor.start(spawner);
+
     let radio = Radio::new(peripherals.WIFI, peripherals.GPIO2.into(), device_config);
     let stack = radio.start(charger, &spawner).await;
 

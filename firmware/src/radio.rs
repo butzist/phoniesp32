@@ -185,7 +185,7 @@ async fn connection_task(
     ]);
     loop {
         let desired_state = charger.is_connected();
-        let actual_state = !matches!(controller.is_started(), Ok(true));
+        let actual_state = matches!(controller.is_started(), Ok(true));
 
         match (desired_state, actual_state) {
             (true, true) => {
