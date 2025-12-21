@@ -6,16 +6,15 @@
     reason = "mem::forget is generally not safe to do with esp_hal types, especially those \
     holding buffers for the duration of a data transfer."
 )]
-
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::Timer;
 use esp_hal::clock::CpuClock;
+use esp_hal::dma::DmaChannelConvert;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::timer::timg::TimerGroup;
-use firmware::controls::{AnyTouchPin, Controls};
 use firmware::mdns::mdns_responder;
 use firmware::player::{Player, run_player};
 use firmware::radio::Radio;
@@ -37,9 +36,10 @@ async fn main(spawner: Spawner) {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
-    esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 98768);
+    esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 65536);
+    esp_alloc::heap_allocator!(size: 65536);
 
-    let timer0 = TimerGroup::new(peripherals.TIMG1);
+    let timer0 = TimerGroup::new(peripherals.TIMG0);
     let sw_int = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
     esp_rtos::start(timer0.timer0, sw_int.software_interrupt0);
 
@@ -47,10 +47,10 @@ async fn main(spawner: Spawner) {
 
     let sd = Sd::new(
         peripherals.SPI2.into(),
-        peripherals.DMA_SPI2.into(),
-        peripherals.GPIO18.into(),
-        peripherals.GPIO23.into(),
-        peripherals.GPIO19.into(),
+        peripherals.DMA_CH1.degrade(),
+        peripherals.GPIO7.into(),
+        peripherals.GPIO6.into(),
+        peripherals.GPIO0.into(),
         peripherals.GPIO5.into(),
     );
 
@@ -60,38 +60,38 @@ async fn main(spawner: Spawner) {
 
     let player = Player::new(
         peripherals.I2S0.into(),
-        peripherals.DMA_I2S0.into(),
-        peripherals.GPIO27.into(),
-        peripherals.GPIO26.into(),
-        peripherals.GPIO25.into(),
+        peripherals.DMA_CH0,
+        peripherals.GPIO23.into(),
+        peripherals.GPIO15.into(),
+        peripherals.GPIO22.into(),
     );
 
     let commands = mk_static!(Channel<NoopRawMutex, PlayerCommand, 2>, Channel::new());
     spawner.must_spawn(run_player(spawner, player, fs, commands.receiver()));
 
-    let controls = Controls::new(
-        peripherals.LPWR,
-        peripherals.TOUCH,
-        AnyTouchPin::GPIO15(peripherals.GPIO15),
-        AnyTouchPin::GPIO4(peripherals.GPIO4),
-        AnyTouchPin::GPIO33(peripherals.GPIO33),
-        AnyTouchPin::GPIO32(peripherals.GPIO32), // FIXME: GPIO32 touch does not work
-    );
+    //let controls = Controls::new(
+    //    peripherals.LPWR,
+    //    peripherals.TOUCH,
+    //    AnyTouchPin::GPIO15(peripherals.GPIO15),
+    //    AnyTouchPin::GPIO4(peripherals.GPIO4),
+    //    AnyTouchPin::GPIO33(peripherals.GPIO33),
+    //    AnyTouchPin::GPIO32(peripherals.GPIO32), // FIXME: GPIO32 touch does not work
+    //);
 
-    spawner.must_spawn(firmware::controls::run_controls(
-        controls,
-        commands.sender(),
-    ));
+    //spawner.must_spawn(firmware::controls::run_controls(
+    //    controls,
+    //    commands.sender(),
+    //));
 
-    let _rfid = Rfid::new(
-        peripherals.SPI3.into(),
-        peripherals.GPIO14.into(),
-        peripherals.GPIO13.into(),
-        peripherals.GPIO12.into(),
-        peripherals.GPIO21.into(),
-        &spawner,
-        commands.sender(),
-    );
+    //let _rfid = Rfid::new(
+    //    peripherals.SPI0.degrade(),
+    //    peripherals.GPIO7.into(),
+    //    peripherals.GPIO6.into(),
+    //    peripherals.GPIO5.into(),
+    //    peripherals.GPIO0.into(),
+    //    &spawner,
+    //    commands.sender(),
+    //);
 
     let radio = Radio::new(peripherals.WIFI, peripherals.GPIO2.into(), device_config);
     let stack = radio.start(&spawner).await;

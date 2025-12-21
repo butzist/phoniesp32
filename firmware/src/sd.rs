@@ -13,7 +13,7 @@ use embedded_fatfs::{FileSystem, FsOptions, LossyOemCpConverter, NullTimeProvide
 use embedded_hal_async::delay::DelayNs;
 use embedded_hal_bus::spi::ExclusiveDevice;
 use embedded_io_async::Read;
-use esp_hal::dma::{AnySpiDmaChannel, DmaRxBuf, DmaTxBuf};
+use esp_hal::dma::{AnyGdmaChannel, DmaRxBuf, DmaTxBuf};
 use esp_hal::gpio::{AnyPin, Level, Output, OutputConfig};
 use esp_hal::spi::master::{AnySpi, Spi, SpiDmaBus};
 use esp_hal::time::Rate;
@@ -126,7 +126,7 @@ pub struct Sd {
 impl Sd {
     pub fn new(
         spi: AnySpi<'static>,
-        dma: AnySpiDmaChannel<'static>,
+        dma: AnyGdmaChannel<'static>,
         sck: AnyPin<'static>,
         mosi: AnyPin<'static>,
         miso: AnyPin<'static>,

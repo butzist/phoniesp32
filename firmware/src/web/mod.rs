@@ -214,7 +214,7 @@ impl Default for WebApp {
     }
 }
 
-pub const WEB_TASK_POOL_SIZE: usize = 2;
+pub const WEB_TASK_POOL_SIZE: usize = 3;
 
 #[embassy_executor::task(pool_size = WEB_TASK_POOL_SIZE)]
 pub async fn web_task(
