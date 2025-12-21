@@ -19,8 +19,9 @@ use embassy_sync::lazy_lock::LazyLock;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::Timer;
-use esp_hal::dma::{AnyI2sDmaChannel, DmaDescriptor};
+use esp_hal::dma::DmaDescriptor;
 use esp_hal::i2s::master::{I2s, asynch::I2sWriteDmaTransferAsync};
+use esp_hal::peripherals::DMA_CH0;
 
 use {esp_backtrace as _, esp_println as _};
 
@@ -38,7 +39,7 @@ static PAUSED: AtomicBool = AtomicBool::new(false);
 
 pub struct Player {
     pub i2s: esp_hal::i2s::AnyI2s<'static>,
-    pub dma: AnyI2sDmaChannel<'static>,
+    pub dma: DMA_CH0<'static>,
     pub bclk: esp_hal::gpio::AnyPin<'static>,
     pub ws: esp_hal::gpio::AnyPin<'static>,
     pub dout: esp_hal::gpio::AnyPin<'static>,
@@ -49,7 +50,7 @@ pub struct Player {
 impl Player {
     pub fn new(
         i2s: esp_hal::i2s::AnyI2s<'static>,
-        dma: AnyI2sDmaChannel<'static>,
+        dma: DMA_CH0<'static>,
         bclk: esp_hal::gpio::AnyPin<'static>,
         ws: esp_hal::gpio::AnyPin<'static>,
         dout: esp_hal::gpio::AnyPin<'static>,

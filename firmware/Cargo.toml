@@ -18,7 +18,7 @@ audio-file-utils = { path = "../audio-file-utils" }
 # ESP32 HAL
 esp-hal = { git = "https://github.com/esp-rs/esp-hal", features = [
   "defmt",
-  "esp32",
+  "esp32c6",
   "unstable",
 ] }
 esp-rtos = { git = "https://github.com/esp-rs/esp-hal", features = [
@@ -26,26 +26,26 @@ esp-rtos = { git = "https://github.com/esp-rs/esp-hal", features = [
   "embassy",
   "esp-alloc",
   "esp-radio",
-  "esp32",
+  "esp32c6",
 ] }
 esp-bootloader-esp-idf = { git = "https://github.com/esp-rs/esp-hal", features = [
   "defmt",
-  "esp32",
+  "esp32c6",
 ] }
 esp-alloc = { git = "https://github.com/esp-rs/esp-hal", features = ["defmt"] }
 esp-backtrace = { git = "https://github.com/esp-rs/esp-hal", features = [
   "defmt",
-  "esp32",
+  "esp32c6",
   "panic-handler",
 ] }
 esp-println = { git = "https://github.com/esp-rs/esp-hal", features = [
   "defmt-espflash",
-  "esp32",
+  "esp32c6",
 ] }
 esp-radio = { git = "https://github.com/esp-rs/esp-hal", features = [
   "defmt",
   "esp-alloc",
-  "esp32",
+  "esp32c6",
   "smoltcp",
   "unstable",
   "wifi",
