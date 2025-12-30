@@ -1,5 +1,5 @@
 use crate::player::playback::STOP_SIGNAL;
-use crate::{DeviceConfig, PrintErr};
+use crate::{DeviceConfig, PrintErr, spi_bus};
 
 use alloc::vec::Vec;
 use block_device_adapters::BufStream;
@@ -11,40 +11,24 @@ use embassy_sync::mutex::{Mutex, MutexGuard};
 use embassy_time::Delay;
 use embedded_fatfs::{FileSystem, FsOptions, LossyOemCpConverter, NullTimeProvider};
 use embedded_hal_async::delay::DelayNs;
-use embedded_hal_bus::spi::ExclusiveDevice;
 use embedded_io_async::Read;
-use esp_hal::dma::{AnyGdmaChannel, DmaRxBuf, DmaTxBuf};
 use esp_hal::gpio::{AnyPin, Level, Output, OutputConfig};
-use esp_hal::spi::master::{AnySpi, Spi, SpiDmaBus};
 use esp_hal::time::Rate;
-use esp_hal::{Async, dma_buffers_chunk_size, spi};
 use sdspi::SdSpi;
 
 use {esp_backtrace as _, esp_println as _};
 
+use spi_bus::SpiDevice;
+
 pub type SdFileSystem = FileSystem<
-    BufStream<
-        SdSpi<
-            ExclusiveDevice<SpiDmaBus<'static, Async>, Output<'static>, Delay>,
-            Delay,
-            aligned::A1,
-        >,
-        512,
-    >,
+    BufStream<SdSpi<SpiDevice, Delay, aligned::A1>, 512>,
     NullTimeProvider,
     LossyOemCpConverter,
 >;
 
 pub type FileHandle<'a> = embedded_fatfs::File<
     'a,
-    BufStream<
-        SdSpi<
-            ExclusiveDevice<SpiDmaBus<'static, Async>, Output<'static>, Delay>,
-            Delay,
-            aligned::A1,
-        >,
-        512,
-    >,
+    BufStream<SdSpi<SpiDevice, Delay, aligned::A1>, 512>,
     NullTimeProvider,
     LossyOemCpConverter,
 >;
@@ -119,47 +103,14 @@ impl<'a> Drop for PlaybackGuard<'a> {
 }
 
 pub struct Sd {
-    bus: SpiDmaBus<'static, Async>,
-    cs: Output<'static>,
+    device: SpiDevice,
 }
 
 impl Sd {
-    pub fn new(
-        spi: AnySpi<'static>,
-        dma: AnyGdmaChannel<'static>,
-        sck: AnyPin<'static>,
-        mosi: AnyPin<'static>,
-        miso: AnyPin<'static>,
-        cs: AnyPin<'static>,
-    ) -> Self {
-        let (rx_buffer, rx_descriptors, tx_buffer, tx_descriptors) =
-            dma_buffers_chunk_size!(4 * 1024, 1024);
-
-        let dma_rx_buf = DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap();
-        let dma_tx_buf = DmaTxBuf::new(tx_descriptors, tx_buffer).unwrap();
-
-        let bus = Spi::new(
-            spi,
-            spi::master::Config::default()
-                .with_frequency(Rate::from_khz(400))
-                .with_mode(spi::Mode::_0),
-        )
-        .unwrap()
-        .with_sck(sck)
-        .with_mosi(mosi)
-        .with_miso(miso)
-        .with_dma(dma)
-        .with_buffers(dma_rx_buf, dma_tx_buf)
-        .into_async();
-
-        let cs = Output::new(cs, Level::High, OutputConfig::default());
-
-        Self { bus, cs }
-    }
-
-    pub async fn init(mut self) -> (Option<DeviceConfig>, SdFsWrapper) {
+    pub async fn new(spi: spi_bus::SharedSpi, mut cs: AnyPin<'static>) -> Self {
+        let mut cs_init = Output::new(cs.reborrow(), Level::High, OutputConfig::default());
         loop {
-            match sdspi::sd_init(&mut self.bus, &mut self.cs).await {
+            match sdspi::sd_init(&mut *spi.lock().await, &mut cs_init).await {
                 Ok(_) => break,
                 Err(e) => {
                     warn!("Sd init error: {:?}", e);
@@ -168,21 +119,23 @@ impl Sd {
             }
         }
 
-        let spid = ExclusiveDevice::new(self.bus, self.cs, Delay).unwrap();
+        let device = spi_bus::make_spi_device(spi, cs, Rate::from_mhz(10));
+
+        Self { device }
+    }
+
+    pub async fn init(self) -> (Option<DeviceConfig>, SdFsWrapper) {
+        let spid = self.device;
         let mut sd = SdSpi::<_, _, aligned::A1>::new(spid, Delay);
 
         loop {
             // Initialize the card
             if sd.init().await.is_ok() {
-                // Increase the speed up to the SD max
-                sd.spi()
-                    .bus_mut()
-                    .apply_config(
-                        &spi::master::Config::default()
-                            .with_frequency(Rate::from_mhz(10))
-                            .with_mode(spi::Mode::_0),
-                    )
-                    .unwrap();
+                sd.spi().set_config(
+                    esp_hal::spi::master::Config::default()
+                        .with_frequency(Rate::from_mhz(10))
+                        .with_mode(esp_hal::spi::Mode::_0),
+                );
 
                 info!("Initialization complete!");
 

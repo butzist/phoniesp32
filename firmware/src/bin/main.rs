@@ -20,7 +20,7 @@ use firmware::player::{Player, run_player};
 use firmware::radio::Radio;
 use firmware::rfid::Rfid;
 use firmware::sd::Sd;
-use firmware::{mk_static, player::PlayerCommand, sd::SdFsWrapper};
+use firmware::{mk_static, player::PlayerCommand, sd::SdFsWrapper, spi_bus};
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
@@ -45,14 +45,14 @@ async fn main(spawner: Spawner) {
 
     info!("Embassy initialized!");
 
-    let sd = Sd::new(
+    let shared_bus = spi_bus::make_shared_spi(
         peripherals.SPI2.into(),
         peripherals.DMA_CH1.degrade(),
         peripherals.GPIO7.into(),
         peripherals.GPIO6.into(),
         peripherals.GPIO0.into(),
-        peripherals.GPIO5.into(),
     );
+    let sd = Sd::new(shared_bus, peripherals.GPIO5.into()).await;
 
     let (device_config, fs) = sd.init().await;
     let fs = mk_static!(SdFsWrapper, fs);
@@ -83,15 +83,12 @@ async fn main(spawner: Spawner) {
     //    commands.sender(),
     //));
 
-    //let _rfid = Rfid::new(
-    //    peripherals.SPI0.degrade(),
-    //    peripherals.GPIO7.into(),
-    //    peripherals.GPIO6.into(),
-    //    peripherals.GPIO5.into(),
-    //    peripherals.GPIO0.into(),
-    //    &spawner,
-    //    commands.sender(),
-    //);
+    let _rfid = Rfid::new(
+        shared_bus,
+        peripherals.GPIO1.into(),
+        &spawner,
+        commands.sender(),
+    );
 
     let radio = Radio::new(peripherals.WIFI, peripherals.GPIO2.into(), device_config);
     let stack = radio.start(&spawner).await;
