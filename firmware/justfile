@@ -1,4 +1,4 @@
-TARGET := "xtensa-esp32-none-elf"
+TARGET := "riscv32imac-unknown-none-elf"
 PROFILE := "release"
 TARGET_DIR := "target/" + TARGET + "/" + PROFILE
 
@@ -20,13 +20,13 @@ build:
 	cargo build --release
 
 flash: build
-	espflash flash --chip esp32 {{TARGET_DIR}}/firmware
+	espflash flash --chip esp32c6 {{TARGET_DIR}}/firmware
 
 run: flash
-	espflash monitor --chip esp32 --log-format defmt --elf {{TARGET_DIR}}/firmware
+	espflash monitor --chip esp32c6 --log-format defmt --elf {{TARGET_DIR}}/firmware
 
 monitor:
-	espflash monitor
+	espflash monitor --chip esp32c6 --log-format defmt --elf {{TARGET_DIR}}/firmware
 
 clean:
   cargo clean

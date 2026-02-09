@@ -4,7 +4,7 @@
 all:
 	cd cli && just all
 	cd firmware && just all
-	cp firmware/target/xtensa-esp32-none-elf/release/firmware ./firmware.bin
+	cp firmware/target/riscv32imac-unknown-none-elf/release/firmware ./firmware.bin
 
 # Build CLI only
 cli:
