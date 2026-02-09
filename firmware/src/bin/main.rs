@@ -6,7 +6,7 @@
     reason = "mem::forget is generally not safe to do with esp_hal types, especially those \
     holding buffers for the duration of a data transfer."
 )]
-use defmt::info;
+use defmt::{debug, info};
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
@@ -67,6 +67,7 @@ async fn main(spawner: Spawner) {
     );
 
     let commands = mk_static!(Channel<NoopRawMutex, PlayerCommand, 2>, Channel::new());
+    info!("Starting player");
     spawner.must_spawn(run_player(spawner, player, fs, commands.receiver()));
 
     //let controls = Controls::new(
@@ -83,6 +84,7 @@ async fn main(spawner: Spawner) {
     //    commands.sender(),
     //));
 
+    info!("Starting RFID");
     let _rfid = Rfid::new(
         shared_bus,
         peripherals.GPIO1.into(),
@@ -91,8 +93,10 @@ async fn main(spawner: Spawner) {
     );
 
     let radio = Radio::new(peripherals.WIFI, peripherals.GPIO2.into(), device_config);
+    info!("Starting radio");
     let stack = radio.start(&spawner).await;
 
+    info!("Starting mDNS responder");
     spawner.must_spawn(mdns_responder(stack));
 
     let web_app = firmware::web::WebApp::default();
@@ -101,6 +105,7 @@ async fn main(spawner: Spawner) {
         firmware::web::AppState::new(fs, commands.sender())
     );
     for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
+        info!("Starting web task");
         spawner.must_spawn(firmware::web::web_task(
             id,
             stack,
@@ -113,5 +118,6 @@ async fn main(spawner: Spawner) {
 
     loop {
         Timer::after_secs(1).await;
+        debug!("Still alive :)");
     }
 }
