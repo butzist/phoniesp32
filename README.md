@@ -82,7 +82,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Fix concurrent access to file system
   - [x] mDNS responder
   - [ ] Turn off Wi-Fi when on battery power
-  - [ ] Fix/speed up SD access/upload
+  - [ ] Speed up SD access/upload
   - [ ] Power management
   - [ ] Playback control via BLE
   - [x] Update to stable esp-hal 1.0
@@ -106,7 +106,8 @@ work-in-progress prototype with lots of noisy data lines...
 - [ ] Upstream fixes
   - [ ] `dioxus`: Support sass:color.channel()
   - [ ] `embedded-fatfs`: SD card partitioning support
-  - [ ] `mfrc522`: async / IRQ support
+  - [x] `mfrc522`: async / IRQ support implemented in
+        [mfrc522-async](https://github.com/butzist/mfrc522-async)
 - [ ] Documentation
   - [x] [API Documentation](./API.md)
   - [ ] Full build instructions
