@@ -88,9 +88,11 @@ async fn main(spawner: Spawner) {
     let _rfid = Rfid::new(
         shared_bus,
         peripherals.GPIO1.into(),
+        peripherals.GPIO10.into(),
         &spawner,
         commands.sender(),
-    );
+    )
+    .await;
 
     let radio = Radio::new(peripherals.WIFI, peripherals.GPIO2.into(), device_config);
     info!("Starting radio");

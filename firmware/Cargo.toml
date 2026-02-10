@@ -76,8 +76,10 @@ embedded-fatfs = { git = "https://github.com/butzist/embedded-fatfs", branch = "
   "defmt",
 ] }
 
-# RDID
-mfrc522 = "0.8.0"
+# RFID
+mfrc522-async = { git = "https://github.com/butzist/mfrc522-async", features = [
+  "defmt",
+] }
 
 # Embedded libs
 embedded-io = { version = "0.7.1", features = ["defmt"] }

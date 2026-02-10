@@ -2,7 +2,7 @@ use embassy_embedded_hal::shared_bus::asynch::spi::SpiDeviceWithConfig;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
 use esp_hal::dma::{AnyGdmaChannel, DmaRxBuf, DmaTxBuf};
-use esp_hal::gpio::AnyPin;
+use esp_hal::gpio::{AnyPin, Level, Output, OutputConfig};
 use esp_hal::spi::master::{AnySpi, Spi, SpiDmaBus};
 use esp_hal::time::Rate;
 use esp_hal::{Async, dma_buffers_chunk_size, spi};
@@ -47,8 +47,6 @@ pub fn make_shared_spi(
 }
 
 pub fn make_spi_device(shared_bus: SharedSpi, cs: AnyPin<'static>, frequency: Rate) -> SpiDevice {
-    use esp_hal::gpio::{Level, Output, OutputConfig};
-
     let cs_output = Output::new(cs, Level::High, OutputConfig::default());
 
     SpiDeviceWithConfig::new(
