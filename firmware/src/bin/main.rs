@@ -8,8 +8,6 @@
 )]
 use defmt::{debug, info};
 use embassy_executor::Spawner;
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
-use embassy_sync::channel::Channel;
 use embassy_time::Timer;
 use esp_hal::clock::CpuClock;
 use esp_hal::dma::DmaChannelConvert;
@@ -21,7 +19,7 @@ use firmware::radio::Radio;
 use firmware::rfid::Rfid;
 use firmware::sd::Sd;
 use firmware::web::WebTask;
-use firmware::{mk_static, player::PlayerCommand, sd::SdFsWrapper, spi_bus};
+use firmware::{mk_static, sd::SdFsWrapper, spi_bus};
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
@@ -59,20 +57,17 @@ async fn main(spawner: Spawner) {
     let fs = mk_static!(SdFsWrapper, fs);
     info!("Config: {:?}", &device_config);
 
-    let commands = mk_static!(Channel<NoopRawMutex, PlayerCommand, 2>, Channel::new());
-
     let player = Player::new(
         peripherals.I2S0.into(),
         peripherals.DMA_CH0,
         peripherals.GPIO23.into(),
         peripherals.GPIO15.into(),
         peripherals.GPIO22.into(),
-        commands.receiver(),
         fs,
         spawner,
     );
     info!("Starting player");
-    player.spawn(&spawner);
+    let player_handle = player.spawn(&spawner);
 
     //let controls = Controls::new(
     //    peripherals.LPWR,
@@ -91,13 +86,13 @@ async fn main(spawner: Spawner) {
         shared_bus,
         peripherals.GPIO1.into(),
         peripherals.GPIO10.into(),
-        commands.sender(),
+        player_handle.clone(),
     )
     .await;
     rfid.spawn(&spawner);
 
-    let radio = Radio::new(peripherals.WIFI, peripherals.GPIO2.into(), device_config);
     info!("Starting radio");
+    let radio = Radio::new(peripherals.WIFI, peripherals.GPIO2.into(), device_config);
     let stack = radio.spawn(&spawner).await;
 
     info!("Starting mDNS responder");
@@ -107,7 +102,7 @@ async fn main(spawner: Spawner) {
     let web_app = firmware::web::WebApp::default();
     let web_app_state = mk_static!(
         firmware::web::AppState,
-        firmware::web::AppState::new(fs, commands.sender())
+        firmware::web::AppState::new(fs, player_handle.clone())
     );
     for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
         info!("Starting web task");

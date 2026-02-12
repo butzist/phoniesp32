@@ -1,7 +1,5 @@
 use alloc::vec;
 use embassy_futures::select::{Either4, select4};
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
-use embassy_sync::channel::Sender;
 use embassy_time::Timer;
 use esp_hal::Async;
 use esp_hal::gpio::TouchPin;
@@ -11,7 +9,7 @@ use esp_hal::{rtc_cntl::Rtc, touch::Touch};
 
 use crate::entities::audio_file::AudioFile;
 use crate::entities::playlist::Playlist;
-use crate::player::PlayerCommand;
+use crate::player::PlayerHandle;
 
 pub enum AnyTouchPin<'a> {
     GPIO15(peripherals::GPIO15<'a>),
@@ -105,21 +103,21 @@ enum Pad {
 #[embassy_executor::task]
 pub async fn run_controls(
     mut controls: Controls,
-    commands: Sender<'static, NoopRawMutex, PlayerCommand, 2>,
+    commands: PlayerHandle,
 ) {
     loop {
         match controls.wait_for_touch().await {
             Pad::Play => {
                 commands
-                    .send(PlayerCommand::Playlist(Playlist::new(
+                    .play_playlist(Playlist::new(
                         "test".try_into().unwrap(),
                         vec![AudioFile::new("test".try_into().unwrap())],
-                    )))
+                    ))
                     .await
             }
-            Pad::Stop => commands.send(PlayerCommand::Stop).await,
-            Pad::VolumeUp => commands.send(PlayerCommand::VolumeUp).await,
-            Pad::VolumeDown => commands.send(PlayerCommand::VolumeDown).await,
+            Pad::Stop => commands.stop().await,
+            Pad::VolumeUp => commands.volume_up().await,
+            Pad::VolumeDown => commands.volume_down().await,
         }
         Timer::after_secs(1).await;
     }

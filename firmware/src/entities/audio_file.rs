@@ -35,7 +35,7 @@ impl Default for AudioMetadata {
     }
 }
 
-#[derive(Clone, serde::Serialize)]
+#[derive(Clone, serde::Serialize, defmt::Format)]
 pub struct AudioFile(String<8>);
 
 impl AudioFile {

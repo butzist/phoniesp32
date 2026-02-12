@@ -17,7 +17,7 @@ use embassy_futures::join::join;
 use embassy_futures::select::{Either3, select3};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
-use embassy_sync::channel::Receiver;
+use embassy_sync::channel::Channel;
 use embassy_sync::lazy_lock::LazyLock;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
@@ -29,18 +29,14 @@ use esp_hal::peripherals::DMA_CH0;
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
+use alloc::boxed::Box;
 use alloc::vec::Vec;
+use futures::future::LocalBoxFuture;
 
-use crate::player::{PlayerCommand, handle_command};
+use crate::player::{PlayerCommand, PlayerHandle, handle_command};
 
 const DMA_SIZE: usize = 6 * 4096;
 const DMA_CHUNKS: usize = 7;
-
-// FIXME: find a better (encapsulated) way to share this signal
-pub static STOP_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
-static SKIP_SIGNAL: Signal<CriticalSectionRawMutex, super::control::Skip> = Signal::new();
-static VOLUME: AtomicU8 = AtomicU8::new(8);
-static PAUSED: AtomicBool = AtomicBool::new(false);
 
 pub struct Player {
     pub i2s: esp_hal::i2s::AnyI2s<'static>,
@@ -50,9 +46,13 @@ pub struct Player {
     pub dout: esp_hal::gpio::AnyPin<'static>,
     pub dma_buffer: &'static mut [u8; DMA_SIZE],
     pub dma_descriptors: &'static mut [DmaDescriptor; DMA_CHUNKS],
-    pub commands: Receiver<'static, NoopRawMutex, PlayerCommand, 2>,
     pub fs: &'static crate::sd::SdFsWrapper,
+    command_channel: &'static Channel<NoopRawMutex, PlayerCommand, 2>,
     spawner: Spawner,
+    stop_signal: &'static Signal<CriticalSectionRawMutex, ()>,
+    skip_signal: &'static Signal<CriticalSectionRawMutex, super::control::Skip>,
+    volume: &'static AtomicU8,
+    paused: &'static AtomicBool,
 }
 
 impl Player {
@@ -62,10 +62,16 @@ impl Player {
         bclk: esp_hal::gpio::AnyPin<'static>,
         ws: esp_hal::gpio::AnyPin<'static>,
         dout: esp_hal::gpio::AnyPin<'static>,
-        commands: Receiver<'static, NoopRawMutex, PlayerCommand, 2>,
         fs: &'static crate::sd::SdFsWrapper,
         spawner: Spawner,
     ) -> Self {
+        let command_channel =
+            crate::mk_static!(Channel<NoopRawMutex, PlayerCommand, 2>, Channel::new());
+        let stop_signal = crate::mk_static!(Signal<CriticalSectionRawMutex, ()>, Signal::new());
+        let skip_signal =
+            crate::mk_static!(Signal<CriticalSectionRawMutex, super::control::Skip>, Signal::new());
+        let volume = crate::mk_static!(AtomicU8, AtomicU8::new(8));
+        let paused = crate::mk_static!(AtomicBool, AtomicBool::new(false));
         let (_, _, tx_buffer, tx_descriptors) = esp_hal::dma_buffers!(0, DMA_SIZE);
         Self {
             i2s,
@@ -75,14 +81,24 @@ impl Player {
             dout,
             dma_buffer: tx_buffer,
             dma_descriptors: tx_descriptors,
-            commands,
+            command_channel,
             fs,
             spawner,
+            stop_signal,
+            skip_signal,
+            volume,
+            paused,
         }
     }
 
-    pub fn start(self, spawner: &Spawner) {
+    pub fn spawn(self, spawner: &Spawner) -> PlayerHandle {
+        let handle = self.handle();
         spawner.must_spawn(run_player(self));
+        handle
+    }
+
+    pub fn handle(&self) -> PlayerHandle {
+        PlayerHandle::new(self.command_channel.sender(), self.volume)
     }
 
     pub fn transfer(&mut self) -> I2sWriteDmaTransferAsync<'_, &mut [u8; DMA_SIZE]> {
@@ -115,12 +131,16 @@ impl Player {
 }
 
 pub async fn play_files(
-    fs: &'static crate::sd::SdFsWrapper,
     files: Vec<AudioFile>,
     player: &mut Player,
     spawner: &embassy_executor::Spawner,
 ) {
-    let fs_guard = fs.borrow_for_playback().await;
+    let handle = player.handle();
+    let stop_fn: Box<dyn Fn() -> LocalBoxFuture<'static, ()>> = Box::new(move || {
+        let handle = handle.clone();
+        Box::pin(async move { handle.stop().await })
+    });
+    let fs_guard = player.fs.borrow_for_playback(stop_fn).await;
 
     // SAFETY: a spawned task needs static lifetimes because it might run forever. In our case the task will be
     // terminated though, before it is restarted with a new file.
@@ -130,17 +150,26 @@ pub async fn play_files(
             I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
         >(player.transfer())
     };
-    spawner.must_spawn(play_files_task(fs_guard, files, dma_transfer));
+    spawner.must_spawn(play_files_task(
+        fs_guard,
+        files,
+        dma_transfer,
+        player.stop_signal,
+        player.skip_signal,
+        player.paused,
+        player.volume,
+    ));
 }
 
 #[embassy_executor::task]
 pub async fn run_player(mut player: Player) {
     let status = Status::get();
+    let receiver = player.command_channel.receiver();
 
     loop {
-        let command = player.commands.receive().await;
+        let command = receiver.receive().await;
         let spawner = player.spawner;
-        handle_command(command, player.fs, &mut player, status, &spawner).await;
+        handle_command(command, &mut player, status, &spawner).await;
     }
 }
 
@@ -149,11 +178,24 @@ async fn play_files_task(
     fs: PlaybackGuard<'static>,
     files: Vec<AudioFile>,
     mut dma_transfer: I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
+    stop_signal: &'static Signal<CriticalSectionRawMutex, ()>,
+    skip_signal: &'static Signal<CriticalSectionRawMutex, super::control::Skip>,
+    paused: &'static AtomicBool,
+    volume: &'static AtomicU8,
 ) {
     play_beep(4, &mut dma_transfer).await;
 
     Status::get().update_state(State::Playing);
-    play_files_task_inner(fs, files, dma_transfer).await;
+    play_files_task_inner(
+        fs,
+        files,
+        dma_transfer,
+        stop_signal,
+        skip_signal,
+        paused,
+        volume,
+    )
+    .await;
     Status::get().update_state(State::Stopped);
 }
 
@@ -168,6 +210,10 @@ async fn play_files_task_inner(
     fs: PlaybackGuard<'static>,
     files: Vec<AudioFile>,
     mut dma_transfer: I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
+    stop_signal: &'static Signal<CriticalSectionRawMutex, ()>,
+    skip_signal: &'static Signal<CriticalSectionRawMutex, super::control::Skip>,
+    paused: &'static AtomicBool,
+    volume: &'static AtomicU8,
 ) {
     let files_vec = files;
     let mut current_index = 0;
@@ -177,8 +223,8 @@ async fn play_files_task_inner(
         if !first {
             // sleep for ~2s
             play_samples_from_iterator(repeat_n(0, 2 * 44100), &mut dma_transfer).await;
-            if STOP_SIGNAL.signaled() {
-                STOP_SIGNAL.reset();
+            if stop_signal.signaled() {
+                stop_signal.reset();
                 return;
             }
             first = false;
@@ -187,7 +233,16 @@ async fn play_files_task_inner(
         warn!("current: {}", current_index);
         Status::get().update_file(current_index);
         let file = files_vec[current_index].clone();
-        let reason = play_file(&fs, file, &mut dma_transfer).await;
+        let reason = play_file(
+            &fs,
+            file,
+            &mut dma_transfer,
+            stop_signal,
+            skip_signal,
+            paused,
+            volume,
+        )
+        .await;
 
         match reason {
             ExitReason::Finished => current_index += 1,
@@ -205,34 +260,40 @@ async fn play_files_task_inner(
     }
 }
 
-pub async fn stop_player() {
-    STOP_SIGNAL.signal(());
-    PAUSED.store(false, Ordering::SeqCst);
+pub async fn stop_player(player: &Player) {
+    player.stop_signal.signal(());
+    player.paused.store(false, Ordering::SeqCst);
     Timer::after_millis(50).await;
-    STOP_SIGNAL.reset();
+    player.stop_signal.reset();
 }
 
-pub async fn skip_player(skip: super::control::Skip) {
-    SKIP_SIGNAL.signal(skip);
-    PAUSED.store(false, Ordering::SeqCst);
+pub async fn skip_player(skip: super::control::Skip, player: &Player) {
+    player.skip_signal.signal(skip);
+    player.paused.store(false, Ordering::SeqCst);
     Timer::after_millis(50).await;
-    SKIP_SIGNAL.reset();
+    player.skip_signal.reset();
 }
 
-pub fn toggle_pause_player() {
-    PAUSED.update(Ordering::SeqCst, Ordering::SeqCst, |paused| !paused);
+pub fn toggle_pause_player(player: &Player) {
+    player
+        .paused
+        .update(Ordering::SeqCst, Ordering::SeqCst, |paused| !paused);
 }
 
-pub fn volume_up() {
-    VOLUME.update(Ordering::SeqCst, Ordering::SeqCst, |vol| 16.min(vol + 1));
+pub fn volume_up(player: &Player) {
+    player
+        .volume
+        .update(Ordering::SeqCst, Ordering::SeqCst, |vol| 16.min(vol + 1));
 }
 
-pub fn volume_down() {
-    VOLUME.update(Ordering::SeqCst, Ordering::SeqCst, |vol| 1.max(vol - 1));
+pub fn volume_down(player: &Player) {
+    player
+        .volume
+        .update(Ordering::SeqCst, Ordering::SeqCst, |vol| 1.max(vol - 1));
 }
 
-pub fn get_volume() -> u8 {
-    VOLUME.load(Ordering::SeqCst)
+pub fn get_volume(player: &Player) -> u8 {
+    player.volume.load(Ordering::SeqCst)
 }
 
 async fn play_beep(
@@ -279,6 +340,10 @@ async fn play_file<'a>(
     fs: &'a SdFileSystem,
     file: AudioFile,
     dma_transfer: &'a mut I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
+    stop_signal: &'static Signal<CriticalSectionRawMutex, ()>,
+    skip_signal: &'static Signal<CriticalSectionRawMutex, super::control::Skip>,
+    paused: &'static AtomicBool,
+    volume: &'static AtomicU8,
 ) -> ExitReason {
     let Ok(mut file_handle) = file.data_reader(fs).await else {
         return ExitReason::Error;
@@ -315,8 +380,8 @@ async fn play_file<'a>(
     let mut last_position_update = 0;
 
     loop {
-        let volume = VOLUME.load(Ordering::SeqCst);
-        let apply_volume = |sample: i16| (sample as i32 * volume as i32 / 16) as i16;
+        let volume_value = volume.load(Ordering::SeqCst);
+        let apply_volume = |sample: i16| (sample as i32 * volume_value as i32 / 16) as i16;
 
         let mut decoder = #[coroutine]
         || {
@@ -372,7 +437,7 @@ async fn play_file<'a>(
         };
 
         let player_future = join(transfer_future, read_future);
-        let read_result = match select3(STOP_SIGNAL.wait(), SKIP_SIGNAL.wait(), player_future).await
+        let read_result = match select3(stop_signal.wait(), skip_signal.wait(), player_future).await
         {
             Either3::First(_) => return ExitReason::Stopped,
             Either3::Second(skip) => return ExitReason::Skipped(skip),
@@ -380,10 +445,10 @@ async fn play_file<'a>(
         };
 
         // send zero samples while paused
-        if PAUSED.load(Ordering::SeqCst) {
+        if paused.load(Ordering::SeqCst) {
             Status::get().update_state(State::Paused);
 
-            while PAUSED.load(Ordering::SeqCst) {
+            while paused.load(Ordering::SeqCst) {
                 dma_transfer
                     .push_with(|buf: &mut [u8]| {
                         let mut bytes = 0usize;

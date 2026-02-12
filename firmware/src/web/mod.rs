@@ -1,6 +1,5 @@
 use embassy_executor::Spawner;
 use embassy_net::Stack;
-use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Sender};
 use embassy_time::Duration;
 use esp_alloc as _;
 use picoserve::{
@@ -14,7 +13,7 @@ use picoserve::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{entities::audio_file::AudioMetadata, player::PlayerCommand};
+use crate::{entities::audio_file::AudioMetadata, player::PlayerHandle};
 
 mod assets {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));
@@ -28,14 +27,11 @@ mod upload;
 #[derive(Clone)]
 pub struct AppState {
     fs: &'static crate::sd::SdFsWrapper,
-    commands: Sender<'static, NoopRawMutex, PlayerCommand, 2>,
+    commands: PlayerHandle,
 }
 
 impl AppState {
-    pub fn new(
-        fs: &'static crate::sd::SdFsWrapper,
-        commands: Sender<'static, NoopRawMutex, PlayerCommand, 2>,
-    ) -> Self {
+    pub fn new(fs: &'static crate::sd::SdFsWrapper, commands: PlayerHandle) -> Self {
         Self { fs, commands }
     }
 }

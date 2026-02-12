@@ -1,9 +1,8 @@
-use crate::player::playback::STOP_SIGNAL;
 use crate::{DeviceConfig, PrintErr, spi_bus};
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use block_device_adapters::BufStream;
-use core::sync::atomic::{AtomicBool, Ordering};
 use defmt::{info, warn};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::{Mutex, MutexGuard};
@@ -14,6 +13,7 @@ use embedded_hal_async::delay::DelayNs;
 use embedded_io_async::Read;
 use esp_hal::gpio::{AnyPin, Level, Output, OutputConfig};
 use esp_hal::time::Rate;
+use futures::future::LocalBoxFuture;
 use sdspi::SdSpi;
 
 use {esp_backtrace as _, esp_println as _};
@@ -36,48 +36,62 @@ pub type FileHandle<'a> = embedded_fatfs::File<
 // Simple wrapper for controlled filesystem access
 pub struct SdFsWrapper {
     fs: Mutex<CriticalSectionRawMutex, SdFileSystem>,
-    playback_borrowed: AtomicBool,
+    stop_fn: Mutex<CriticalSectionRawMutex, Option<Box<dyn Fn() -> LocalBoxFuture<'static, ()>>>>,
 }
 
 impl SdFsWrapper {
     pub fn new(fs: SdFileSystem) -> Self {
         Self {
             fs: Mutex::new(fs),
-            playback_borrowed: AtomicBool::new(false),
+            stop_fn: Mutex::new(None),
         }
     }
 
-    pub async fn borrow_for_playback(&self) -> PlaybackGuard<'_> {
-        let was_borrowed = self.playback_borrowed.swap(true, Ordering::SeqCst);
-        if was_borrowed {
-            warn!("Stopping running player");
-            self.stop_playback().await;
-        }
+    pub async fn borrow_for_playback(
+        &self,
+        stop_fn: Box<dyn Fn() -> LocalBoxFuture<'static, ()>>,
+    ) -> PlaybackGuard<'_> {
+        let mut stop_fn_guard = self.stop_fn.lock().await;
 
-        self.playback_borrowed.store(true, Ordering::SeqCst); // previous task has probably
-        // finished and written false here
+        // Stop any existing playback
+        self.stop_playback(&mut stop_fn_guard).await;
 
-        let guard = self.fs.lock().await;
+        // Store the new stop function
+        *stop_fn_guard = Some(stop_fn);
+
+        // Keep stop_fn_guard locked while acquiring fs lock to prevent race conditions
+        let fs_guard = self.fs.lock().await;
 
         PlaybackGuard {
             wrapper: self,
-            fs: guard,
+            fs: fs_guard,
         }
     }
 
     pub async fn borrow_mut(&self) -> MutexGuard<'_, CriticalSectionRawMutex, SdFileSystem> {
-        if self.playback_borrowed.load(Ordering::SeqCst) {
-            warn!("Stopping running player");
-            self.stop_playback().await;
-        }
-
+        // Stop any active playback before borrowing
+        let mut stop_fn_guard = self.stop_fn.lock().await;
+        self.stop_playback(&mut stop_fn_guard).await;
         self.fs.lock().await
     }
 
-    async fn stop_playback(&self) {
-        STOP_SIGNAL.signal(());
-        embassy_time::Timer::after_millis(100).await;
-        STOP_SIGNAL.reset();
+    /// Stop any existing playback and clear the handle.
+    /// Returns true if playback was active and was stopped.
+    async fn stop_playback(
+        &self,
+        stop_fn_guard: &mut MutexGuard<
+            '_,
+            CriticalSectionRawMutex,
+            Option<Box<dyn Fn() -> LocalBoxFuture<'static, ()>>>,
+        >,
+    ) {
+        if let Some(ref stop_fn) = **stop_fn_guard {
+            warn!("Stopping running player");
+            stop_fn().await;
+            // Give player time to actually stop
+            embassy_time::Timer::after_millis(100).await;
+            **stop_fn_guard = None;
+        }
     }
 }
 
@@ -96,9 +110,13 @@ impl<'a> core::ops::Deref for PlaybackGuard<'a> {
 
 impl<'a> Drop for PlaybackGuard<'a> {
     fn drop(&mut self) {
-        self.wrapper
-            .playback_borrowed
-            .store(false, Ordering::SeqCst);
+        // Clear the handle to indicate playback is finished
+        // TODO: Find better solution - we use try_lock since Drop can't be async
+        // This is still safe, but will in the worst case issue an unnecessary call to
+        // `Self::stop_playback()`
+        if let Ok(mut guard) = self.wrapper.stop_fn.try_lock() {
+            *guard = None;
+        }
     }
 }
 
