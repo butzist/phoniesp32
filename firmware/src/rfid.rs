@@ -22,23 +22,27 @@ type MyMfrc522 = Mfrc522<SpiDevice, Input<'static>, Initialized>;
 
 pub static LAST_FOB: Mutex<CriticalSectionRawMutex, Option<String<8>>> = Mutex::new(None);
 
-pub struct Rfid;
+pub struct Rfid {
+    rfid: MyMfrc522,
+    commands: Sender<'static, NoopRawMutex, PlayerCommand, 2>,
+}
 
 impl Rfid {
     pub async fn new(
         shared_spi: spi_bus::SharedSpi,
         cs: AnyPin<'static>,
         irq: AnyPin<'static>,
-        spawner: &Spawner,
         commands: Sender<'static, NoopRawMutex, PlayerCommand, 2>,
     ) -> Self {
         let spi_dev = spi_bus::make_spi_device(shared_spi, cs, Rate::from_mhz(10));
         let irq = Input::new(irq, InputConfig::default().with_pull(Pull::Up));
         let rfid = Mfrc522::new(spi_dev, irq).init().await.unwrap();
 
-        spawner.must_spawn(rfid_task(rfid, commands));
+        Self { rfid, commands }
+    }
 
-        Self
+    pub fn spawn(self, spawner: &Spawner) {
+        spawner.must_spawn(rfid_task(self.rfid, self.commands));
     }
 }
 

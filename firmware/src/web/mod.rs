@@ -1,3 +1,4 @@
+use embassy_executor::Spawner;
 use embassy_net::Stack;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Sender};
 use embassy_time::Duration;
@@ -216,8 +217,44 @@ impl Default for WebApp {
 
 pub const WEB_TASK_POOL_SIZE: usize = 3;
 
+pub struct WebTask {
+    id: usize,
+    stack: Stack<'static>,
+    router: &'static Router<<Application as AppWithStateBuilder>::PathRouter, AppState>,
+    config: &'static picoserve::Config<Duration>,
+    state: &'static AppState,
+}
+
+impl WebTask {
+    pub fn new(
+        id: usize,
+        stack: Stack<'static>,
+        router: &'static Router<<Application as AppWithStateBuilder>::PathRouter, AppState>,
+        config: &'static picoserve::Config<Duration>,
+        state: &'static AppState,
+    ) -> Self {
+        Self {
+            id,
+            stack,
+            router,
+            config,
+            state,
+        }
+    }
+
+    pub fn spawn(&self, spawner: &Spawner) {
+        spawner.must_spawn(web_task(
+            self.id,
+            self.stack,
+            self.router,
+            self.config,
+            self.state,
+        ));
+    }
+}
+
 #[embassy_executor::task(pool_size = WEB_TASK_POOL_SIZE)]
-pub async fn web_task(
+async fn web_task(
     id: usize,
     stack: Stack<'static>,
     router: &'static Router<<Application as AppWithStateBuilder>::PathRouter, AppState>,

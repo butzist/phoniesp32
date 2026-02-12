@@ -12,9 +12,12 @@ use crate::sd::{PlaybackGuard, SdFileSystem};
 use crate::{PrintErr, extend_to_static};
 use audio_codec_algorithms::{AdpcmImaState, decode_adpcm_ima};
 use defmt::{error, warn};
+use embassy_executor::Spawner;
 use embassy_futures::join::join;
 use embassy_futures::select::{Either3, select3};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::channel::Receiver;
 use embassy_sync::lazy_lock::LazyLock;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
@@ -27,6 +30,8 @@ use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
 use alloc::vec::Vec;
+
+use crate::player::{PlayerCommand, handle_command};
 
 const DMA_SIZE: usize = 6 * 4096;
 const DMA_CHUNKS: usize = 7;
@@ -45,6 +50,9 @@ pub struct Player {
     pub dout: esp_hal::gpio::AnyPin<'static>,
     pub dma_buffer: &'static mut [u8; DMA_SIZE],
     pub dma_descriptors: &'static mut [DmaDescriptor; DMA_CHUNKS],
+    pub commands: Receiver<'static, NoopRawMutex, PlayerCommand, 2>,
+    pub fs: &'static crate::sd::SdFsWrapper,
+    spawner: Spawner,
 }
 
 impl Player {
@@ -54,6 +62,9 @@ impl Player {
         bclk: esp_hal::gpio::AnyPin<'static>,
         ws: esp_hal::gpio::AnyPin<'static>,
         dout: esp_hal::gpio::AnyPin<'static>,
+        commands: Receiver<'static, NoopRawMutex, PlayerCommand, 2>,
+        fs: &'static crate::sd::SdFsWrapper,
+        spawner: Spawner,
     ) -> Self {
         let (_, _, tx_buffer, tx_descriptors) = esp_hal::dma_buffers!(0, DMA_SIZE);
         Self {
@@ -64,7 +75,14 @@ impl Player {
             dout,
             dma_buffer: tx_buffer,
             dma_descriptors: tx_descriptors,
+            commands,
+            fs,
+            spawner,
         }
+    }
+
+    pub fn start(self, spawner: &Spawner) {
+        spawner.must_spawn(run_player(self));
     }
 
     pub fn transfer(&mut self) -> I2sWriteDmaTransferAsync<'_, &mut [u8; DMA_SIZE]> {
@@ -113,6 +131,17 @@ pub async fn play_files(
         >(player.transfer())
     };
     spawner.must_spawn(play_files_task(fs_guard, files, dma_transfer));
+}
+
+#[embassy_executor::task]
+pub async fn run_player(mut player: Player) {
+    let status = Status::get();
+
+    loop {
+        let command = player.commands.receive().await;
+        let spawner = player.spawner;
+        handle_command(command, player.fs, &mut player, status, &spawner).await;
+    }
 }
 
 #[embassy_executor::task]

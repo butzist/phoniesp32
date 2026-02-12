@@ -30,7 +30,7 @@ impl Radio {
         Self { wifi, led, config }
     }
 
-    pub async fn start(self, spawner: &Spawner) -> Stack<'static> {
+    pub async fn spawn(self, spawner: &Spawner) -> Stack<'static> {
         let mut rng = esp_hal::rng::Rng::new();
         let wifi_led = Output::new(self.led, Level::Low, OutputConfig::default());
 
