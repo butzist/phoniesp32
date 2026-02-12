@@ -15,6 +15,7 @@ use heapless::String;
 const PLAYLIST_DIR: &str = "FOBS";
 const PLAYLIST_EXT: &str = ".M3U";
 
+#[derive(defmt::Format)]
 pub struct PlayListRef(String<8>);
 
 impl PlayListRef {
@@ -150,5 +151,18 @@ impl Playlist {
         .filter_map(|x| async { x.ok() });
 
         Ok(Box::pin(stream))
+    }
+}
+
+impl defmt::Format for Playlist {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(fmt, "Playlist {{ name: {}, files: [", self.name);
+        for (i, file) in self.files.iter().enumerate() {
+            if i > 0 {
+                defmt::write!(fmt, ", ");
+            }
+            defmt::write!(fmt, "{}", file);
+        }
+        defmt::write!(fmt, "] }}");
     }
 }

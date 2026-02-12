@@ -6,6 +6,7 @@
 #![feature(coroutine_trait)]
 #![feature(stmt_expr_attributes)]
 #![feature(atomic_try_update)]
+#![feature(trivial_bounds)]
 #![feature(try_blocks)]
 
 use core::future::Future;

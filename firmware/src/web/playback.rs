@@ -11,11 +11,7 @@ use crate::{
         audio_file::AudioFile,
         playlist::{PlayListRef, Playlist},
     },
-    player::control::Skip,
-    player::{
-        PlayerCommand,
-        status::{PlaylistWithMetadata, State, Status},
-    },
+    player::status::{PlaylistWithMetadata, State, Status},
     web::AppState,
 };
 
@@ -71,53 +67,47 @@ pub async fn play(
         PlayRequest::File(file) => {
             let audio_file = AudioFile::new(file);
             let playlist = Playlist::new("WEB_API".try_into().unwrap(), vec![audio_file]);
-            state.commands.send(PlayerCommand::Playlist(playlist)).await;
+            let _ = state.commands.play_playlist(playlist).await;
         }
         PlayRequest::Playlist(files) => {
             let audio_files = files.into_iter().map(AudioFile::new).collect::<Vec<_>>();
             let playlist = Playlist::new("WEB_API".try_into().unwrap(), audio_files);
-            state.commands.send(PlayerCommand::Playlist(playlist)).await;
+            let _ = state.commands.play_playlist(playlist).await;
         }
         PlayRequest::PlaylistRef(playlist_ref) => {
             let playlist_ref = PlayListRef::new(playlist_ref);
-            state
-                .commands
-                .send(PlayerCommand::PlaylistRef(playlist_ref))
-                .await;
+            let _ = state.commands.play_playlist_ref(playlist_ref).await;
         }
     }
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn stop(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
-    state.commands.send(PlayerCommand::Stop).await;
+    let _ = state.commands.stop().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn pause(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
-    state.commands.send(PlayerCommand::Pause).await;
+    let _ = state.commands.pause().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn volume_up(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
-    state.commands.send(PlayerCommand::VolumeUp).await;
+    let _ = state.commands.volume_up().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn volume_down(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
-    state.commands.send(PlayerCommand::VolumeDown).await;
+    let _ = state.commands.volume_down().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn next(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
-    state.commands.send(PlayerCommand::Skip(Skip::Next)).await;
+    let _ = state.commands.skip_next().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn previous(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
-    state
-        .commands
-        .send(PlayerCommand::Skip(Skip::Previous))
-        .await;
+    let _ = state.commands.skip_previous().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
