@@ -5,6 +5,7 @@ use edge_mdns::io::{self, DEFAULT_SOCKET, MdnsIoError};
 use edge_mdns::{HostAnswersMdnsHandler, host::Host};
 use edge_nal::UdpSplit;
 use edge_nal_embassy::{Udp, UdpBuffers};
+use embassy_executor::Spawner;
 use embassy_net::Stack;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::signal::Signal;
@@ -13,11 +14,24 @@ use esp_println::println;
 
 const SERVICE_NAME: &str = "phoniesp32";
 
+pub struct MdnsResponder {
+    stack: Stack<'static>,
+}
+
+impl MdnsResponder {
+    pub fn new(stack: Stack<'static>) -> Self {
+        Self { stack }
+    }
+
+    pub fn spawn(self, spawner: &Spawner) {
+        spawner.must_spawn(mdns_responder(self.stack));
+    }
+}
+
 #[embassy_executor::task]
-pub async fn mdns_responder(stack: Stack<'static>) {
+async fn mdns_responder(stack: Stack<'static>) {
     println!("Starting mDNS responder for {}", SERVICE_NAME);
 
-    // Wait for network to be ready and get IP
     let ipv4 = wait_for_network_ready(&stack).await;
 
     let (recv_buf, send_buf) = mk_static!(
