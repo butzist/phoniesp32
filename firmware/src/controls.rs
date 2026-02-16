@@ -1,124 +1,153 @@
-use alloc::vec;
+use embassy_executor::Spawner;
 use embassy_futures::select::{Either4, select4};
-use embassy_time::Timer;
-use esp_hal::Async;
-use esp_hal::gpio::TouchPin;
-use esp_hal::peripherals::{self, LPWR, TOUCH};
-use esp_hal::touch::{Continuous, TouchPad};
-use esp_hal::{rtc_cntl::Rtc, touch::Touch};
+use embassy_time::{Duration, Timer};
+use esp_hal::gpio::{AnyPin, Input, InputConfig, Pull};
 
-use crate::entities::audio_file::AudioFile;
-use crate::entities::playlist::Playlist;
 use crate::player::PlayerHandle;
 
-pub enum AnyTouchPin<'a> {
-    GPIO15(peripherals::GPIO15<'a>),
-    GPIO2(peripherals::GPIO2<'a>),
-    GPIO0(peripherals::GPIO0<'a>),
-    GPIO4(peripherals::GPIO4<'a>),
-    GPIO13(peripherals::GPIO13<'a>),
-    GPIO12(peripherals::GPIO12<'a>),
-    GPIO14(peripherals::GPIO14<'a>),
-    GPIO27(peripherals::GPIO27<'a>),
-    GPIO33(peripherals::GPIO33<'a>),
-    GPIO32(peripherals::GPIO32<'a>),
+pub struct Button {
+    input: Input<'static>,
+    long_press_threshold: Option<Duration>,
+    repeat_interval: Option<Duration>,
 }
 
-impl<'a> AnyTouchPin<'a> {
-    async fn wait_for_touch(&mut self, touch: &Touch<'_, Continuous, Async>) {
-        match self {
-            AnyTouchPin::GPIO15(p) => wait_for_touch(p.reborrow(), touch).await,
-            AnyTouchPin::GPIO2(p) => wait_for_touch(p.reborrow(), touch).await,
-            AnyTouchPin::GPIO0(p) => wait_for_touch(p.reborrow(), touch).await,
-            AnyTouchPin::GPIO4(p) => wait_for_touch(p.reborrow(), touch).await,
-            AnyTouchPin::GPIO13(p) => wait_for_touch(p.reborrow(), touch).await,
-            AnyTouchPin::GPIO12(p) => wait_for_touch(p.reborrow(), touch).await,
-            AnyTouchPin::GPIO14(p) => wait_for_touch(p.reborrow(), touch).await,
-            AnyTouchPin::GPIO27(p) => wait_for_touch(p.reborrow(), touch).await,
-            AnyTouchPin::GPIO33(p) => wait_for_touch(p.reborrow(), touch).await,
-            AnyTouchPin::GPIO32(p) => wait_for_touch(p.reborrow(), touch).await,
+impl Button {
+    pub fn new(pin: AnyPin<'static>) -> Self {
+        let input = Input::new(pin, InputConfig::default().with_pull(Pull::Up));
+        Self {
+            input,
+            long_press_threshold: None,
+            repeat_interval: None,
         }
+    }
+
+    pub fn with_long_press(mut self, long_press_threshold_ms: u64) -> Self {
+        self.long_press_threshold = Some(Duration::from_millis(long_press_threshold_ms));
+        self
+    }
+
+    pub fn with_repeat(mut self, interval_ms: u64) -> Self {
+        self.repeat_interval = Some(Duration::from_millis(interval_ms));
+        self
+    }
+
+    /// Wait for press and return press type
+    /// For buttons with repeat enabled, returns immediately on press
+    /// For other buttons, waits for release to determine short/long press
+    async fn wait_for_press(&mut self) -> PressType {
+        self.input.wait_for_low().await;
+
+        // Debounce
+        Timer::after(Duration::from_millis(20)).await;
+
+        if let Some(long_press_threshold) = self.long_press_threshold {
+            // Wait for release to determine press duration
+            match embassy_time::with_timeout(long_press_threshold, self.input.wait_for_high()).await
+            {
+                Ok(_) => PressType::Short, // Released
+                Err(_) => PressType::Long, // Still held - trigger event
+            }
+        } else {
+            PressType::Short
+        }
+    }
+
+    /// Check if button is still pressed and wait for repeat interval
+    /// Returns true if should repeat, false if button was released
+    async fn check_repeat(&mut self) -> bool {
+        embassy_time::with_timeout(
+            self.repeat_interval.unwrap_or(Duration::from_millis(500)),
+            self.input.wait_for_high(),
+        )
+        .await
+        .is_err() // Not released
     }
 }
 
-async fn wait_for_touch(pin: impl TouchPin, touch: &Touch<'_, Continuous, Async>) {
-    let mut pad = TouchPad::new(pin, touch);
-    pad.wait_for_touch(100).await;
+#[derive(Debug, Clone, Copy)]
+pub enum PressType {
+    Short,
+    Long,
 }
 
 pub struct Controls {
-    rtc: Rtc<'static>,
-    touch: TOUCH<'static>,
-    pin1: AnyTouchPin<'static>,
-    pin2: AnyTouchPin<'static>,
-    pin3: AnyTouchPin<'static>,
-    pin4: AnyTouchPin<'static>,
+    play_pause: Button,
+    next_prev: Button,
+    volume_up: Button,
+    volume_down: Button,
 }
 
 impl Controls {
     pub fn new(
-        rtc: LPWR<'static>,
-        touch: TOUCH<'static>,
-        pin1: AnyTouchPin<'static>,
-        pin2: AnyTouchPin<'static>,
-        pin3: AnyTouchPin<'static>,
-        pin4: AnyTouchPin<'static>,
+        play_pause_pin: AnyPin<'static>,
+        next_prev_pin: AnyPin<'static>,
+        volume_up_pin: AnyPin<'static>,
+        volume_down_pin: AnyPin<'static>,
     ) -> Self {
         Self {
-            rtc: Rtc::new(rtc),
-            touch,
-            pin1,
-            pin2,
-            pin3,
-            pin4,
+            play_pause: Button::new(play_pause_pin).with_long_press(1500),
+            next_prev: Button::new(next_prev_pin).with_long_press(1500),
+            volume_up: Button::new(volume_up_pin).with_repeat(500),
+            volume_down: Button::new(volume_down_pin).with_repeat(500),
         }
     }
 
-    async fn wait_for_touch(&mut self) -> Pad {
-        let touch = Touch::async_mode(self.touch.reborrow(), &mut self.rtc, None);
-
+    async fn wait_for_event(&mut self) -> ControlEvent {
         match select4(
-            self.pin1.wait_for_touch(&touch),
-            self.pin2.wait_for_touch(&touch),
-            self.pin3.wait_for_touch(&touch),
-            self.pin4.wait_for_touch(&touch),
+            self.play_pause.wait_for_press(),
+            self.next_prev.wait_for_press(),
+            self.volume_up.wait_for_press(),
+            self.volume_down.wait_for_press(),
         )
         .await
         {
-            Either4::First(_) => Pad::Play,
-            Either4::Second(_) => Pad::Stop,
-            Either4::Third(_) => Pad::VolumeUp,
-            Either4::Fourth(_) => Pad::VolumeDown,
+            Either4::First(press_type) => ControlEvent::PlayPause(press_type),
+            Either4::Second(press_type) => ControlEvent::NextPrev(press_type),
+            Either4::Third(_) => ControlEvent::VolumeUp,
+            Either4::Fourth(_) => ControlEvent::VolumeDown,
         }
+    }
+
+    pub fn spawn(self, spawner: &Spawner, player: PlayerHandle) {
+        spawner.must_spawn(controls_task(self, player));
     }
 }
 
-enum Pad {
-    Play,
-    Stop,
+enum ControlEvent {
+    PlayPause(PressType),
+    NextPrev(PressType),
     VolumeUp,
     VolumeDown,
 }
 
 #[embassy_executor::task]
-pub async fn run_controls(
-    mut controls: Controls,
-    commands: PlayerHandle,
-) {
+async fn controls_task(mut controls: Controls, player: PlayerHandle) {
     loop {
-        match controls.wait_for_touch().await {
-            Pad::Play => {
-                commands
-                    .play_playlist(Playlist::new(
-                        "test".try_into().unwrap(),
-                        vec![AudioFile::new("test".try_into().unwrap())],
-                    ))
-                    .await
+        match controls.wait_for_event().await {
+            ControlEvent::PlayPause(press_type) => match press_type {
+                PressType::Short => player.pause().await,
+                PressType::Long => player.stop().await,
+            },
+            ControlEvent::NextPrev(press_type) => match press_type {
+                PressType::Short => player.skip_next().await,
+                PressType::Long => player.skip_previous().await,
+            },
+            ControlEvent::VolumeUp => {
+                player.volume_up().await;
+                // Continue repeating while held
+                while controls.volume_up.check_repeat().await {
+                    player.volume_up().await;
+                }
             }
-            Pad::Stop => commands.stop().await,
-            Pad::VolumeUp => commands.volume_up().await,
-            Pad::VolumeDown => commands.volume_down().await,
+            ControlEvent::VolumeDown => {
+                player.volume_down().await;
+                // Continue repeating while held
+                while controls.volume_down.check_repeat().await {
+                    player.volume_down().await;
+                }
+            }
         }
-        Timer::after_secs(1).await;
+
+        Timer::after(Duration::from_millis(100)).await;
     }
 }

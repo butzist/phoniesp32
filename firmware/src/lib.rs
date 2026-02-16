@@ -121,6 +121,7 @@ pub fn with_extension(
 }
 
 pub mod charger;
+pub mod controls;
 pub mod entities;
 pub mod mdns;
 pub mod player;

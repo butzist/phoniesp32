@@ -14,6 +14,7 @@ use esp_hal::dma::DmaChannelConvert;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::timer::timg::TimerGroup;
 use firmware::charger::Charger;
+use firmware::controls::Controls;
 use firmware::mdns::MdnsResponder;
 use firmware::player::Player;
 use firmware::radio::Radio;
@@ -70,17 +71,14 @@ async fn main(spawner: Spawner) {
     info!("Starting player");
     let player_handle = player.spawn(&spawner);
 
-    //let controls = Controls::new(
-    //    peripherals.LPWR,
-    //    peripherals.TOUCH,
-    //    AnyTouchPin::GPIO15(peripherals.GPIO15),
-    //    AnyTouchPin::GPIO4(peripherals.GPIO4),
-    //    AnyTouchPin::GPIO33(peripherals.GPIO33),
-    //    AnyTouchPin::GPIO32(peripherals.GPIO32), // FIXME: GPIO32 touch does not work
-    //    commands.sender(),
-    //);
-
-    //controls.spawn(&spawner);
+    info!("Starting controls");
+    let controls = Controls::new(
+        peripherals.GPIO18.into(),
+        peripherals.GPIO19.into(),
+        peripherals.GPIO20.into(),
+        peripherals.GPIO21.into(),
+    );
+    controls.spawn(&spawner, player_handle.clone());
 
     info!("Starting RFID");
     let rfid = Rfid::new(
