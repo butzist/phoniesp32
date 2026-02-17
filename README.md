@@ -81,9 +81,9 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Use RIFF INFO chunk for artist/title
   - [x] Fix concurrent access to file system
   - [x] mDNS responder
-  - [ ] Turn off Wi-Fi when on battery power
+  - [x] Turn off Wi-Fi when on battery power
+  - [ ] Battery status
   - [ ] Speed up SD access/upload
-  - [ ] Power management
   - [ ] Playback control via BLE
   - [x] Update to stable esp-hal 1.0
 - [x] Web API (picoserve)
