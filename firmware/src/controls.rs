@@ -35,10 +35,10 @@ impl Button {
     /// For buttons with repeat enabled, returns immediately on press
     /// For other buttons, waits for release to determine short/long press
     async fn wait_for_press(&mut self) -> PressType {
-        self.input.wait_for_low().await;
-
-        // Debounce
-        Timer::after(Duration::from_millis(20)).await;
+        self.input.wait_for_high().await; // Make sure button is reset
+        Timer::after(Duration::from_millis(50)).await; // Debounce
+        self.input.wait_for_low().await; // Wait for press
+        Timer::after(Duration::from_millis(50)).await; // Debounce
 
         if let Some(long_press_threshold) = self.long_press_threshold {
             // Wait for release to determine press duration

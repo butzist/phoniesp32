@@ -73,10 +73,10 @@ async fn main(spawner: Spawner) {
 
     info!("Starting controls");
     let controls = Controls::new(
+        peripherals.GPIO9.into(),
         peripherals.GPIO18.into(),
         peripherals.GPIO19.into(),
         peripherals.GPIO20.into(),
-        peripherals.GPIO21.into(),
     );
     controls.spawn(&spawner, player_handle.clone());
 
