@@ -51,9 +51,9 @@ async fn main(spawner: Spawner) {
         peripherals.DMA_CH1.degrade(),
         peripherals.GPIO7.into(),
         peripherals.GPIO6.into(),
-        peripherals.GPIO0.into(),
+        peripherals.GPIO5.into(),
     );
-    let sd = Sd::new(shared_bus, peripherals.GPIO5.into()).await;
+    let sd = Sd::new(shared_bus, peripherals.GPIO10.into()).await;
 
     let (device_config, fs) = sd.init().await;
     let fs = mk_static!(SdFsWrapper, fs);
@@ -73,29 +73,29 @@ async fn main(spawner: Spawner) {
 
     info!("Starting controls");
     let controls = Controls::new(
-        peripherals.GPIO9.into(),
-        peripherals.GPIO18.into(),
-        peripherals.GPIO19.into(),
-        peripherals.GPIO20.into(),
+        peripherals.GPIO0.into(),
+        peripherals.GPIO1.into(),
+        peripherals.GPIO2.into(),
+        peripherals.GPIO3.into(),
     );
     controls.spawn(&spawner, player_handle.clone());
 
     info!("Starting RFID");
     let rfid = Rfid::new(
         shared_bus,
-        peripherals.GPIO1.into(),
-        peripherals.GPIO10.into(),
+        peripherals.GPIO18.into(),
+        peripherals.GPIO19.into(),
         player_handle.clone(),
     )
     .await;
     rfid.spawn(&spawner);
 
     info!("Starting charger");
-    let charger = Charger::new(peripherals.GPIO11.into());
+    let charger = Charger::new(peripherals.GPIO4.into());
     let charger_monitor = charger.spawn(&spawner);
 
     info!("Starting radio");
-    let radio = Radio::new(peripherals.WIFI, peripherals.GPIO2.into(), device_config);
+    let radio = Radio::new(peripherals.WIFI, peripherals.GPIO8.into(), device_config);
     let stack = radio.spawn(charger_monitor, &spawner).await;
 
     info!("Starting mDNS responder");
