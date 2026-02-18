@@ -151,7 +151,7 @@ impl Sd {
             if sd.init().await.is_ok() {
                 sd.spi().set_config(
                     esp_hal::spi::master::Config::default()
-                        .with_frequency(Rate::from_mhz(10))
+                        .with_frequency(Rate::from_mhz(20))
                         .with_mode(esp_hal::spi::Mode::_0),
                 );
 
