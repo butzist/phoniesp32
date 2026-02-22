@@ -49,8 +49,8 @@ async fn main(spawner: Spawner) {
     let shared_bus = spi_bus::make_shared_spi(
         peripherals.SPI2.into(),
         peripherals.DMA_CH1.degrade(),
-        peripherals.GPIO7.into(),
         peripherals.GPIO6.into(),
+        peripherals.GPIO7.into(),
         peripherals.GPIO5.into(),
     );
     let sd = Sd::new(shared_bus, peripherals.GPIO10.into()).await;

@@ -20,7 +20,7 @@ pub struct Charger {
 
 impl Charger {
     pub fn new(pin: AnyPin<'static>) -> Self {
-        let pin = Input::new(pin, InputConfig::default().with_pull(Pull::Up));
+        let pin = Input::new(pin, InputConfig::default());
 
         // Set initial state
         let initial_state = Self::current_state(&pin);
