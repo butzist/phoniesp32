@@ -16,8 +16,7 @@ ultra-portable**.
 
 ## ✨ Features
 
-- **ESP32-based jukebox**: replaces the Raspberry Pi with an ESP-WROOM-32, or
-  newer.
+- **ESP32-based jukebox**: replaces the Raspberry Pi with an ESP32-C6.
 - **Low-power & battery-ready**: runs on a Li-ion cell with TP4056 charging and
   MT3608 boost converter.
 - **Bare-metal Rust firmware**: built on the [`embassy`](https://embassy.dev/)
@@ -26,31 +25,31 @@ ultra-portable**.
   and served directly from the ESP32.
 - **Audio transcoding & upload**: convert music files via the web frontend to
   IMA ADPCM, upload to device, and play back instantly.
-- **RFID support**: scan S50 fobs with the FRC522 module to trigger playlists.
+- **RFID support**: scan S50 fobs with a MFRC522 module to trigger playlists.
 - **Affordable**: target build cost **under 15 CHF**.
 
 ---
 
 ## 🛠 Components
 
-- **MCU**: ESP-WROOM-32
+- **MCU**: ESP32-C6
 - **Charging/Power**: TP4056 (Li-ion charger), MT3608 (boost converter)
 - **Battery**: Li-ion cell (e.g. 18650)
 - **Audio**: MAX98357 (I2S DAC + amplifier)
 - **Storage**: SD card adapter
-- **RFID**: FRC522 module + S50 RFID fobs
+- **RFID**: MFRC522 module + S50 RFID fobs
 
 ---
 
 ## 🚧 Project Status
 
-![Screenshot of current prototype](./docs/progress-2.jpeg) Current
-work-in-progress prototype with lots of noisy data lines...
+![Screenshot of current prototype](./docs/progress-3.jpeg) Current
+work-in-progress prototype
 
 - [ ] Hardware
   - [x] Prototype on breadboard
   - [x] Soldered Prototype
-  - [ ] Battery charger
+  - [x] Battery charger
   - [ ] Schematics
   - [ ] Custom PCB
   - [ ] Design and 3D print case
@@ -82,7 +81,7 @@ work-in-progress prototype with lots of noisy data lines...
   - [x] Fix concurrent access to file system
   - [x] mDNS responder
   - [x] Turn off Wi-Fi when on battery power
-  - [ ] Battery status
+  - [ ] Battery status with LED indicator
   - [ ] Speed up SD access/upload
   - [ ] Playback control via BLE
   - [x] Update to stable esp-hal 1.0
