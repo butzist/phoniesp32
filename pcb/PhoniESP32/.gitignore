@@ -1,0 +1,5 @@
+*-backups/
+*.lck
+fp-info-cache
+./#auto_saved_files#
+Library/JLCPCB.bak
