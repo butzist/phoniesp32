@@ -689,6 +689,321 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "JLCPCB:SK12D07VG5"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "SW"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "SK12D07VG5"
+				(at 0 -10.16 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "JLCPCB:SW-TH_SK12D07VG5-1"
+				(at 0 -12.7 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "https://lcsc.com/product-detail/Toggle-Switches_SHOU-HAN-SK12D07VG5_C431548.html"
+				(at 0 -15.24 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "LCSC Part" "C431548"
+				(at 0 -17.78 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "SK12D07VG5_0_1"
+				(rectangle
+					(start -3.56 3.56)
+					(end -1.52 2.54)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.54 5.08) (xy 0 5.08)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.54 4.06) (xy -2.54 5.08)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.54 0) (xy -2.54 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.29 4.06) (xy -2.79 4.06) (xy -2.54 3.56) (xy -2.29 4.06)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(rectangle
+					(start -1.02 3.56)
+					(end 1.02 2.54)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 4.06) (xy 0 5.84) (xy 0.76 5.84)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.25 4.06) (xy -0.25 4.06) (xy 0 3.56) (xy 0.25 4.06)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 5.84) (xy 1.52 5.84)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 1.52 3.56)
+					(end 3.56 2.54)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.03 5.84) (xy 2.54 5.84) (xy 2.54 4.06)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.54 0) (xy 2.54 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.79 4.06) (xy 2.29 4.06) (xy 2.54 3.56) (xy 2.79 4.06)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(pin unspecified line
+					(at -5.08 -5.08 90)
+					(length 5.08)
+					(name "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at -2.54 -5.08 90)
+					(length 5.08)
+					(name "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 0 -5.08 90)
+					(length 5.08)
+					(name "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 2.54 -5.08 90)
+					(length 5.08)
+					(name "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 5.08 -5.08 90)
+					(length 5.08)
+					(name "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "JLCPCB:TPS631000DRLR"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -5879,6 +6194,12 @@
 		(uuid "c43da7d8-cc38-49e1-b9aa-a05ad9c17afc")
 	)
 	(junction
+		(at 210.82 62.23)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "c4bc61e5-a66c-4cfb-bb7b-e61e44f37d0a")
+	)
+	(junction
 		(at 142.24 109.22)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5931,6 +6252,10 @@
 	(no_connect
 		(at 168.91 115.57)
 		(uuid "3733d2a9-c1d7-4c86-85fd-757e7b1759db")
+	)
+	(no_connect
+		(at 222.25 54.61)
+		(uuid "8ea2a406-64ed-463e-87e2-e1dd6debdee9")
 	)
 	(wire
 		(pts
@@ -6101,6 +6426,16 @@
 			(type default)
 		)
 		(uuid "2f797fbe-2ec2-48ac-aa31-25742ea1d55c")
+	)
+	(wire
+		(pts
+			(xy 210.82 52.07) (xy 210.82 62.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "311f40a5-607b-47eb-b2ce-f8d83bd275d0")
 	)
 	(wire
 		(pts
@@ -6364,6 +6699,16 @@
 	)
 	(wire
 		(pts
+			(xy 210.82 62.23) (xy 210.82 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "69a75fa5-70ca-464c-a65c-ab32f28e04d6")
+	)
+	(wire
+		(pts
 			(xy 59.69 143.51) (xy 60.96 143.51)
 		)
 		(stroke
@@ -6434,13 +6779,13 @@
 	)
 	(wire
 		(pts
-			(xy 214.63 77.47) (xy 214.63 81.28)
+			(xy 214.63 57.15) (xy 214.63 81.28)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "8079fbfe-a031-4de1-abd9-c6592ab6180e")
+		(uuid "82ae1d68-db81-40c8-b4dd-5851ff7076c6")
 	)
 	(wire
 		(pts
@@ -6724,6 +7069,16 @@
 	)
 	(wire
 		(pts
+			(xy 222.25 62.23) (xy 210.82 62.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b5c086e4-69dd-42ae-a453-832eb0f37591")
+	)
+	(wire
+		(pts
 			(xy 199.39 110.49) (xy 207.01 110.49)
 		)
 		(stroke
@@ -6774,6 +7129,16 @@
 	)
 	(wire
 		(pts
+			(xy 222.25 59.69) (xy 219.71 59.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c227e4f2-1f4e-4569-b069-56180edb624a")
+	)
+	(wire
+		(pts
 			(xy 152.4 81.28) (xy 152.4 82.55)
 		)
 		(stroke
@@ -6791,6 +7156,26 @@
 			(type default)
 		)
 		(uuid "c3f74fb3-da04-46cf-8615-3c425e0da3f9")
+	)
+	(wire
+		(pts
+			(xy 219.71 49.53) (xy 219.71 59.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c7429ab3-a311-45f0-be3c-dfd5c8efc273")
+	)
+	(wire
+		(pts
+			(xy 222.25 52.07) (xy 210.82 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ceb0ec9d-c8e7-4017-92c4-6e9ea9a87a59")
 	)
 	(wire
 		(pts
@@ -6881,6 +7266,16 @@
 			(type default)
 		)
 		(uuid "ef599dc3-04ba-438e-a6e6-bcb8bc3019ce")
+	)
+	(wire
+		(pts
+			(xy 222.25 57.15) (xy 214.63 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "efc2e2b2-026b-4e50-8aed-3c83f68b0094")
 	)
 	(wire
 		(pts
@@ -10886,7 +11281,7 @@
 	)
 	(symbol
 		(lib_id "power:+5V")
-		(at 214.63 77.47 0)
+		(at 219.71 49.53 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -10895,7 +11290,7 @@
 		(fields_autoplaced yes)
 		(uuid "91911493-e5a9-4138-ba4c-1c961f43f1a5")
 		(property "Reference" "#PWR010"
-			(at 214.63 81.28 0)
+			(at 219.71 53.34 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10904,7 +11299,7 @@
 			)
 		)
 		(property "Value" "+5V"
-			(at 214.63 72.39 0)
+			(at 219.71 44.45 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10912,7 +11307,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 214.63 77.47 0)
+			(at 219.71 49.53 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10921,7 +11316,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 214.63 77.47 0)
+			(at 219.71 49.53 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10930,7 +11325,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 214.63 77.47 0)
+			(at 219.71 49.53 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11141,6 +11536,72 @@
 			(project ""
 				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a/962bc92e-62d4-464b-8dbf-0ffa43f94661"
 					(reference "C5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 210.82 66.04 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "9d559fbe-d3e9-4c55-a3ad-63c3b10b205a")
+		(property "Reference" "#PWR022"
+			(at 210.82 72.39 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 210.82 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 210.82 66.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 210.82 66.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 210.82 66.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "be6a42ee-d8bc-49f1-bb3b-f8882d233a0f")
+		)
+		(instances
+			(project ""
+				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a/962bc92e-62d4-464b-8dbf-0ffa43f94661"
+					(reference "#PWR022")
 					(unit 1)
 				)
 			)
@@ -12758,6 +13219,94 @@
 			(project ""
 				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a/962bc92e-62d4-464b-8dbf-0ffa43f94661"
 					(reference "#PWR012")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "JLCPCB:SK12D07VG5")
+		(at 227.33 57.15 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "e399d5d7-3bca-42d5-aa80-446a049d581c")
+		(property "Reference" "SW1"
+			(at 234.95 55.8799 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SK12D07VG5"
+			(at 234.95 58.4199 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "JLCPCB:SW-TH_SK12D07VG5-1"
+			(at 214.63 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://lcsc.com/product-detail/Toggle-Switches_SHOU-HAN-SK12D07VG5_C431548.html"
+			(at 212.09 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 227.33 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part" "C431548"
+			(at 209.55 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "3"
+			(uuid "6955cd04-cfef-4a2c-b3bb-bcda93bf7a72")
+		)
+		(pin "2"
+			(uuid "0bd5d9a9-05cd-4e36-a9fc-339f541ccf04")
+		)
+		(pin "1"
+			(uuid "9f30d14c-1531-4ea8-9303-4bf26ce9e4a8")
+		)
+		(pin "5"
+			(uuid "958446b5-048b-4d68-ba2b-f0e886e05eed")
+		)
+		(pin "4"
+			(uuid "968034fe-76a3-4ea3-8a75-12e3c8b428d0")
+		)
+		(instances
+			(project ""
+				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a/962bc92e-62d4-464b-8dbf-0ffa43f94661"
+					(reference "SW1")
 					(unit 1)
 				)
 			)
