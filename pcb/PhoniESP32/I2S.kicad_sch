@@ -1829,6 +1829,10 @@
 		(uuid "e12df5ff-d76c-4606-8206-cdeec9a9c987")
 	)
 	(no_connect
+		(at 74.93 45.72)
+		(uuid "65451c43-fffa-447e-8535-1502419237b6")
+	)
+	(no_connect
 		(at 74.93 53.34)
 		(uuid "882f4a9e-6931-493d-bc44-449288b85e16")
 	)
