@@ -291,6 +291,113 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Connector:TestPoint"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.762)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "TP"
+				(at 0 6.858 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "TestPoint"
+				(at 0 5.08 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 5.08 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 5.08 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "test point"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "test point tp"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "Pin* Test*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "TestPoint_0_1"
+				(circle
+					(center 0 3.302)
+					(radius 0.762)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "TestPoint_1_1"
+				(pin passive line
+					(at 0 0 90)
+					(length 2.54)
+					(name "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "JLCPCB:ESP32-C6-MINI-1-N4"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -3840,6 +3947,12 @@
 		(uuid "25a2f1a9-fdae-4d6d-96c9-14c34300052a")
 	)
 	(junction
+		(at 67.31 96.52)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "2820c065-2aac-4de3-9dd8-0ed6f9160b9d")
+	)
+	(junction
 		(at 256.54 96.52)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3852,16 +3965,34 @@
 		(uuid "426b94fe-ba37-4fad-9a83-caecc89c68b3")
 	)
 	(junction
+		(at 67.31 114.3)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "4673fc60-29b6-4318-ae63-808db1138856")
+	)
+	(junction
 		(at 256.54 104.14)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "5054c8d2-88d8-4915-8069-073620eaf679")
 	)
 	(junction
+		(at 67.31 107.95)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "64a3f14f-bf4b-4ecf-bc0d-8dd460ad3176")
+	)
+	(junction
 		(at 256.54 86.36)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "75f67bc3-ec16-40e0-8d11-350011f18153")
+	)
+	(junction
+		(at 67.31 71.12)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "77f8a991-26f6-4f51-ab6f-d7ea9d556251")
 	)
 	(junction
 		(at 256.54 76.2)
@@ -3874,6 +4005,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "90db295b-d7ca-4198-b518-eac5423ff6a5")
+	)
+	(junction
+		(at 68.58 157.48)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "930762da-c59e-479b-b76a-0b929893fedc")
 	)
 	(junction
 		(at 193.04 97.79)
@@ -3916,6 +4053,18 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "c51b8422-93f0-4934-8718-3cf44cf14b38")
+	)
+	(junction
+		(at 67.31 100.33)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "ca6b7653-b173-4b7d-8a5d-a85432aa8cbf")
+	)
+	(junction
+		(at 67.31 104.14)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "cd0f67b0-d974-4679-b8a1-b230ce31a511")
 	)
 	(junction
 		(at 256.54 73.66)
@@ -4097,7 +4246,7 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 104.14) (xy 69.85 104.14)
+			(xy 63.5 104.14) (xy 67.31 104.14)
 		)
 		(stroke
 			(width 0)
@@ -4177,7 +4326,7 @@
 	)
 	(wire
 		(pts
-			(xy 66.04 167.64) (xy 72.39 167.64)
+			(xy 66.04 167.64) (xy 85.09 167.64)
 		)
 		(stroke
 			(width 0)
@@ -4257,6 +4406,16 @@
 	)
 	(wire
 		(pts
+			(xy 67.31 96.52) (xy 85.09 96.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "444a76ac-8e3d-45dc-99e3-c05655a1cf5f")
+	)
+	(wire
+		(pts
 			(xy 226.06 67.31) (xy 229.87 67.31)
 		)
 		(stroke
@@ -4297,7 +4456,7 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 59.69) (xy 68.58 59.69)
+			(xy 63.5 59.69) (xy 85.09 59.69)
 		)
 		(stroke
 			(width 0)
@@ -4347,13 +4506,23 @@
 	)
 	(wire
 		(pts
-			(xy 66.04 146.05) (xy 72.39 146.05)
+			(xy 66.04 146.05) (xy 85.09 146.05)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "64cb1664-8c33-43ff-9156-8220df4fd094")
+	)
+	(wire
+		(pts
+			(xy 67.31 107.95) (xy 85.09 107.95)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "64ed9771-05d4-4c02-aba9-696153fb4ea3")
 	)
 	(wire
 		(pts
@@ -4457,7 +4626,7 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 55.88) (xy 68.58 55.88)
+			(xy 63.5 55.88) (xy 85.09 55.88)
 		)
 		(stroke
 			(width 0)
@@ -4467,7 +4636,7 @@
 	)
 	(wire
 		(pts
-			(xy 66.04 142.24) (xy 72.39 142.24)
+			(xy 66.04 142.24) (xy 85.09 142.24)
 		)
 		(stroke
 			(width 0)
@@ -4514,6 +4683,26 @@
 			(type default)
 		)
 		(uuid "84d56068-4dbb-4c44-96f2-86edca255696")
+	)
+	(wire
+		(pts
+			(xy 67.31 114.3) (xy 85.09 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "86d14cba-d424-4b27-b2cb-b2552eb8cd70")
+	)
+	(wire
+		(pts
+			(xy 67.31 104.14) (xy 85.09 104.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "882b0666-76b3-41e4-8802-52b044a3fde0")
 	)
 	(wire
 		(pts
@@ -4587,7 +4776,7 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 100.33) (xy 69.85 100.33)
+			(xy 63.5 100.33) (xy 67.31 100.33)
 		)
 		(stroke
 			(width 0)
@@ -4597,7 +4786,7 @@
 	)
 	(wire
 		(pts
-			(xy 66.04 171.45) (xy 72.39 171.45)
+			(xy 66.04 171.45) (xy 85.09 171.45)
 		)
 		(stroke
 			(width 0)
@@ -4697,7 +4886,7 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 107.95) (xy 69.85 107.95)
+			(xy 63.5 107.95) (xy 67.31 107.95)
 		)
 		(stroke
 			(width 0)
@@ -4737,6 +4926,16 @@
 	)
 	(wire
 		(pts
+			(xy 67.31 100.33) (xy 85.09 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b804ab0f-6f83-4b37-b5ed-1dad436e7edc")
+	)
+	(wire
+		(pts
 			(xy 171.45 118.11) (xy 173.99 118.11)
 		)
 		(stroke
@@ -4747,7 +4946,17 @@
 	)
 	(wire
 		(pts
-			(xy 66.04 157.48) (xy 72.39 157.48)
+			(xy 68.58 157.48) (xy 85.09 157.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bacf0ef4-de93-4b19-bbcf-4773f0e74313")
+	)
+	(wire
+		(pts
+			(xy 66.04 157.48) (xy 68.58 157.48)
 		)
 		(stroke
 			(width 0)
@@ -4797,7 +5006,7 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 71.12) (xy 68.58 71.12)
+			(xy 63.5 71.12) (xy 67.31 71.12)
 		)
 		(stroke
 			(width 0)
@@ -4834,6 +5043,16 @@
 			(type default)
 		)
 		(uuid "c75023e3-0ea9-465b-8097-7d07d590e0f9")
+	)
+	(wire
+		(pts
+			(xy 67.31 71.12) (xy 85.09 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cbc1e9b6-28bf-43f6-bac7-7a21a5e81e08")
 	)
 	(wire
 		(pts
@@ -4877,7 +5096,7 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 114.3) (xy 69.85 114.3)
+			(xy 63.5 114.3) (xy 67.31 114.3)
 		)
 		(stroke
 			(width 0)
@@ -4897,7 +5116,7 @@
 	)
 	(wire
 		(pts
-			(xy 66.04 163.83) (xy 72.39 163.83)
+			(xy 66.04 163.83) (xy 85.09 163.83)
 		)
 		(stroke
 			(width 0)
@@ -4987,7 +5206,7 @@
 	)
 	(wire
 		(pts
-			(xy 66.04 149.86) (xy 72.39 149.86)
+			(xy 66.04 149.86) (xy 85.09 149.86)
 		)
 		(stroke
 			(width 0)
@@ -5007,7 +5226,7 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 96.52) (xy 69.85 96.52)
+			(xy 63.5 96.52) (xy 67.31 96.52)
 		)
 		(stroke
 			(width 0)
@@ -5076,7 +5295,7 @@
 		(uuid "fe57ee16-d63d-4143-ba6b-398bcb118c27")
 	)
 	(label "CHARGER"
-		(at 68.58 71.12 0)
+		(at 85.09 71.12 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5106,7 +5325,7 @@
 		(uuid "1340df61-8373-4686-8539-c66f97859df4")
 	)
 	(label "I2S_DIN"
-		(at 69.85 104.14 0)
+		(at 85.09 104.14 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5126,7 +5345,7 @@
 		(uuid "1c8a73aa-128b-4925-a40f-c3de98816807")
 	)
 	(label "RFID_EN"
-		(at 72.39 171.45 0)
+		(at 85.09 171.45 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5146,7 +5365,7 @@
 		(uuid "253155f9-c0cf-48dc-8114-d067e6addf62")
 	)
 	(label "AUDIO_EN"
-		(at 69.85 114.3 0)
+		(at 85.09 114.3 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5166,7 +5385,7 @@
 		(uuid "3840ea84-d861-4781-8283-bfe4f9eacbc4")
 	)
 	(label "SPI_MISO"
-		(at 72.39 149.86 0)
+		(at 85.09 149.86 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5206,7 +5425,7 @@
 		(uuid "4885560c-bb91-459e-b854-65bec42cbe9c")
 	)
 	(label "I2S_DOUT"
-		(at 69.85 100.33 0)
+		(at 85.09 100.33 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5226,7 +5445,7 @@
 		(uuid "4e4d7048-be78-4b3a-93f2-4863680a745e")
 	)
 	(label "USB_D+"
-		(at 68.58 55.88 0)
+		(at 85.09 55.88 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5236,7 +5455,7 @@
 		(uuid "6dafc7b5-13bb-4c53-949e-e77242c0f014")
 	)
 	(label "SPI_MOSI"
-		(at 72.39 146.05 0)
+		(at 85.09 146.05 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5256,7 +5475,7 @@
 		(uuid "8b6cab2f-1a0d-490b-b597-8599f0b579e8")
 	)
 	(label "I2S_WS"
-		(at 69.85 107.95 0)
+		(at 85.09 107.95 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5356,7 +5575,7 @@
 		(uuid "c02dc047-f32c-4eb5-b79e-bdd0da00c127")
 	)
 	(label "USB_D-"
-		(at 68.58 59.69 0)
+		(at 85.09 59.69 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5366,7 +5585,7 @@
 		(uuid "c711216f-5c81-4ac0-8ab5-7b5ac9c1d3d4")
 	)
 	(label "RFID_IRQ"
-		(at 72.39 167.64 0)
+		(at 85.09 167.64 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5396,7 +5615,7 @@
 		(uuid "d7b0f75c-504c-4190-8fec-0445146a50c3")
 	)
 	(label "SD_CS"
-		(at 72.39 157.48 0)
+		(at 85.09 157.48 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5416,7 +5635,7 @@
 		(uuid "de776072-3f65-47d7-a4d8-ea1cab3c5788")
 	)
 	(label "SPI_SCK"
-		(at 72.39 142.24 0)
+		(at 85.09 142.24 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5476,7 +5695,7 @@
 		(uuid "f6dc96a0-e117-412b-b4df-970145a78c8f")
 	)
 	(label "RFID_CS"
-		(at 72.39 163.83 0)
+		(at 85.09 163.83 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5486,7 +5705,7 @@
 		(uuid "f858cf0e-72a5-46f4-adfd-7e9b9b5d2db1")
 	)
 	(label "I2S_BCLK"
-		(at 69.85 96.52 0)
+		(at 85.09 96.52 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5494,6 +5713,73 @@
 			(justify left bottom)
 		)
 		(uuid "ff947abb-ea7b-4d97-b104-8441069ddb3a")
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 67.31 104.14 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "05d1fbf6-2203-4bad-9433-80bad325fe95")
+		(property "Reference" "TP8"
+			(at 69.85 106.1719 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 69.85 108.7119 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 62.23 104.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 62.23 104.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 67.31 104.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "97c37d8c-513c-4d4a-a71d-96da00bb16a9")
+		)
+		(instances
+			(project "PhoniESP32"
+				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
+					(reference "TP8")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(symbol
 		(lib_id "PCM_JLCPCB-Capacitors:0402,100nF")
@@ -6725,6 +7011,140 @@
 		)
 	)
 	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 67.31 107.95 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "383d183e-ef2e-4890-a5ff-d3f497b9b4db")
+		(property "Reference" "TP7"
+			(at 69.85 109.9819 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 69.85 112.5219 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 62.23 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 62.23 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 67.31 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "3c8fe71a-c612-4d4d-87dd-01587ba68f39")
+		)
+		(instances
+			(project "PhoniESP32"
+				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
+					(reference "TP7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 68.58 157.48 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3ada4f78-24b0-429f-9178-cb44d4ada55f")
+		(property "Reference" "TP11"
+			(at 71.12 159.5119 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 71.12 162.0519 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 63.5 157.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 63.5 157.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 68.58 157.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "03093353-dbcb-42a7-b041-fcd0eb5d549c")
+		)
+		(instances
+			(project "PhoniESP32"
+				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
+					(reference "TP11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "JLCPCB:ESP32-C6-MINI-1-N4")
 		(at 241.3 97.79 0)
 		(unit 1)
@@ -6949,6 +7369,73 @@
 			(project ""
 				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
 					(reference "U3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 67.31 71.12 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "48e7756b-3e49-43af-be8a-3b1bfe9584ed")
+		(property "Reference" "TP3"
+			(at 69.85 73.1519 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 69.85 75.6919 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 62.23 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 62.23 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 67.31 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a48ef93d-5c5e-4207-afcd-fdcbc9f799f5")
+		)
+		(instances
+			(project "PhoniESP32"
+				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
+					(reference "TP3")
 					(unit 1)
 				)
 			)
@@ -7251,6 +7738,73 @@
 			(project "PhoniESP32"
 				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
 					(reference "#PWR038")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 67.31 114.3 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "6cff9632-208e-41d6-b684-0314a9a45643")
+		(property "Reference" "TP6"
+			(at 69.85 116.3319 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 69.85 118.8719 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 62.23 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 62.23 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 67.31 114.3 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "42c5c51a-7122-4a85-a528-2ff2d746e16b")
+		)
+		(instances
+			(project "PhoniESP32"
+				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
+					(reference "TP6")
 					(unit 1)
 				)
 			)
@@ -7698,6 +8252,73 @@
 			(project ""
 				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
 					(reference "J3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 67.31 96.52 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "8fcfdfda-6d6a-4cf0-b83f-a621a026e0d3")
+		(property "Reference" "TP10"
+			(at 69.85 98.5519 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 69.85 101.0919 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 62.23 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 62.23 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 67.31 96.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "fda4ee49-6769-4d18-b54c-3c09a5bb75d0")
+		)
+		(instances
+			(project "PhoniESP32"
+				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
+					(reference "TP10")
 					(unit 1)
 				)
 			)
@@ -8380,6 +9001,73 @@
 			(project ""
 				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
 					(reference "#PWR028")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 67.31 100.33 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ac4b3233-2c14-46cb-bf39-7815d43648f7")
+		(property "Reference" "TP9"
+			(at 69.85 102.3619 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 69.85 104.9019 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_D1.0mm"
+			(at 62.23 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 62.23 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "test point"
+			(at 67.31 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "580453eb-b5c8-40a4-bf78-3ed88a39c18a")
+		)
+		(instances
+			(project "PhoniESP32"
+				(path "/a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
+					(reference "TP9")
 					(unit 1)
 				)
 			)
