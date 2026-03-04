@@ -8057,6 +8057,26 @@
 		)
 		(uuid "ff6feb4c-9b2e-4754-b735-5cf9c927bfdb")
 	)
+	(label "D+"
+		(at 57.15 73.66 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "e0cd7d9d-6c11-4baa-b3f1-4ce6ebe46c1c")
+	)
+	(label "D-"
+		(at 57.15 68.58 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f4c1ac9f-5e64-46a2-99e4-3f4a5565d32d")
+	)
 	(hierarchical_label "USB_DP"
 		(shape bidirectional)
 		(at 106.68 83.82 0)
