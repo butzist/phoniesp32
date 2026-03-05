@@ -8057,6 +8057,26 @@
 		)
 		(uuid "ff6feb4c-9b2e-4754-b735-5cf9c927bfdb")
 	)
+	(label "LX2"
+		(at 57.15 146.05 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "20eca760-271f-46d2-85c2-144cc77ec36d")
+	)
+	(label "LX1"
+		(at 57.15 148.59 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "66ca49c3-1df6-4f33-8fbf-9994d793f414")
+	)
 	(label "D+"
 		(at 57.15 73.66 0)
 		(effects
@@ -13719,7 +13739,7 @@
 			)
 		)
 		(pin "1"
-			(uuid "5728fd19-030f-4e7e-b6fc-4a445b557e6f")
+			(uuid "5728fd19-030f-4e7e-b6fc-4a445b557e70")
 		)
 		(instances
 			(project ""
@@ -14972,7 +14992,7 @@
 			)
 		)
 		(pin "1"
-			(uuid "de7fbfaf-6461-482d-a676-8902daa253ec")
+			(uuid "de7fbfaf-6461-482d-a676-8902daa253ed")
 		)
 		(instances
 			(project ""

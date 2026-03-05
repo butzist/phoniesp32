@@ -4306,10 +4306,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "cc6f4e67-3e59-4ad4-a8eb-af61720e0491")
+			(uuid "cc6f4e67-3e59-4ad4-a8eb-af61720e0492")
 		)
 		(pin "2"
-			(uuid "9964c8e5-2912-40d1-9fbf-82b4a3c3d86b")
+			(uuid "9964c8e5-2912-40d1-9fbf-82b4a3c3d86c")
 		)
 		(instances
 			(project ""
