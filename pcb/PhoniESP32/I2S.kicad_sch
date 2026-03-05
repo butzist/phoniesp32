@@ -2511,6 +2511,26 @@
 		)
 		(uuid "f8b308ac-6c8c-4ce1-9c58-8bc0905dee2b")
 	)
+	(label "SPK+"
+		(at 109.22 60.96 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "2fdff59d-ed93-42f9-9562-b3e538339cce")
+	)
+	(label "SPK-"
+		(at 109.22 58.42 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "9b78ca07-9fea-46e1-9986-7e72049aa4a5")
+	)
 	(hierarchical_label "AUDIO_EN"
 		(shape input)
 		(at 35.56 50.8 180)
