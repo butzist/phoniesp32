@@ -45,7 +45,7 @@ impl TranscodeCommand {
 
         pb.finish_with_message("Transcoding complete!");
 
-        // Updata metadata in transcoded buffer
+        // Update metadata in transcoded buffer
         let transcoded_metadata = extract_metadata(&result.data);
         let final_metadata = self.override_metadata(transcoded_metadata)?;
         self.update_metadata_in_buffer(&mut result.data, &final_metadata)

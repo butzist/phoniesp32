@@ -9,12 +9,20 @@ pub(crate) fn loudness_normalize(
     target_lufs: f64,
     mut progress: impl FnMut(usize, usize),
 ) {
-    let mut state = EbuR128::new(channels as u32, sample_rate, Mode::I).unwrap();
+    let mut state = EbuR128::new(channels as u32, sample_rate, Mode::I | Mode::TRUE_PEAK).unwrap();
     state.add_frames_f32(samples).unwrap();
 
     if let Ok(loudness) = state.loudness_global() {
-        let diff = target_lufs - loudness;
-        let gain = 10f32.powf((diff as f32) / 20.0);
+        let loudness_gain_db = target_lufs - loudness;
+        let mut gain_db = loudness_gain_db;
+
+        if let Ok(true_peak) = state.true_peak(0) {
+            if true_peak < loudness_gain_db {
+                gain_db = true_peak;
+            }
+        }
+
+        let gain = 10f32.powf((gain_db as f32) / 20.0);
 
         let total_samples = samples.len();
         let mut chunk_start = 0;
