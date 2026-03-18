@@ -1,7 +1,7 @@
 use alloc::format;
 use alloc::string::ToString;
 use alloc::vec;
-use defmt::error;
+use defmt::{debug, error};
 use embassy_futures::join::join;
 use embedded_io_async::Write;
 use picoserve::io::Read;
@@ -95,7 +95,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for UploadService {
             .await;
             write_res.unwrap();
             last_read_size = read_res?;
-            error!("read OK");
+            debug!("read OK");
 
             (write_buffer, read_buffer) = (read_buffer, write_buffer);
 
@@ -121,10 +121,10 @@ async fn write_all<W: Write>(w: &mut W, buf: &[u8], size: usize) -> Result<(), W
 where
     W::Error: defmt::Format,
 {
-    error!("writing {} bytes", size);
+    debug!("writing {} bytes", size);
     match w.write_all(&buf[..size]).await {
         Ok(_) => {
-            error!("write OK");
+            debug!("write OK");
             Ok(())
         }
         Err(err) => {
@@ -310,12 +310,12 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for HeadFileService {
 }
 
 async fn read_max<R: Read>(r: &mut R, buf: &mut [u8]) -> Result<usize, R::Error> {
-    error!("reading {} bytes", buf.len());
+    debug!("reading {} bytes", buf.len());
     let mut buffer_pos = 0;
     while buffer_pos < buf.len() {
         match r.read(&mut buf[buffer_pos..]).await {
             Ok(0) => {
-                error!("read EOF");
+                debug!("read EOF");
                 break;
             }
             Ok(n) => {
@@ -327,6 +327,6 @@ async fn read_max<R: Read>(r: &mut R, buf: &mut [u8]) -> Result<usize, R::Error>
             }
         }
     }
-    error!("read OK");
+    debug!("read OK");
     Ok(buffer_pos)
 }
