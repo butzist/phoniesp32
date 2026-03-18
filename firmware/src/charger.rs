@@ -3,7 +3,7 @@ use embassy_executor::Spawner;
 use embassy_sync::watch::Watch;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, watch::Receiver};
 use embassy_time::{Duration, Timer};
-use esp_hal::gpio::{AnyPin, Input, InputConfig, Pull};
+use esp_hal::gpio::{AnyPin, Input, InputConfig};
 
 const NUM_RECEIVERS: usize = 2;
 

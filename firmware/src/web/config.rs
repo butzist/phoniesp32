@@ -18,8 +18,7 @@ pub async fn put(
 
     let buffer = serde_json::to_vec(&req).unwrap();
     file.write_all(&buffer).await.unwrap();
-    file.close().await.unwrap();
-
+    file.flush().await.unwrap();
     fs_guard.flush().await.unwrap();
 
     Response::new(StatusCode::NO_CONTENT, "")
