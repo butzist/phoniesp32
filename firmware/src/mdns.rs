@@ -47,7 +47,7 @@ async fn mdns_responder(stack: Stack<'static>) {
     loop {
         let ipv4 = wait_for_network_ready(&stack).await;
         let udp = Udp::new(stack, udp_buffers);
-        match run_mdns(udp, &*recv_buf, &*send_buf, &signal, ipv4).await {
+        match run_mdns(udp, recv_buf, send_buf, &signal, ipv4).await {
             Ok(_) => {
                 println!("mDNS responder completed successfully");
                 Timer::after(Duration::from_secs(1)).await;
@@ -62,7 +62,9 @@ async fn mdns_responder(stack: Stack<'static>) {
 
 async fn wait_for_network_ready(stack: &Stack<'_>) -> Ipv4Addr {
     loop {
-        if let Some(config) = stack.config_v4() {
+        if stack.is_link_up()
+            && let Some(config) = stack.config_v4()
+        {
             let ip = config.address.address();
             if !ip.is_unspecified() {
                 println!("Network ready, IP: {}", ip);
@@ -73,10 +75,40 @@ async fn wait_for_network_ready(stack: &Stack<'_>) -> Ipv4Addr {
     }
 }
 
+struct SimpleRng {
+    seed: u32,
+}
+
+impl SimpleRng {
+    fn new() -> Self {
+        Self { seed: 12345 }
+    }
+}
+
+impl rand_core::RngCore for SimpleRng {
+    fn next_u32(&mut self) -> u32 {
+        self.seed = self.seed.wrapping_mul(1103515245).wrapping_add(12345);
+        self.seed
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        let hi = self.next_u32() as u64;
+        let lo = self.next_u32() as u64;
+        (hi << 32) | lo
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        for chunk in dest.chunks_mut(4) {
+            let bytes = self.next_u32().to_le_bytes();
+            chunk.copy_from_slice(&bytes[..chunk.len()]);
+        }
+    }
+}
+
 async fn run_mdns<RB, SB>(
     udp: Udp<'_>,
-    recv_buf: RB,
-    send_buf: SB,
+    recv_buf: &RB,
+    send_buf: &SB,
     signal: &Signal<NoopRawMutex, ()>,
     ipv4: Ipv4Addr,
 ) -> Result<(), MdnsIoError<edge_nal_embassy::UdpError>>
@@ -95,24 +127,16 @@ where
         ttl: Ttl::from_secs(60),
     };
 
-    let mdns = io::Mdns::<NoopRawMutex, _, _, _, _>::new(
+    let rng = SimpleRng::new();
+
+    let mdns = io::Mdns::<_, _, _, _, _, NoopRawMutex>::new(
         Some(Ipv4Addr::UNSPECIFIED),
         Some(0),
         recv,
         send,
         recv_buf,
         send_buf,
-        |buf| {
-            // Simple random number generator for mDNS
-            use core::sync::atomic::{AtomicU32, Ordering};
-            static SEED: AtomicU32 = AtomicU32::new(12345);
-            let seed = SEED.fetch_add(1, Ordering::Relaxed);
-            let mut x = seed;
-            for byte in buf.iter_mut() {
-                x = x.wrapping_mul(1103515245).wrapping_add(12345);
-                *byte = (x >> 16) as u8;
-            }
-        },
+        rng,
         signal,
     );
 

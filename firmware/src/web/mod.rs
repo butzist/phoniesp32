@@ -49,7 +49,7 @@ pub struct FileEntry {
 
 pub struct FileMethods;
 impl PathRouterService<AppState, ()> for FileMethods {
-    async fn call_request_handler_service<
+    async fn call_path_router_service<
         R: picoserve::io::Read,
         W: ResponseWriter<Error = R::Error>,
     >(
@@ -112,7 +112,7 @@ impl PathRouterService<AppState, ()> for FileMethods {
 
 pub struct Fallback;
 impl PathRouterService<AppState, ()> for Fallback {
-    async fn call_request_handler_service<
+    async fn call_path_router_service<
         R: picoserve::io::Read,
         W: ResponseWriter<Error = R::Error>,
     >(
@@ -189,7 +189,7 @@ impl AppWithStateBuilder for Application {
 
 pub struct WebApp {
     pub router: &'static Router<<Application as AppWithStateBuilder>::PathRouter, AppState>,
-    pub config: &'static picoserve::Config<Duration>,
+    pub config: &'static picoserve::Config,
 }
 
 impl Default for WebApp {
@@ -197,12 +197,12 @@ impl Default for WebApp {
         let router = mk_static!(Router<<Application as AppWithStateBuilder>::PathRouter, AppState>, Application.build_app());
 
         let config = mk_static!(
-            picoserve::Config<Duration>,
+            picoserve::Config,
             picoserve::Config::new(picoserve::Timeouts {
-                start_read_request: None,
-                persistent_start_read_request: None,
-                read_request: None,
-                write: None,
+                start_read_request: Duration::from_secs(10),
+                persistent_start_read_request: Duration::from_secs(5),
+                read_request: Duration::from_secs(10),
+                write: Duration::from_secs(10),
             })
             .keep_connection_alive()
         );
@@ -217,7 +217,7 @@ pub struct WebTask {
     id: usize,
     stack: Stack<'static>,
     router: &'static Router<<Application as AppWithStateBuilder>::PathRouter, AppState>,
-    config: &'static picoserve::Config<Duration>,
+    config: &'static picoserve::Config,
     state: &'static AppState,
 }
 
@@ -226,7 +226,7 @@ impl WebTask {
         id: usize,
         stack: Stack<'static>,
         router: &'static Router<<Application as AppWithStateBuilder>::PathRouter, AppState>,
-        config: &'static picoserve::Config<Duration>,
+        config: &'static picoserve::Config,
         state: &'static AppState,
     ) -> Self {
         Self {
@@ -254,7 +254,7 @@ async fn web_task(
     id: usize,
     stack: Stack<'static>,
     router: &'static Router<<Application as AppWithStateBuilder>::PathRouter, AppState>,
-    config: &'static picoserve::Config<Duration>,
+    config: &'static picoserve::Config,
     state: &'static AppState,
 ) -> ! {
     let port = 80;

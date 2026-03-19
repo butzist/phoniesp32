@@ -54,7 +54,7 @@ esp-radio = { git = "https://github.com/esp-rs/esp-hal", features = [
 # Embassy
 embassy-executor = { version = "0.9.1", features = ["defmt"] }
 embassy-time = { version = "0.5.0", features = ["defmt"] }
-embassy-net = { version = "0.7.1", features = [
+embassy-net = { version = "0.8.0", features = [
   "defmt",
   "dhcpv4",
   "medium-ethernet",
@@ -99,7 +99,7 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
   "socket-udp",
 ] }
 
-picoserve = { git = "https://github.com/sammhicks/picoserve", default-features = false, features = [
+picoserve = { version = "0.18.0", default-features = false, features = [
   "alloc",
   "embassy",
   "defmt",
@@ -107,9 +107,10 @@ picoserve = { git = "https://github.com/sammhicks/picoserve", default-features =
 ] }
 
 # mDNS
-edge-mdns = { version = "0.6.1", features = ["io"] }
-edge-nal = "0.5.0"
-edge-nal-embassy = "0.7.0"
+edge-mdns = { version = "0.7.0", features = ["io"] }
+edge-nal = "0.6.0"
+edge-nal-embassy = "0.8.1"
+rand_core = { version = "0.9", default-features = false }
 
 # Various
 aligned = "0.4.2"
