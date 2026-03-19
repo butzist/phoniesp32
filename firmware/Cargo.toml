@@ -106,10 +106,12 @@ picoserve = { version = "0.18.0", default-features = false, features = [
   "json",
 ] }
 
-# mDNS
+# mDNS / DHCP / Captive DNS
 edge-mdns = { version = "0.7.0", features = ["io"] }
+edge-dhcp = { version = "0.7.0", features = ["io", "defmt"] }
+edge-captive = { version = "0.7.0", features = ["io", "defmt"] }
 edge-nal = "0.6.0"
-edge-nal-embassy = "0.8.1"
+edge-nal-embassy = { version = "0.8.1", features = ["defmt"] }
 rand_core = { version = "0.9", default-features = false }
 
 # Various

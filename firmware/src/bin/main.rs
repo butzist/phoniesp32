@@ -13,6 +13,7 @@ use esp_hal::clock::CpuClock;
 use esp_hal::dma::DmaChannelConvert;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::timer::timg::TimerGroup;
+use firmware::captive::CaptivePortal;
 use firmware::charger::Charger;
 use firmware::controls::Controls;
 use firmware::mdns::MdnsResponder;
@@ -96,7 +97,13 @@ async fn main(spawner: Spawner) {
 
     info!("Starting radio");
     let radio = Radio::new(peripherals.WIFI, peripherals.GPIO8.into(), device_config);
-    let stack = radio.spawn(charger_monitor, &spawner).await;
+    let (stack, is_ap) = radio.spawn(charger_monitor, &spawner).await;
+
+    if is_ap {
+        info!("Starting captive portal");
+        let captive = CaptivePortal::new(stack);
+        captive.spawn(&spawner);
+    }
 
     info!("Starting mDNS responder");
     let mdns = MdnsResponder::new(stack);

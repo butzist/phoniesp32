@@ -18,7 +18,7 @@ use esp_radio::wifi::{
 
 use crate::{DeviceConfig, charger::ChargerMonitor, extend_to_static};
 
-const NUM_SOCKETS: usize = crate::web::WEB_TASK_POOL_SIZE + 3;
+const NUM_SOCKETS: usize = crate::web::WEB_TASK_POOL_SIZE + 5;
 
 pub struct Radio {
     wifi: WIFI<'static>,
@@ -31,7 +31,11 @@ impl Radio {
         Self { wifi, led, config }
     }
 
-    pub async fn spawn(self, charger_monitor: ChargerMonitor, spawner: &Spawner) -> Stack<'static> {
+    pub async fn spawn(
+        self,
+        charger_monitor: ChargerMonitor,
+        spawner: &Spawner,
+    ) -> (Stack<'static>, bool) {
         let mut rng = esp_hal::rng::Rng::new();
         let wifi_led = Output::new(self.led, Level::Low, OutputConfig::default());
 
@@ -56,11 +60,11 @@ impl Radio {
             .await
             {
                 Ok(stack) => {
-                    return stack;
+                    return (stack, false);
                 }
                 Err((controller, led)) => {
                     // Fall through to AP mode with the returned controller and led
-                    return start_wifi_ap(
+                    let stack = start_wifi_ap(
                         controller,
                         led,
                         interfaces.access_point,
@@ -70,12 +74,13 @@ impl Radio {
                         spawner,
                     )
                     .await;
+                    return (stack, true);
                 }
             }
         }
 
         // Start in AP mode if no config
-        start_wifi_ap(
+        let stack = start_wifi_ap(
             controller,
             wifi_led,
             interfaces.access_point,
@@ -84,7 +89,8 @@ impl Radio {
             charger_monitor,
             spawner,
         )
-        .await
+        .await;
+        (stack, true)
     }
 }
 

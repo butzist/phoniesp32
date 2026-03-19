@@ -5,7 +5,7 @@ use esp_alloc as _;
 use picoserve::{
     AppWithStateBuilder, ResponseSent, Router,
     request::Request,
-    response::{File, ResponseWriter},
+    response::{File, IntoResponse, Response, ResponseWriter, StatusCode},
     routing::{
         self, MethodHandler, PathDescription, PathRouter, PathRouterService, RequestHandler,
         RequestHandlerService,
@@ -182,9 +182,16 @@ impl AppWithStateBuilder for Application {
             .route(
                 "/api/config",
                 routing::put(config::put).delete(config::delete),
-            );
+            )
+            .route("/generate_204", routing::get(captive_handler))
+            .route("/hotspot-detect.html", routing::get(captive_handler));
+
         assets::add_asset_routes(router)
     }
+}
+
+async fn captive_handler() -> impl IntoResponse {
+    Response::new(StatusCode::FOUND, "").with_header("Location", "http://phoniesp32.local/")
 }
 
 pub struct WebApp {

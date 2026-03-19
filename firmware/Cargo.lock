@@ -346,6 +346,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "edge-captive"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d29fd6f6b5d22e4d44c61b0ee56bf6a868868e71605a42a8ee03c3b4b7920c76"
+dependencies = [
+ "defmt 1.0.1",
+ "domain",
+ "edge-nal",
+]
+
+[[package]]
+name = "edge-dhcp"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e0b32c831ced877a78378312fe0b6f7cdd5759f3ba272578f582ff9bba5291d"
+dependencies = [
+ "defmt 1.0.1",
+ "edge-nal",
+ "edge-raw",
+ "embassy-futures",
+ "embassy-time",
+ "heapless 0.9.2",
+ "num_enum",
+ "rand_core 0.9.3",
+]
+
+[[package]]
 name = "edge-mdns"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -376,12 +403,19 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f66d0fa7b3b11c25646fae5dc15f3f3830c6127c39743cf2d54ba96110a5330"
 dependencies = [
+ "defmt 1.0.1",
  "edge-nal",
  "embassy-futures",
  "embassy-net",
  "embedded-io-async 0.7.0",
  "heapless 0.9.2",
 ]
+
+[[package]]
+name = "edge-raw"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "466dfce9c2172a4e947b81b556f1f07a86029fbac679e323cfb66c738cc2faea"
 
 [[package]]
 name = "embassy-embedded-hal"
@@ -1101,6 +1135,8 @@ dependencies = [
  "block-device-adapters",
  "critical-section",
  "defmt 1.0.1",
+ "edge-captive",
+ "edge-dhcp",
  "edge-mdns",
  "edge-nal",
  "edge-nal-embassy",
@@ -1471,6 +1507,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "num_enum"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d0bca838442ec211fa11de3a8b0e0e8f3a4522575b5c4c06ed722e005036f26"
+dependencies = [
+ "num_enum_derive",
+ "rustversion",
+]
+
+[[package]]
+name = "num_enum_derive"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.110",
 ]
 
 [[package]]

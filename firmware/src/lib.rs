@@ -120,6 +120,7 @@ pub fn with_extension(
     Ok(fname)
 }
 
+pub mod captive;
 pub mod charger;
 pub mod controls;
 pub mod entities;
