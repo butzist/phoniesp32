@@ -33,7 +33,7 @@ ultra-portable**.
 ## 🛠 Components
 
 - **MCU**: ESP32-C6
-- **Charging/Power**: TP4056 (Li-ion charger), MT3608 (boost converter)
+- **Charging/Power**: BQ24073 (Li-ion charger), TSP631000 (buck-boost converter)
 - **Battery**: Li-ion cell (e.g. 18650)
 - **Audio**: MAX98357 (I2S DAC + amplifier)
 - **Storage**: SD card adapter
@@ -50,8 +50,8 @@ work-in-progress prototype
   - [x] Prototype on breadboard
   - [x] Soldered Prototype
   - [x] Battery charger
-  - [ ] Schematics
-  - [ ] Custom PCB
+  - [x] Schematics
+  - [x] Custom PCB
   - [ ] Design and 3D print case
 - [x] UI (Dioxus)
   - [x] File transcoding
@@ -81,8 +81,9 @@ work-in-progress prototype
   - [x] Fix concurrent access to file system
   - [x] mDNS responder
   - [x] Turn off Wi-Fi when on battery power
-  - [ ] Battery status with LED indicator
-  - [ ] Speed up SD access/upload
+  - [x] Captive portal and DHCP server for WiFi access point
+  - [x] Speed up SD access/upload (SD card was bad - turns out cheap SD cards
+        are bad at SPI)
   - [ ] Playback control via BLE
   - [x] Update to stable esp-hal 1.0
 - [x] Web API (picoserve)
