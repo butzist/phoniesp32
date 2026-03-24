@@ -14,7 +14,7 @@ All components are available on Aliexpress for under **25 CHF** total.
 
 | Component                        | Quantity | Aliexpress Link                                                       |
 | -------------------------------- | -------- | --------------------------------------------------------------------- |
-| ESP32-C6 DevKit                  | 1        | [esp-devkit-c1](https://aliexpress.com/item/1005008777558392.html)    |
+| ESP32-C6 DevKit                  | 1        | [1005008777558392](https://aliexpress.com/item/1005008777558392.html) |
 | TP4056 (Li-ion charger)          | 1        | [32621399438](https://aliexpress.com/item/32621399438.html)           |
 | MT3608 (5V boost converter)      | 1        | [1005010193381334](https://aliexpress.com/item/1005010193381334.html) |
 | 18650 LiPo cell (3.7V, 600mAh+)  | 1        | [1005009121905266](https://aliexpress.com/item/1005009121905266.html) |
@@ -30,6 +30,11 @@ All components are available on Aliexpress for under **25 CHF** total.
 
 - RFID keychain figures: [Amazon DE](https://www.amazon.de/dp/B097P3QPVK)
 - RFID tags (S50): [Amazon DE](https://www.amazon.de/-/en/dp/B01IH7Y9CM)
+
+**Note**:
+
+- Some cheaper and older SD cards have trouble speaking the SPI protocol. They
+  can be slow or not work at all.
 
 ---
 
@@ -81,35 +86,35 @@ All components are available on Aliexpress for under **25 CHF** total.
 
 The RC522 module uses SPI interface:
 
-- `SDA` → GPIO18
-- `SCK` → GPIO7
-- `MOSI` → GPIO6
-- `MISO` → GPIO5
-- `RST` → X
-- `GND` → GND
-- `IRQ` → GPIO19
-- `3.3V` → 3.3V (from ESP32)
+- `SDA` → `GPIO18`
+- `SCK` → `GPIO7`
+- `MOSI` → `GPIO6`
+- `MISO` → `GPIO5`
+- `RST` → NC
+- `GND` → `GND`
+- `IRQ` → `GPIO19`
+- `3.3V` → `3V3`
 
 ### 4. SD Card Adapter
 
 SD card adapter connections:
 
-- `CS` → GPIO10
-- `MOSI` → GPIO6
-- `SCK` → GPIO7
-- `MISO` → GPIO5
-- `VCC` → 3.3V (from ESP32)
-- `GND` → GND
+- `CS` → `GPIO10`
+- `MOSI` → `GPIO6`
+- `SCK` → `GPIO7`
+- `MISO` → `GPIO5`
+- `VCC` → `3V3`
+- `GND` → `GND`
 
 ### 5. MAX98357A I2S DAC
 
-- `LRC` → GPIO15
-- `BCLK` → GPIO23
-- `DIN` → GPIO22
-- `GAIN` → GND
-- `SD` → 3.3V (from ESP32)
-- `GND` → GND
-- `Vin` → 3.3V (from ESP32)
+- `LRC` → `GPIO15`
+- `BCLK` → `GPIO23`
+- `DIN` → `GPIO22`
+- `GAIN` → `GND`
+- `SD` → `3V3`
+- `GND` → `GND`
+- `Vin` → `3V3`
 
 Connect to speaker:
 
@@ -153,13 +158,56 @@ Connect to speaker:
 
 ## Prepare SD Card
 
-1. Format the entire SD card as **FAT32** (no partition table)
-   ```bash
-   # Linux/macOS
-   mkfs.vfat /dev/sdX  # Replace X with your device letter
+If not already formatted (which it should be by default), format the SD card as
+**FAT32** with an MBR partition table. Note: FAT32 cannot store files larger
+than 4GB.
 
-   # Windows: Use SD Card Formatter or diskpart
-   ```
+### Linux
+
+```bash
+# Create partition table and FAT32 partition
+fdisk /dev/sdX  # Use 'o' to create DOS partition table, 'n' for new partition, 't' to set type to FAT32, 'w' to write
+mkfs.vfat /dev/sdX1  # Format the partition
+```
+
+### macOS
+
+**GUI (Disk Utility)**:
+
+1. Open Disk Utility (Applications → Utilities)
+2. Select your SD card
+3. Click "Erase"
+4. Choose **"MS-DOS (FAT)"** as the format
+5. Click "Erase"
+
+**Terminal**:
+
+```bash
+diskutil list  # Find your SD card (e.g., disk2)
+sudo diskutil eraseDisk FAT32 PHONIESP32 MBRFormat /dev/disk2
+```
+
+### Windows
+
+**GUI**:
+
+1. Open File Explorer, right-click on the SD card
+2. Select "Format"
+3. Choose **FAT32** as filesystem (only available for cards ≤32GB)
+4. Click "Start"
+
+**Command Line (any size)**:
+
+```powershell
+# Run as Administrator
+diskpart  # Use 'list disk', 'select disk X', 'clean', 'create partition primary', 'format fs=fat32 quick', 'assign'
+```
+
+**Cards >32GB**: Windows doesn't natively support FAT32 for larger cards.
+Download [FAT32 Format](https://www.ridgecrop.demon.co.uk/guiformat.htm)
+(guiformat.exe)
+
+- Run as Administrator, select your drive, click "Start"
 
 2. Insert the SD card into the adapter.
 
@@ -199,6 +247,28 @@ Connect to speaker:
 | Not booting         | Ensure SD card is formatted correctly                                                                 |
 | No audio            | Check speaker connections                                                                             |
 | RFID not working    | Verify SPI connections, ensure MFRC522 is properly seated. Ensure no conductive plane above or below. |
+
+---
+
+## Access Logs
+
+To view real-time logs from the device, use either:
+
+### Using just (recommended)
+```bash
+cd firmware
+just run       # Flash and monitor
+# or
+just monitor   # Just monitor (if already flashed)
+```
+
+### Using espflash directly
+```bash
+espflash monitor --chip esp32c6 --log-format defmt --elf firmware/target/riscv32imac-unknown-none-elf/release/firmware
+```
+
+> **Tip**: Logs are useful for troubleshooting startup issues, Wi-Fi connection
+> problems, and RFID errors.
 
 ---
 

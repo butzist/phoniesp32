@@ -1,12 +1,13 @@
 use crate::{DeviceConfig, PrintErr, spi_bus};
 
+use aligned::Aligned;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use block_device_adapters::BufStream;
+use block_device_driver::slice_to_blocks_mut;
 use defmt::{info, warn};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::{Mutex, MutexGuard};
-
 use embassy_time::Delay;
 use embedded_fatfs::{FileSystem, FsOptions, LossyOemCpConverter, NullTimeProvider};
 use embedded_hal_async::delay::DelayNs;
@@ -20,23 +21,152 @@ use {esp_backtrace as _, esp_println as _};
 
 use spi_bus::SpiDevice;
 
+const MBR_SIGNATURE: u16 = 0xAA55;
+const PARTITION_TABLE_OFFSET: usize = 0x1BE;
+const PARTITION_ENTRY_SIZE: usize = 16;
+
+const FAT_PARTITION_TYPES: &[u8] = &[
+    0x04, // FAT16 (<32MB)
+    0x06, // FAT16 (>=32MB)
+    0x0B, // FAT32 (CHS)
+    0x0C, // FAT32 (LBA)
+    0x0E, // FAT16 (LBA)
+];
+
+pub struct PartitionSlice<SPI, D, ALIGN>
+where
+    SPI: embedded_hal_async::spi::SpiDevice,
+    D: embedded_hal_async::delay::DelayNs + Clone,
+    ALIGN: aligned::Alignment,
+{
+    inner: SdSpi<SPI, D, ALIGN>,
+    offset: u32,
+    size: u64,
+}
+
+impl<SPI, D, ALIGN> PartitionSlice<SPI, D, ALIGN>
+where
+    SPI: embedded_hal_async::spi::SpiDevice,
+    D: embedded_hal_async::delay::DelayNs + Clone,
+    ALIGN: aligned::Alignment,
+{
+    async fn new(mut inner: SdSpi<SPI, D, ALIGN>) -> Self {
+        let mut buffer: Aligned<ALIGN, [u8; 512]> = Aligned([0u8; 512]);
+        if let Ok(()) = inner
+            .read(0, slice_to_blocks_mut::<ALIGN, 512>(&mut buffer[..]))
+            .await
+        {
+            let mbr = &buffer[..];
+            let sig = u16::from_le_bytes([mbr[0x1FE], mbr[0x1FF]]);
+            if sig == MBR_SIGNATURE {
+                for i in 0..4 {
+                    let entry_offset = PARTITION_TABLE_OFFSET + i * PARTITION_ENTRY_SIZE;
+                    let partition_type = mbr[entry_offset + 4];
+                    let start_lba = u32::from_le_bytes([
+                        mbr[entry_offset + 8],
+                        mbr[entry_offset + 9],
+                        mbr[entry_offset + 10],
+                        mbr[entry_offset + 11],
+                    ]);
+                    let sector_count = u32::from_le_bytes([
+                        mbr[entry_offset + 12],
+                        mbr[entry_offset + 13],
+                        mbr[entry_offset + 14],
+                        mbr[entry_offset + 15],
+                    ]);
+
+                    if FAT_PARTITION_TYPES.contains(&partition_type) && start_lba > 0 {
+                        let partition_size = sector_count as u64 * 512;
+                        info!(
+                            "Found valid partition {}: type={:#02x}, start_lba={}, sectors={}, size={}",
+                            i + 1,
+                            partition_type,
+                            start_lba,
+                            sector_count,
+                            partition_size
+                        );
+                        return Self {
+                            inner,
+                            offset: start_lba,
+                            size: partition_size,
+                        };
+                    }
+                }
+            } else {
+                info!("No valid MBR signature found, assuming raw FAT filesystem");
+            }
+        } else {
+            info!("Failed to read MBR, assuming raw FAT filesystem");
+        }
+
+        let total_size = inner.size().await.unwrap_or(0);
+        Self {
+            inner,
+            offset: 0,
+            size: total_size,
+        }
+    }
+}
+
+impl<SPI, D, ALIGN, const SIZE: usize> block_device_driver::BlockDevice<SIZE>
+    for PartitionSlice<SPI, D, ALIGN>
+where
+    SPI: embedded_hal_async::spi::SpiDevice,
+    D: embedded_hal_async::delay::DelayNs + Clone,
+    ALIGN: aligned::Alignment,
+    SdSpi<SPI, D, ALIGN>: block_device_driver::BlockDevice<SIZE>,
+{
+    type Error = sdspi::Error;
+    type Align = ALIGN;
+
+    async fn read(
+        &mut self,
+        block_address: u32,
+        data: &mut [Aligned<ALIGN, [u8; SIZE]>],
+    ) -> Result<(), Self::Error> {
+        let block_offset = (block_address as u64) * SIZE as u64;
+        if block_offset + (data.len() as u64 * SIZE as u64) > self.size {
+            return Err(sdspi::Error::RegisterError(0xFF));
+        }
+        self.inner.read(self.offset + block_address, data).await
+    }
+
+    async fn write(
+        &mut self,
+        block_address: u32,
+        data: &[Aligned<ALIGN, [u8; SIZE]>],
+    ) -> Result<(), Self::Error> {
+        let block_offset = (block_address as u64) * SIZE as u64;
+        if block_offset + (data.len() as u64 * SIZE as u64) > self.size {
+            return Err(sdspi::Error::RegisterError(0xFF));
+        }
+        self.inner.write(self.offset + block_address, data).await
+    }
+
+    async fn size(&mut self) -> Result<u64, Self::Error> {
+        Ok(self.size)
+    }
+}
+
 pub type SdFileSystem = FileSystem<
-    BufStream<SdSpi<SpiDevice, Delay, aligned::A1>, 512>,
+    BufStream<PartitionSlice<SpiDevice, Delay, aligned::A1>, 512>,
     NullTimeProvider,
     LossyOemCpConverter,
 >;
 
 pub type FileHandle<'a> = embedded_fatfs::File<
     'a,
-    BufStream<SdSpi<SpiDevice, Delay, aligned::A1>, 512>,
+    BufStream<PartitionSlice<SpiDevice, Delay, aligned::A1>, 512>,
     NullTimeProvider,
     LossyOemCpConverter,
 >;
 
+pub type StopFn = Box<dyn Fn() -> LocalBoxFuture<'static, ()>>;
+
 // Simple wrapper for controlled filesystem access
 pub struct SdFsWrapper {
     fs: Mutex<CriticalSectionRawMutex, SdFileSystem>,
-    stop_fn: Mutex<CriticalSectionRawMutex, Option<Box<dyn Fn() -> LocalBoxFuture<'static, ()>>>>,
+    stop_fn: Mutex<CriticalSectionRawMutex, Option<StopFn>>,
 }
 
 impl SdFsWrapper {
@@ -47,10 +177,7 @@ impl SdFsWrapper {
         }
     }
 
-    pub async fn borrow_for_playback(
-        &self,
-        stop_fn: Box<dyn Fn() -> LocalBoxFuture<'static, ()>>,
-    ) -> PlaybackGuard<'_> {
+    pub async fn borrow_for_playback(&self, stop_fn: StopFn) -> PlaybackGuard<'_> {
         let mut stop_fn_guard = self.stop_fn.lock().await;
 
         // Stop any existing playback
@@ -79,11 +206,7 @@ impl SdFsWrapper {
     /// Returns true if playback was active and was stopped.
     async fn stop_playback(
         &self,
-        stop_fn_guard: &mut MutexGuard<
-            '_,
-            CriticalSectionRawMutex,
-            Option<Box<dyn Fn() -> LocalBoxFuture<'static, ()>>>,
-        >,
+        stop_fn_guard: &mut MutexGuard<'_, CriticalSectionRawMutex, Option<StopFn>>,
     ) {
         if let Some(ref stop_fn) = **stop_fn_guard {
             warn!("Stopping running player");
@@ -166,8 +289,8 @@ impl Sd {
         let sd_size = sd.size().await.unwrap();
         info!("SD card size: {}", sd_size);
 
+        let sd = PartitionSlice::new(sd).await;
         let inner = BufStream::<_, 512>::new(sd);
-        // FIXME - need to skip manually to first partition?
         let fs = embedded_fatfs::FileSystem::new(inner, FsOptions::new())
             .await
             .print_err("open filesystem")

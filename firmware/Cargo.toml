@@ -72,6 +72,7 @@ sdspi = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", f
 block-device-adapters = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", features = [
   "defmt",
 ] }
+block-device-driver = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes" }
 embedded-fatfs = { git = "https://github.com/butzist/embedded-fatfs", branch = "fixes", default-features = false, features = [
   "defmt",
 ] }

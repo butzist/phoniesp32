@@ -1133,6 +1133,7 @@ dependencies = [
  "audio-codec-algorithms",
  "audio-file-utils",
  "block-device-adapters",
+ "block-device-driver",
  "critical-section",
  "defmt 1.0.1",
  "edge-captive",

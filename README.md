@@ -26,7 +26,7 @@ ultra-portable**.
 - **Audio transcoding & upload**: convert music files via the web frontend to
   IMA ADPCM, upload to device, and play back instantly.
 - **RFID support**: scan S50 fobs with a MFRC522 module to trigger playlists.
-- **Affordable**: target build cost **under 15 CHF**.
+- **Affordable**: target build cost **under 50 CHF**.
 
 ---
 
@@ -43,7 +43,8 @@ ultra-portable**.
 
 ## 🏗 Build Options
 
-1. **[DIY Breakout Board Build](./docs/diy-build.md)** - Build using off-the-shelf breakout boards on a breadboard or prototype board (~25 CHF)
+1. **[DIY Breakout Board Build](./docs/diy-build.md)** - Build using
+   off-the-shelf breakout boards on a breadboard or prototype board (~25 CHF)
 
 ---
 
@@ -91,6 +92,7 @@ ultra-portable**.
   - [x] Speed up SD access/upload (SD card was bad - turns out cheap SD cards
         are bad at SPI)
   - [ ] Playback control via BLE
+  - [x] SD card partitioning support
   - [x] Update to stable esp-hal 1.0
 - [x] Web API (picoserve)
   - [x] Associate file with RFID tag
@@ -111,7 +113,6 @@ ultra-portable**.
   - [x] Build via GitHub actions
 - [ ] Upstream fixes
   - [ ] `dioxus`: Support sass:color.channel()
-  - [ ] `embedded-fatfs`: SD card partitioning support
   - [x] `mfrc522`: async / IRQ support implemented in
         [mfrc522-async](https://github.com/butzist/mfrc522-async)
 - [ ] Documentation
