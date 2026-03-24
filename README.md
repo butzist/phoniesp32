@@ -41,10 +41,16 @@ ultra-portable**.
 
 ---
 
+## 🏗 Build Options
+
+1. **[DIY Breakout Board Build](./docs/diy-build.md)** - Build using off-the-shelf breakout boards on a breadboard or prototype board (~25 CHF)
+
+---
+
 ## 🚧 Project Status
 
-![Screenshot of current prototype](./docs/progress-3.jpeg) Current
-work-in-progress prototype
+![Photo of current prototype board](./docs/progress-3.jpeg)
+![Photo of current prototype](./docs/progress-4.jpeg)
 
 - [ ] Hardware
   - [x] Prototype on breadboard
@@ -110,7 +116,7 @@ work-in-progress prototype
         [mfrc522-async](https://github.com/butzist/mfrc522-async)
 - [ ] Documentation
   - [x] [API Documentation](./API.md)
-  - [ ] Full build instructions
+  - [x] [DIY Build Instructions](./docs/diy-build.md)
   - [ ] Video tutorial
 
 ---
