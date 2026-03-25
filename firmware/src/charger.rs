@@ -3,7 +3,7 @@ use embassy_executor::Spawner;
 use embassy_sync::watch::Watch;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, watch::Receiver};
 use embassy_time::{Duration, Timer};
-use esp_hal::gpio::{AnyPin, Input, InputConfig};
+use esp_hal::gpio::{AnyPin, Input, InputConfig, Level};
 
 const NUM_RECEIVERS: usize = 2;
 
@@ -15,15 +15,16 @@ pub enum ChargerState {
 
 pub struct Charger {
     pin: Input<'static>,
+    connected_level: Level,
     state: &'static Watch<CriticalSectionRawMutex, ChargerState, NUM_RECEIVERS>,
 }
 
 impl Charger {
-    pub fn new(pin: AnyPin<'static>) -> Self {
+    pub fn new(pin: AnyPin<'static>, connected_level: Level) -> Self {
         let pin = Input::new(pin, InputConfig::default());
 
         // Set initial state
-        let initial_state = Self::current_state(&pin);
+        let initial_state = Self::current_state(&pin, connected_level);
         let watch = mk_static!(Watch<CriticalSectionRawMutex, ChargerState, NUM_RECEIVERS>, Watch::new_with(initial_state));
 
         info!(
@@ -35,11 +36,18 @@ impl Charger {
             }
         );
 
-        Self { pin, state: watch }
+        Self {
+            pin,
+            connected_level,
+            state: watch,
+        }
     }
 
-    fn current_state(pin: &Input<'static>) -> ChargerState {
-        let is_connected = pin.is_high();
+    fn current_state(pin: &Input<'static>, connected_level: Level) -> ChargerState {
+        let is_connected = match connected_level {
+            Level::High => pin.is_high(),
+            Level::Low => pin.is_low(),
+        };
         if is_connected {
             ChargerState::Connected
         } else {
@@ -49,10 +57,10 @@ impl Charger {
 
     async fn run(mut self) {
         let sender = self.state.sender();
-        let mut last_connected = Self::current_state(&self.pin);
+        let mut last_connected = Self::current_state(&self.pin, self.connected_level);
 
         loop {
-            let current_connected = Self::current_state(&self.pin);
+            let current_connected = Self::current_state(&self.pin, self.connected_level);
 
             if current_connected != last_connected {
                 info!(

@@ -17,6 +17,7 @@ use firmware::captive::CaptivePortal;
 use firmware::charger::Charger;
 use firmware::controls::Controls;
 use firmware::mdns::MdnsResponder;
+use firmware::peripherals::create_peripherals;
 use firmware::player::Player;
 use firmware::radio::Radio;
 use firmware::rfid::Rfid;
@@ -38,34 +39,37 @@ async fn main(spawner: Spawner) {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
+    let peripherals = create_peripherals(peripherals);
+
+    let timer0 = TimerGroup::new(peripherals.timer0);
+    let sw_int = SoftwareInterruptControl::new(peripherals.sw_interrupt);
+    esp_rtos::start(timer0.timer0, sw_int.software_interrupt0);
+
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 65536);
     esp_alloc::heap_allocator!(size: 65536);
-
-    let timer0 = TimerGroup::new(peripherals.TIMG0);
-    let sw_int = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
-    esp_rtos::start(timer0.timer0, sw_int.software_interrupt0);
 
     info!("Embassy initialized!");
 
     let shared_bus = spi_bus::make_shared_spi(
-        peripherals.SPI2.into(),
-        peripherals.DMA_CH1.degrade(),
-        peripherals.GPIO6.into(),
-        peripherals.GPIO7.into(),
-        peripherals.GPIO5.into(),
+        peripherals.spi_spi2.into(),
+        peripherals.spi_dma.degrade(),
+        peripherals.spi.sck,
+        peripherals.spi.mosi,
+        peripherals.spi.miso,
     );
-    let sd = Sd::new(shared_bus, peripherals.GPIO10.into()).await;
+    let sd = Sd::new(shared_bus, peripherals.sd_cs).await;
 
     let (device_config, fs) = sd.init().await;
     let fs = mk_static!(SdFsWrapper, fs);
     info!("Config: {:?}", &device_config);
 
     let player = Player::new(
-        peripherals.I2S0.into(),
-        peripherals.DMA_CH0,
-        peripherals.GPIO23.into(),
-        peripherals.GPIO15.into(),
-        peripherals.GPIO22.into(),
+        peripherals.player_i2s.into(),
+        peripherals.player_dma,
+        peripherals.player.bclk,
+        peripherals.player.ws,
+        peripherals.player.dout,
+        peripherals.audio_enable,
         fs,
         spawner,
     );
@@ -74,29 +78,30 @@ async fn main(spawner: Spawner) {
 
     info!("Starting controls");
     let controls = Controls::new(
-        peripherals.GPIO0.into(),
-        peripherals.GPIO1.into(),
-        peripherals.GPIO2.into(),
-        peripherals.GPIO3.into(),
+        peripherals.controls.btn_a,
+        peripherals.controls.btn_b,
+        peripherals.controls.btn_c,
+        peripherals.controls.btn_d,
     );
     controls.spawn(&spawner, player_handle.clone());
 
     info!("Starting RFID");
     let rfid = Rfid::new(
         shared_bus,
-        peripherals.GPIO18.into(),
-        peripherals.GPIO19.into(),
+        peripherals.rfid_cs,
+        peripherals.rfid_irq,
+        peripherals.rfid_enable,
         player_handle.clone(),
     )
     .await;
     rfid.spawn(&spawner);
 
     info!("Starting charger");
-    let charger = Charger::new(peripherals.GPIO4.into());
+    let charger = Charger::new(peripherals.charger.pin, peripherals.charger.connected_level);
     let charger_monitor = charger.spawn(&spawner);
 
     info!("Starting radio");
-    let radio = Radio::new(peripherals.WIFI, peripherals.GPIO8.into(), device_config);
+    let radio = Radio::new(peripherals.radio_wifi, peripherals.radio.pin, device_config);
     let (stack, is_ap) = radio.spawn(charger_monitor, &spawner).await;
 
     if is_ap {

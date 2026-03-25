@@ -4,6 +4,11 @@ name = "firmware"
 rust-version = "1.88"
 version = "0.1.0"
 
+[features]
+default = ["pinout_pcb"]
+pinout_prototype = []
+pinout_pcb = []
+
 [[bin]]
 name = "firmware"
 path = "./src/bin/main.rs"

@@ -4,7 +4,7 @@ use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
-use esp_hal::gpio::{AnyPin, Input, InputConfig, Pull};
+use esp_hal::gpio::{AnyPin, Input, InputConfig, Level, Output, OutputConfig, Pull};
 use esp_hal::time::Rate;
 use heapless::String;
 use mfrc522_async::{Initialized, Mfrc522};
@@ -24,6 +24,7 @@ pub static LAST_FOB: Mutex<CriticalSectionRawMutex, Option<String<8>>> = Mutex::
 pub struct Rfid {
     rfid: MyMfrc522,
     commands: PlayerHandle,
+    _rfid_enable: Option<Output<'static>>,
 }
 
 impl Rfid {
@@ -31,13 +32,21 @@ impl Rfid {
         shared_spi: spi_bus::SharedSpi,
         cs: AnyPin<'static>,
         irq: AnyPin<'static>,
+        rfid_enable: Option<(AnyPin<'static>, Level)>,
         commands: PlayerHandle,
     ) -> Self {
+        let rfid_enable =
+            rfid_enable.map(|(pin, level)| Output::new(pin, level, OutputConfig::default()));
+
         let spi_dev = spi_bus::make_spi_device(shared_spi, cs, Rate::from_mhz(10));
         let irq = Input::new(irq, InputConfig::default().with_pull(Pull::Up));
         let rfid = Mfrc522::new(spi_dev, irq).init().await.unwrap();
 
-        Self { rfid, commands }
+        Self {
+            rfid,
+            commands,
+            _rfid_enable: rfid_enable,
+        }
     }
 
     pub fn spawn(self, spawner: &Spawner) {
