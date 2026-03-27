@@ -13,12 +13,12 @@ codegen-units = 1
 strip = "symbols"
 
 [dependencies]
-wasm-bindgen = "=0.2.104"
-wasm-bindgen-futures = "0.4"
-js-sys = "*"
-futures = "0.3"
+wasm-bindgen = "=0.2.114"
+wasm-bindgen-futures = "0.4.64"
+js-sys = "0.3.91"
+futures = "0.3.32"
 
 transcoder = { path = "../transcoder" }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3"
+wasm-bindgen-test = "0.3.64"

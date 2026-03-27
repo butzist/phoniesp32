@@ -38,7 +38,7 @@
             pkgs.ffmpeg
             pkgs.rustup
             pkgs.just
-            pkgs.wasm-bindgen-cli_0_2_104
+            pkgs.wasm-bindgen-cli_0_2_114
             pkgs.wasm-pack
             pkgs.binaryen
             pkgs.lld
