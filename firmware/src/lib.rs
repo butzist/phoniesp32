@@ -125,6 +125,7 @@ pub mod charger;
 pub mod controls;
 pub mod entities;
 pub mod mdns;
+pub mod peripherals;
 pub mod player;
 pub mod radio;
 pub mod rfid;

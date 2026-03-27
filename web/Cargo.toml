@@ -7,35 +7,35 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dioxus = { version = "0.7", features = ["router"] }
+dioxus = { version = "0.7.3", features = ["router"] }
 dioxus-free-icons = { git = "https://github.com/dioxus-community/dioxus-free-icons", features = [
   "font-awesome-regular",
   "font-awesome-solid",
 ] }
-web-sys = { version = "*", features = [
+web-sys = { version = "0.3.91", features = [
   "Worker",
   "WorkerOptions",
   "WorkerType",
 ] }
-wasm-bindgen = "=0.2.104"
-async-std = "1.12"
-async-lock = "3.4"
-web-time = "1.1"
-reqwest = { version = "0.12", default-features = false, features = [
+wasm-bindgen = "=0.2.114"
+async-std = "1.13.2"
+async-lock = "3.4.2"
+web-time = "1.1.0"
+reqwest = { version = "0.13.2", default-features = false, features = [
   "json",
-  "rustls-tls",
+  "rustls",
   "stream",
 ] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-anyhow = "1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+anyhow = "1.0.102"
 audio-file-utils = { path = "../audio-file-utils", features = ["std"] }
-heapless = "0.9"
+heapless = "0.9.2"
 dioxus-bulma = { git = "https://github.com/butzist/dioxus-bulma", branch = "dioxus-0.7", features = [
   "router",
 ] }
-futures = "0.3"
-bytes = "1"
+futures = "0.3.32"
+bytes = "1.11.1"
 
 
 [features]

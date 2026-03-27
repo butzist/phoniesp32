@@ -1,0 +1,197 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-prototype:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Cache Nix cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/nix
+          key: nix-cache-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          restore-keys: |
+            nix-cache-${{ runner.os }}-
+
+      - name: Cache toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            .rustup
+            .espup
+          key: toolchain-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          restore-keys: |
+            toolchain-${{ runner.os }}-
+
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/target
+          key: build-cache-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', 'flake.lock') }}
+          restore-keys: |
+            build-cache-${{ runner.os }}-
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v16
+        with:
+          name: butzist-phoniesp32
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build firmware (prototype)
+        run: nix develop --command "cd firmware && cargo build --release --no-default-features --features pinout_prototype"
+
+      - name: Create firmware binary
+        run: cp firmware/target/riscv32imac-unknown-none-elf/release/firmware firmware-prototype.bin
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-prototype
+          path: firmware-prototype.bin
+
+  build-pcb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Cache Nix cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/nix
+          key: nix-cache-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          restore-keys: |
+            nix-cache-${{ runner.os }}-
+
+      - name: Cache toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            .rustup
+            .espup
+          key: toolchain-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          restore-keys: |
+            toolchain-${{ runner.os }}-
+
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/target
+          key: build-cache-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', 'flake.lock') }}
+          restore-keys: |
+            build-cache-${{ runner.os }}-
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v16
+        with:
+          name: butzist-phoniesp32
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build firmware (PCB)
+        run: nix develop --command "cd firmware && cargo build --release --features pinout_pcb"
+
+      - name: Create firmware binary
+        run: cp firmware/target/riscv32imac-unknown-none-elf/release/firmware firmware-pcb.bin
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-pcb
+          path: firmware-pcb.bin
+
+  build-cli:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/nix
+          key: nix-store-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          restore-keys: |
+            nix-store-${{ runner.os }}-
+
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .rustup
+            .espup
+            target
+          key: build-cache-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', 'flake.lock') }}
+          restore-keys: |
+            build-cache-${{ runner.os }}-
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v16
+        with:
+          name: butzist-phoniesp32
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build CLI
+        run: nix develop --command "cd cli && cargo build --release"
+
+      - name: Create CLI binary
+        run: cp cli/target/release/cli pecli
+
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-release
+          path: pecli
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [build-prototype, build-pcb, build-cli]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/firmware-prototype/firmware-prototype.bin
+            artifacts/firmware-pcb/firmware-pcb.bin
+            artifacts/cli-release/pecli
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

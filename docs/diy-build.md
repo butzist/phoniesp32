@@ -128,8 +128,7 @@ Connect to speaker:
 1. Download the latest firmware:
    ```bash
    # Download from releases
-   wget https://github.com/butzist/phoniesp32/releases/download/v1.0.0/firmware.zip
-   unzip firmware.zip
+   wget https://github.com/butzist/phoniesp32/releases/download/v1.0.0/firmware.bin
    ```
 
    Or build from source:
@@ -137,7 +136,7 @@ Connect to speaker:
    git clone https://github.com/butzist/phoniesp32.git
    cd phoniesp32
    nix develop
-   just build
+   cd firmware && cargo build --release --no-default-features --features pinout_prototype
    ```
 
 2. Install `espflash` if not already installed:
@@ -148,7 +147,7 @@ Connect to speaker:
 
 3. Flash the firmware:
    ```bash
-   espflash flash --chip esp32c6 firmware
+   espflash flash --chip esp32c6 firmware/target/riscv32imac-unknown-none-elf/release/firmware
    ```
 
 4. **Important**: Connect the device to a power source (USB or charger). The
@@ -255,6 +254,7 @@ Download [FAT32 Format](https://www.ridgecrop.demon.co.uk/guiformat.htm)
 To view real-time logs from the device, use either:
 
 ### Using just (recommended)
+
 ```bash
 cd firmware
 just run       # Flash and monitor
@@ -263,6 +263,7 @@ just monitor   # Just monitor (if already flashed)
 ```
 
 ### Using espflash directly
+
 ```bash
 espflash monitor --chip esp32c6 --log-format defmt --elf firmware/target/riscv32imac-unknown-none-elf/release/firmware
 ```
