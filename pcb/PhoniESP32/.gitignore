@@ -1,4 +1,5 @@
 *-backups/
+.history/
 *.lck
 fp-info-cache
 ./#auto_saved_files#
