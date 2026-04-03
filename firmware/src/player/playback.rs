@@ -23,6 +23,7 @@ use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::Timer;
 use esp_hal::dma::DmaDescriptor;
+use esp_hal::gpio::{AnyPin, Level, Output, OutputConfig};
 use esp_hal::i2s::master::{I2s, asynch::I2sWriteDmaTransferAsync};
 use esp_hal::peripherals::DMA_CH0;
 
@@ -39,14 +40,15 @@ const DMA_SIZE: usize = 6 * 4096;
 const DMA_CHUNKS: usize = 7;
 
 pub struct Player {
-    pub i2s: esp_hal::i2s::AnyI2s<'static>,
-    pub dma: DMA_CH0<'static>,
-    pub bclk: esp_hal::gpio::AnyPin<'static>,
-    pub ws: esp_hal::gpio::AnyPin<'static>,
-    pub dout: esp_hal::gpio::AnyPin<'static>,
-    pub dma_buffer: &'static mut [u8; DMA_SIZE],
-    pub dma_descriptors: &'static mut [DmaDescriptor; DMA_CHUNKS],
-    pub fs: &'static crate::sd::SdFsWrapper,
+    i2s: esp_hal::i2s::AnyI2s<'static>,
+    dma: DMA_CH0<'static>,
+    bclk: esp_hal::gpio::AnyPin<'static>,
+    ws: esp_hal::gpio::AnyPin<'static>,
+    dout: esp_hal::gpio::AnyPin<'static>,
+    _audio_enable: Option<Output<'static>>,
+    dma_buffer: &'static mut [u8; DMA_SIZE],
+    dma_descriptors: &'static mut [DmaDescriptor; DMA_CHUNKS],
+    pub(crate) fs: &'static crate::sd::SdFsWrapper,
     command_channel: &'static Channel<NoopRawMutex, PlayerCommand, 2>,
     spawner: Spawner,
     stop_signal: &'static Signal<CriticalSectionRawMutex, ()>,
@@ -62,6 +64,7 @@ impl Player {
         bclk: esp_hal::gpio::AnyPin<'static>,
         ws: esp_hal::gpio::AnyPin<'static>,
         dout: esp_hal::gpio::AnyPin<'static>,
+        audio_enable: Option<(AnyPin<'static>, Level)>,
         fs: &'static crate::sd::SdFsWrapper,
         spawner: Spawner,
     ) -> Self {
@@ -73,12 +76,17 @@ impl Player {
         let volume = crate::mk_static!(AtomicU8, AtomicU8::new(8));
         let paused = crate::mk_static!(AtomicBool, AtomicBool::new(false));
         let (_, _, tx_buffer, tx_descriptors) = esp_hal::dma_buffers!(0, DMA_SIZE);
+
+        let audio_enable =
+            audio_enable.map(|(pin, level)| Output::new(pin, level, OutputConfig::default()));
+
         Self {
             i2s,
             dma,
             bclk,
             ws,
             dout,
+            _audio_enable: audio_enable,
             dma_buffer: tx_buffer,
             dma_descriptors: tx_descriptors,
             command_channel,

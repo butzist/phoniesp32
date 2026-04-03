@@ -1,4 +1,4 @@
-name: Build and Test
+name: Development Build
 
 on:
   push:
@@ -27,13 +27,24 @@ jobs:
           restore-keys: |
             nix-cache-${{ runner.os }}-
 
-      - name: Cache toolchains
+      - name: Cache toolchain
         uses: actions/cache@v4
         with:
           path: |
             .rustup
             .espup
-          key: toolchains-${{ runner.os }}
+          key: toolchain-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          restore-keys: |
+            toolchain-${{ runner.os }}-
+
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/target
+          key: build-cache-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', 'flake.lock') }}
+          restore-keys: |
+            build-cache-${{ runner.os }}-
 
       - name: Setup Cachix
         uses: cachix/cachix-action@v16
@@ -65,13 +76,24 @@ jobs:
           restore-keys: |
             nix-cache-${{ runner.os }}-
 
-      - name: Cache toolchains
+      - name: Cache toolchain
         uses: actions/cache@v4
         with:
           path: |
             .rustup
             .espup
-          key: toolchains-${{ runner.os }}
+          key: toolchain-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          restore-keys: |
+            toolchain-${{ runner.os }}-
+
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/target
+          key: build-cache-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', 'flake.lock') }}
+          restore-keys: |
+            build-cache-${{ runner.os }}-
 
       - name: Setup Cachix
         uses: cachix/cachix-action@v16
@@ -85,7 +107,7 @@ jobs:
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firmware
+          name: firmware-dev
           path: firmware.bin
 
       - name: Build CLI
@@ -94,5 +116,5 @@ jobs:
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cli
+          name: cli-dev
           path: pecli

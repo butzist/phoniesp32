@@ -106,7 +106,8 @@ pub async fn decode_and_normalize(
     let (downmixed, sample_rate) = decode::decode_to_mono(input, make_progress(0, 33))?;
     let mut samples = resample::resample(
         &downmixed,
-        OUT_RATE as f64 / sample_rate as f64,
+        sample_rate as usize,
+        OUT_RATE as usize,
         make_progress(34, 67),
     )?;
 
