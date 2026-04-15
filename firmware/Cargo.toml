@@ -85,7 +85,7 @@ embedded-fatfs = { git = "https://github.com/butzist/embedded-fatfs", branch = "
 # RFID
 mfrc522-async = { git = "https://github.com/butzist/mfrc522-async", features = [
   "defmt",
-] }
+], branch = "feat/enable" }
 
 # Embedded libs
 embedded-io = { version = "0.7.1", features = ["defmt"] }
@@ -134,6 +134,7 @@ serde_json = { version = "1.0.145", default-features = false, features = [
 ] }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 static_cell = { version = "2.1.1", features = ["nightly"] }
+unwrap-infallible = "1.0.0"
 
 
 [profile.dev]

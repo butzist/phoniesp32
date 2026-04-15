@@ -1172,6 +1172,7 @@ dependencies = [
  "serde_json",
  "smoltcp",
  "static_cell",
+ "unwrap-infallible",
  "walkdir",
 ]
 
@@ -1444,12 +1445,13 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
 name = "mfrc522-async"
-version = "0.1.0"
-source = "git+https://github.com/butzist/mfrc522-async#a0ab3fbeebd5fa1539cc033571f2309f57ea4477"
+version = "0.2.0"
+source = "git+https://github.com/butzist/mfrc522-async?branch=feat%2Fenable#747ad8829e0c9592d2e42dc19cfb6f978b0c4351"
 dependencies = [
  "defmt 1.0.1",
  "embassy-futures",
  "embassy-time",
+ "embedded-hal 1.0.0",
  "embedded-hal-async",
 ]
 
@@ -2126,6 +2128,12 @@ name = "unsafe-libyaml"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
+
+[[package]]
+name = "unwrap-infallible"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e497bb1f828cc9fb236722c2eaa100dcf201563f38f4da6252357a59037adf31"
 
 [[package]]
 name = "vcell"

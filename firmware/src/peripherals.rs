@@ -12,7 +12,7 @@ pub struct Peripherals {
     pub sd_cs: AnyPin<'static>,
     pub rfid_cs: AnyPin<'static>,
     pub rfid_irq: AnyPin<'static>,
-    pub rfid_enable: Option<(AnyPin<'static>, Level)>,
+    pub rfid_enable: AnyPin<'static>,
     pub audio_enable: Option<(AnyPin<'static>, Level)>,
     pub charger: ChargerPins,
     pub player: PlayerPins,
@@ -70,7 +70,7 @@ pub fn create_peripherals(peripherals: esp_hal::peripherals::Peripherals) -> Per
             p.GPIO7.into(),
             p.GPIO6.into(),
             p.GPIO20.into(),
-            Some((p.GPIO14.into(), Level::High)),
+            p.GPIO14.into(),
             Some((p.GPIO9.into(), Level::High)),
             Level::Low,
         )
@@ -79,7 +79,7 @@ pub fn create_peripherals(peripherals: esp_hal::peripherals::Peripherals) -> Per
             p.GPIO6.into(),
             p.GPIO7.into(),
             p.GPIO10.into(),
-            None,
+            p.GPIO14.into(),
             None,
             Level::High,
         )
