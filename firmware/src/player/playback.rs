@@ -1,3 +1,4 @@
+use core::cell::RefCell;
 use core::f32::consts::PI;
 use core::iter::repeat_n;
 use core::ops::Coroutine;
@@ -45,7 +46,7 @@ pub struct Player {
     bclk: esp_hal::gpio::AnyPin<'static>,
     ws: esp_hal::gpio::AnyPin<'static>,
     dout: esp_hal::gpio::AnyPin<'static>,
-    _audio_enable: Option<Output<'static>>,
+    audio_enable: &'static RefCell<Option<(Output<'static>, Level)>>,
     dma_buffer: &'static mut [u8; DMA_SIZE],
     dma_descriptors: &'static mut [DmaDescriptor; DMA_CHUNKS],
     pub(crate) fs: &'static crate::sd::SdFsWrapper,
@@ -77,8 +78,15 @@ impl Player {
         let paused = crate::mk_static!(AtomicBool, AtomicBool::new(false));
         let (_, _, tx_buffer, tx_descriptors) = esp_hal::dma_buffers!(0, DMA_SIZE);
 
-        let audio_enable =
-            audio_enable.map(|(pin, level)| Output::new(pin, level, OutputConfig::default()));
+        let audio_enable = crate::mk_static!(
+            RefCell<Option<(Output<'static>, Level)>>,
+            RefCell::new(audio_enable.map(|(pin, active_level)| {
+                (
+                    Output::new(pin, !active_level, OutputConfig::default()),
+                    active_level,
+                )
+            }))
+        );
 
         Self {
             i2s,
@@ -86,7 +94,7 @@ impl Player {
             bclk,
             ws,
             dout,
-            _audio_enable: audio_enable,
+            audio_enable,
             dma_buffer: tx_buffer,
             dma_descriptors: tx_descriptors,
             command_channel,
@@ -166,6 +174,7 @@ pub async fn play_files(
         player.skip_signal,
         player.paused,
         player.volume,
+        player.audio_enable,
     ));
 }
 
@@ -190,7 +199,12 @@ async fn play_files_task(
     skip_signal: &'static Signal<CriticalSectionRawMutex, super::control::Skip>,
     paused: &'static AtomicBool,
     volume: &'static AtomicU8,
+    audio_enable: &'static RefCell<Option<(Output<'static>, Level)>>,
 ) {
+    if let Some((audio_output, active_level)) = audio_enable.borrow_mut().as_mut() {
+        audio_output.set_level(*active_level);
+    }
+
     play_beep(4, &mut dma_transfer).await;
 
     Status::get().update_state(State::Playing);
@@ -205,6 +219,10 @@ async fn play_files_task(
     )
     .await;
     Status::get().update_state(State::Stopped);
+
+    if let Some((audio_output, active_level)) = audio_enable.borrow_mut().as_mut() {
+        audio_output.set_level(!*active_level);
+    }
 }
 
 enum ExitReason {
