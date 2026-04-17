@@ -17,6 +17,24 @@ use serde::{Deserialize, Serialize};
 
 extern crate alloc;
 
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn memchr(
+    s: *const core::ffi::c_void,
+    c: i32,
+    n: usize,
+) -> *mut core::ffi::c_void {
+    let c = c as u8;
+    let s = s as *const u8;
+    for i in 0..n {
+        unsafe {
+            if *s.add(i) == c {
+                return s.add(i) as *mut core::ffi::c_void;
+            }
+        }
+    }
+    core::ptr::null_mut()
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DeviceConfig {
     #[serde(alias = "SSID")]

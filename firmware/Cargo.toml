@@ -107,6 +107,11 @@ picoserve = { version = "0.18.0", default-features = false, features = [
   "json",
 ] }
 
+# TLS
+mbedtls-rs = { git = "https://github.com/esp-rs/mbedtls-rs", default-features = false, features = [
+  "defmt",
+] }
+
 # mDNS / DHCP / Captive DNS
 edge-mdns = { version = "0.7.0", features = ["io"] }
 edge-dhcp = { version = "0.7.0", features = ["io", "defmt"] }

@@ -12,6 +12,7 @@ use embassy_time::Timer;
 use esp_hal::clock::CpuClock;
 use esp_hal::dma::DmaChannelConvert;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
+use esp_hal::rng::Rng;
 use esp_hal::timer::timg::TimerGroup;
 use firmware::captive::CaptivePortal;
 use firmware::charger::Charger;
@@ -23,6 +24,7 @@ use firmware::rfid::Rfid;
 use firmware::sd::Sd;
 use firmware::web::WebTask;
 use firmware::{mk_static, sd::SdFsWrapper, spi_bus};
+use mbedtls_rs::Tls;
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
@@ -30,6 +32,29 @@ extern crate alloc;
 // This creates a default app-descriptor required by the esp-idf bootloader.
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
 esp_bootloader_esp_idf::esp_app_desc!();
+
+struct RngWrapper(Rng);
+
+impl rand_core::RngCore for RngWrapper {
+    fn next_u32(&mut self) -> u32 {
+        self.0.random()
+    }
+    fn next_u64(&mut self) -> u64 {
+        let low = self.0.random() as u64;
+        let high = self.0.random() as u64;
+        low | (high << 32)
+    }
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        for chunk in dest.chunks_mut(4) {
+            let random = self.0.random();
+            for (i, byte) in chunk.iter_mut().enumerate() {
+                *byte = (random >> (i * 8)) as u8;
+            }
+        }
+    }
+}
+
+impl rand_core::CryptoRng for RngWrapper {}
 
 #[esp_rtos::main]
 async fn main(spawner: Spawner) {
@@ -101,13 +126,17 @@ async fn main(spawner: Spawner) {
 
     if is_ap {
         info!("Starting captive portal");
-        let captive = CaptivePortal::new(stack);
+        let captive = CaptivePortal::new(stack.clone());
         captive.spawn(&spawner);
     }
 
     info!("Starting mDNS responder");
-    let mdns = MdnsResponder::new(stack);
+    let mdns = MdnsResponder::new(stack.clone());
     mdns.spawn(&spawner);
+
+    info!("Initializing TLS...");
+    let rng = mk_static!(RngWrapper, RngWrapper(Rng::new()));
+    let tls = mk_static!(Tls, Tls::new(rng).unwrap());
 
     let web_app = firmware::web::WebApp::default();
     let web_app_state = mk_static!(
@@ -117,7 +146,14 @@ async fn main(spawner: Spawner) {
 
     for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
         info!("Starting web task");
-        let web_task = WebTask::new(id, stack, web_app.router, web_app.config, web_app_state);
+        let web_task = WebTask::new(
+            id,
+            stack.clone(),
+            tls,
+            web_app.router,
+            web_app.config,
+            web_app_state,
+        );
         web_task.spawn(&spawner);
     }
 

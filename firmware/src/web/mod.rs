@@ -1,7 +1,10 @@
 use embassy_executor::Spawner;
+use embassy_net::IpListenEndpoint;
 use embassy_net::Stack;
+use embassy_net::tcp::TcpSocket;
 use embassy_time::Duration;
 use esp_alloc as _;
+use mbedtls_rs::{Certificate, Credentials, PrivateKey, ServerSessionConfig, SessionConfig, X509};
 use picoserve::{
     AppWithStateBuilder, ResponseSent, Router,
     request::Request,
@@ -11,7 +14,7 @@ use picoserve::{
         RequestHandlerService,
     },
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{entities::audio_file::AudioMetadata, player::PlayerHandle};
 
@@ -22,6 +25,7 @@ mod config;
 mod files;
 mod fob;
 mod playback;
+mod tls_socket;
 mod upload;
 
 #[derive(Clone)]
@@ -34,11 +38,6 @@ impl AppState {
     pub fn new(fs: &'static crate::sd::SdFsWrapper, commands: PlayerHandle) -> Self {
         Self { fs, commands }
     }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Test {
-    x: u16,
 }
 
 #[derive(Clone, Serialize)]
@@ -191,7 +190,7 @@ impl AppWithStateBuilder for Application {
 }
 
 async fn captive_handler() -> impl IntoResponse {
-    Response::new(StatusCode::FOUND, "").with_header("Location", "http://phoniesp32.local/")
+    Response::new(StatusCode::FOUND, "").with_header("Location", "https://phoniesp32.local/")
 }
 
 pub struct WebApp {
@@ -223,6 +222,7 @@ pub const WEB_TASK_POOL_SIZE: usize = 3;
 pub struct WebTask {
     id: usize,
     stack: Stack<'static>,
+    tls: &'static mbedtls_rs::Tls<'static>,
     router: &'static Router<<Application as AppWithStateBuilder>::PathRouter, AppState>,
     config: &'static picoserve::Config,
     state: &'static AppState,
@@ -232,6 +232,7 @@ impl WebTask {
     pub fn new(
         id: usize,
         stack: Stack<'static>,
+        tls: &'static mbedtls_rs::Tls<'static>,
         router: &'static Router<<Application as AppWithStateBuilder>::PathRouter, AppState>,
         config: &'static picoserve::Config,
         state: &'static AppState,
@@ -239,6 +240,7 @@ impl WebTask {
         Self {
             id,
             stack,
+            tls,
             router,
             config,
             state,
@@ -249,6 +251,7 @@ impl WebTask {
         spawner.must_spawn(web_task(
             self.id,
             self.stack,
+            self.tls,
             self.router,
             self.config,
             self.state,
@@ -256,27 +259,77 @@ impl WebTask {
     }
 }
 
+const TLS_CERT: &[u8] = include_bytes!("certs/cert.der");
+const TLS_KEY: &[u8] = include_bytes!("certs/key.der");
+
+fn tls_server_config() -> SessionConfig<'static> {
+    let cert = Certificate::new_no_copy(TLS_CERT).unwrap();
+    SessionConfig::Server(ServerSessionConfig::new(Credentials {
+        certificate: cert,
+        private_key: PrivateKey::new(X509::DER(TLS_KEY), None).unwrap(),
+    }))
+}
+
 #[embassy_executor::task(pool_size = WEB_TASK_POOL_SIZE)]
 async fn web_task(
     id: usize,
     stack: Stack<'static>,
+    tls: &'static mbedtls_rs::Tls<'static>,
     router: &'static Router<<Application as AppWithStateBuilder>::PathRouter, AppState>,
     config: &'static picoserve::Config,
     state: &'static AppState,
 ) -> ! {
-    let port = 80;
-    let mut tcp_rx_buffer = alloc::vec![0; 1024];
-    let mut tcp_tx_buffer = alloc::vec![0; 1024];
+    let port = 443;
     let mut http_buffer = alloc::vec![0; 2048];
 
     let app_with_state = &router.shared().with_state(state);
+    let tls_config = mk_static!(SessionConfig<'static>, tls_server_config());
 
     loop {
-        let _shutdown_reason = picoserve::Server::new(app_with_state, config, &mut http_buffer)
-            .listen_and_serve(id, stack, port, &mut tcp_rx_buffer, &mut tcp_tx_buffer)
+        let mut tcp_rx_buffer = alloc::vec![0; 1024];
+        let mut tcp_tx_buffer = alloc::vec![0; 1024];
+
+        let mut socket = TcpSocket::new(stack, &mut tcp_rx_buffer, &mut tcp_tx_buffer);
+
+        socket
+            .accept(IpListenEndpoint { addr: None, port })
+            .await
+            .unwrap();
+
+        let remote = socket.remote_endpoint();
+        defmt::info!("[{}] Accepted connection from: {:?}", id, remote);
+
+        let socket = tls_socket::Socket::new(socket);
+
+        let tls_session = match mbedtls_rs::Session::new(tls.reference(), socket, tls_config) {
+            Ok(s) => s,
+            Err(e) => {
+                defmt::warn!("[{}] TLS session error: {:?}", id, e);
+                continue;
+            }
+        };
+
+        let tls_session: tls_socket::RawTlsSession<'_> = tls_session;
+
+        let tls_session = match tls_socket::TlsSession::new(tls_session).await {
+            Ok(s) => s,
+            Err(e) => {
+                defmt::warn!("[{}] TLS handshake error: {:?}", id, e);
+                continue;
+            }
+        };
+
+        let result = picoserve::Server::new(app_with_state, config, &mut http_buffer)
+            .serve(tls_session)
             .await;
 
-        // NoGracefulShutdown has no variants, so we always continue
-        // This is expected behavior for servers that run forever
+        match result {
+            Ok(info) => {
+                defmt::info!("[{}] {} requests handled", id, info.handled_requests_count);
+            }
+            Err(e) => {
+                defmt::warn!("[{}] Error: {:?}", id, e);
+            }
+        }
     }
 }
