@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(type_alias_impl_trait)]
 #![deny(
     clippy::mem_forget,
     reason = "mem::forget is generally not safe to use with esp_hal types, especially those \

@@ -1,13 +1,10 @@
 #![no_std]
 #![recursion_limit = "256"]
 #![feature(impl_trait_in_assoc_type)]
-#![feature(type_alias_impl_trait)]
 #![feature(coroutines)]
 #![feature(coroutine_trait)]
 #![feature(stmt_expr_attributes)]
-#![feature(atomic_try_update)]
 #![feature(trivial_bounds)]
-#![feature(try_blocks)]
 
 use core::future::Future;
 
