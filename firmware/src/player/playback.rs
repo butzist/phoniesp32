@@ -206,7 +206,12 @@ async fn play_files_task(
     audio_enable: &'static RefCell<Option<(Output<'static>, Level)>>,
     status: &'static Status,
 ) {
-    if let Some((audio_output, active_level)) = audio_enable.borrow_mut().as_mut() {
+    // Borrow mutably once for the task duration
+    let mut audio_enable = audio_enable.borrow_mut();
+    let audio_enable = &mut *audio_enable;
+
+    // Enable audio output if configured
+    if let Some((audio_output, active_level)) = audio_enable {
         audio_output.set_level(*active_level);
     }
 
@@ -221,12 +226,14 @@ async fn play_files_task(
         skip_signal,
         paused,
         volume,
+        audio_enable,
         status,
     )
     .await;
     status.update_state(State::Stopped);
 
-    if let Some((audio_output, active_level)) = audio_enable.borrow_mut().as_mut() {
+    // Disable audio output if configured
+    if let Some((audio_output, active_level)) = audio_enable {
         audio_output.set_level(!*active_level);
     }
 }
@@ -246,6 +253,7 @@ async fn play_files_task_inner(
     skip_signal: &'static Signal<CriticalSectionRawMutex, super::control::Skip>,
     paused: &'static AtomicBool,
     volume: &'static AtomicU8,
+    audio_enable: &mut Option<(Output<'static>, Level)>,
     status: &'static Status,
 ) {
     let files_vec = files;
@@ -274,6 +282,7 @@ async fn play_files_task_inner(
             skip_signal,
             paused,
             volume,
+            audio_enable,
             status,
         )
         .await;
@@ -378,6 +387,7 @@ async fn play_file<'a>(
     skip_signal: &'static Signal<CriticalSectionRawMutex, super::control::Skip>,
     paused: &'static AtomicBool,
     volume: &'static AtomicU8,
+    audio_enable: &mut Option<(Output<'static>, Level)>,
     status: &'static Status,
 ) -> ExitReason {
     let Ok(mut file_handle) = file.data_reader(fs).await else {
@@ -483,6 +493,10 @@ async fn play_file<'a>(
         if paused.load(Ordering::SeqCst) {
             status.update_state(State::Paused);
 
+            if let Some((audio_output, active_level)) = audio_enable {
+                audio_output.set_level(!*active_level);
+            }
+
             while paused.load(Ordering::SeqCst) {
                 dma_transfer
                     .push_with(|buf: &mut [u8]| {
@@ -499,6 +513,10 @@ async fn play_file<'a>(
                     })
                     .await
                     .print_err("I2S DMA transfer");
+            }
+
+            if let Some((audio_output, active_level)) = audio_enable {
+                audio_output.set_level(*active_level);
             }
 
             status.update_state(State::Playing);
