@@ -2,6 +2,7 @@ use esp_hal::gpio::{AnyPin, Level};
 use esp_hal::peripherals::DMA_CH0;
 use esp_hal::peripherals::DMA_CH1;
 use esp_hal::peripherals::I2S0;
+use esp_hal::peripherals::LPWR;
 use esp_hal::peripherals::SPI2;
 use esp_hal::peripherals::SW_INTERRUPT;
 use esp_hal::peripherals::TIMG0;
@@ -26,6 +27,7 @@ pub struct Peripherals {
     pub player_dma: DMA_CH0<'static>,
 
     pub timer0: TIMG0<'static>,
+    pub lpwr: LPWR<'static>,
     pub sw_interrupt: SW_INTERRUPT<'static>,
 }
 
@@ -120,6 +122,7 @@ pub fn create_peripherals(peripherals: esp_hal::peripherals::Peripherals) -> Per
         player_i2s: p.I2S0,
         player_dma: p.DMA_CH0,
         timer0: p.TIMG0,
+        lpwr: p.LPWR,
         sw_interrupt: p.SW_INTERRUPT,
     }
 }

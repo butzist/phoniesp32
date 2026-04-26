@@ -5,7 +5,7 @@ use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, watch::Receiver
 use embassy_time::{Duration, Timer};
 use esp_hal::gpio::{AnyPin, Input, InputConfig, Level};
 
-const NUM_RECEIVERS: usize = 2;
+const NUM_RECEIVERS: usize = 3;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum ChargerState {
@@ -102,7 +102,7 @@ pub struct ChargerMonitor {
 
 impl Clone for ChargerMonitor {
     fn clone(&self) -> Self {
-        // SAFETY: will not panic because: NUM_RECEIVERS = 2 and currently only the radio connection task creates a monitor
+        // SAFETY: will not panic because: NUM_RECEIVERS = 3 and currently only the radio connection task and main creates a monitor
         let receiver = self.watch.receiver().unwrap();
         Self {
             watch: self.watch,

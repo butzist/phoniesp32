@@ -137,7 +137,6 @@ async fn try_start_wifi_sta(
         ))
         .unwrap();
     spawner.spawn(net_task(runner)).unwrap();
-    wait_for_connection(stack).await;
 
     Ok(stack)
 }
@@ -169,28 +168,7 @@ pub async fn start_wifi_ap(
         .unwrap();
     spawner.spawn(net_task(runner)).unwrap();
 
-    wait_for_connection(stack).await;
-
     stack
-}
-
-async fn wait_for_connection(stack: Stack<'_>) {
-    println!("Waiting for link to be up");
-    loop {
-        if stack.is_link_up() {
-            break;
-        }
-        Timer::after(Duration::from_millis(500)).await;
-    }
-
-    println!("Waiting to get IP address...");
-    loop {
-        if let Some(config) = stack.config_v4() {
-            println!("Got IP: {}", config.address);
-            break;
-        }
-        Timer::after(Duration::from_millis(500)).await;
-    }
 }
 
 #[embassy_executor::task]

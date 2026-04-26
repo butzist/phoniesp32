@@ -5,12 +5,14 @@
     reason = "mem::forget is generally not safe to use with esp_hal types, especially those \
     holding buffers for the duration of a data transfer."
 )]
-use defmt::{debug, info};
+use defmt::info;
 use embassy_executor::Spawner;
-use embassy_time::Timer;
+use embassy_time::{Duration, Timer};
 use esp_hal::clock::CpuClock;
 use esp_hal::dma::DmaChannelConvert;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
+use esp_hal::rtc_cntl::Rtc;
+use esp_hal::rtc_cntl::sleep::TimerWakeupSource;
 use esp_hal::timer::timg::TimerGroup;
 use firmware::captive::CaptivePortal;
 use firmware::charger::Charger;
@@ -18,6 +20,7 @@ use firmware::controls::Controls;
 use firmware::mdns::MdnsResponder;
 use firmware::peripherals::create_peripherals;
 use firmware::player::Player;
+use firmware::player::status::State;
 use firmware::radio::Radio;
 use firmware::rfid::Rfid;
 use firmware::sd::Sd;
@@ -43,6 +46,8 @@ async fn main(spawner: Spawner) {
     let timer0 = TimerGroup::new(peripherals.timer0);
     let sw_int = SoftwareInterruptControl::new(peripherals.sw_interrupt);
     esp_rtos::start(timer0.timer0, sw_int.software_interrupt0);
+
+    let mut rtc = Rtc::new(peripherals.lpwr);
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 65536);
     esp_alloc::heap_allocator!(size: 65536);
@@ -90,18 +95,17 @@ async fn main(spawner: Spawner) {
         peripherals.rfid_cs,
         peripherals.rfid_irq,
         peripherals.rfid_enable,
-        player_handle.clone(),
     )
     .await;
-    rfid.spawn(&spawner);
+    let rfid_handle = rfid.spawn(&spawner);
 
     info!("Starting charger");
     let charger = Charger::new(peripherals.charger.pin, peripherals.charger.connected_level);
-    let charger_monitor = charger.spawn(&spawner);
+    let mut charger_monitor = charger.spawn(&spawner);
 
     info!("Starting radio");
     let radio = Radio::new(peripherals.radio_wifi, peripherals.radio.pin, device_config);
-    let (stack, is_ap) = radio.spawn(charger_monitor, &spawner).await;
+    let (stack, is_ap) = radio.spawn(charger_monitor.clone(), &spawner).await;
 
     if is_ap {
         info!("Starting captive portal");
@@ -128,7 +132,33 @@ async fn main(spawner: Spawner) {
     info!("Web server started...");
 
     loop {
-        Timer::after_secs(1).await;
-        debug!("Still alive :)");
+        rfid_handle.trigger_scan();
+
+        let mut is_playing = firmware::player::status::Status::get()
+            .get_playback_status()
+            .state
+            == State::Playing;
+        let is_charging = charger_monitor.is_connected();
+
+        let scan_interval_ms = match rfid_handle.wait_for_scan_result().await {
+            firmware::rfid::RfidScanResult::Found(fob) => {
+                player_handle
+                    .play_playlist_ref(firmware::entities::playlist::PlayListRef::new(fob))
+                    .await;
+                is_playing = true;
+
+                5000
+            }
+            firmware::rfid::RfidScanResult::NotFound => 500,
+            firmware::rfid::RfidScanResult::Error => 1000,
+        };
+
+        if is_charging || is_playing {
+            Timer::after(Duration::from_millis(scan_interval_ms)).await;
+        } else {
+            let timer_wakeup =
+                TimerWakeupSource::new(Duration::from_millis(scan_interval_ms).into());
+            rtc.sleep_light(&[&timer_wakeup]);
+        }
     }
 }
