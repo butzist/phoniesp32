@@ -1,7 +1,7 @@
 use crate::PrintErr;
 use crate::entities::playlist::{PlayListRef, Playlist};
 use crate::player::playback::toggle_pause_player;
-use crate::player::status::{AudioFileWithMetadata, PlaylistWithMetadata};
+use crate::player::status::{AudioFileWithMetadata, PlaylistWithMetadata, Status};
 
 use alloc::vec::Vec;
 use core::sync::atomic::AtomicU8;
@@ -32,14 +32,20 @@ pub enum PlayerCommand {
 pub struct PlayerHandle {
     sender: Sender<'static, NoopRawMutex, PlayerCommand, 2>,
     volume: &'static AtomicU8,
+    status: &'static Status,
 }
 
 impl PlayerHandle {
     pub fn new(
         sender: Sender<'static, NoopRawMutex, PlayerCommand, 2>,
         volume: &'static AtomicU8,
+        status: &'static Status,
     ) -> Self {
-        Self { sender, volume }
+        Self {
+            sender,
+            volume,
+            status,
+        }
     }
 
     pub async fn stop(&self) {
@@ -78,6 +84,10 @@ impl PlayerHandle {
 
     pub fn get_volume(&self) -> u8 {
         self.volume.load(core::sync::atomic::Ordering::SeqCst)
+    }
+
+    pub fn status(&self) -> &Status {
+        self.status
     }
 }
 

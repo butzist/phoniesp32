@@ -120,7 +120,7 @@ async fn main(spawner: Spawner) {
     let web_app = firmware::web::WebApp::default();
     let web_app_state = mk_static!(
         firmware::web::AppState,
-        firmware::web::AppState::new(fs, player_handle.clone())
+        firmware::web::AppState::new(fs, player_handle.clone(), rfid_handle.clone())
     );
 
     for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
@@ -134,10 +134,7 @@ async fn main(spawner: Spawner) {
     loop {
         rfid_handle.trigger_scan();
 
-        let mut is_playing = firmware::player::status::Status::get()
-            .get_playback_status()
-            .state
-            == State::Playing;
+        let mut is_playing = player_handle.status().get_playback_status().state == State::Playing;
         let is_charging = charger_monitor.is_connected();
 
         let scan_interval_ms = match rfid_handle.wait_for_scan_result().await {

@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use embassy_sync::lazy_lock::LazyLock;
 use embassy_sync::watch::Watch;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, watch::Receiver};
 use heapless::String;
@@ -42,7 +41,7 @@ pub struct AudioFileWithMetadata {
 }
 
 impl Status {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let status = Self {
             playback_position: Watch::new(),
             playback_status: Watch::new(),
@@ -52,11 +51,6 @@ impl Status {
         status.update_state(State::Stopped);
 
         status
-    }
-
-    pub fn get() -> &'static Self {
-        static STATUS: LazyLock<Status> = LazyLock::new(Status::new);
-        STATUS.get()
     }
 
     // Getters

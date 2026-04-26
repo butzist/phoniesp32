@@ -56,6 +56,7 @@ pub struct Player {
     skip_signal: &'static Signal<CriticalSectionRawMutex, super::control::Skip>,
     volume: &'static AtomicU8,
     paused: &'static AtomicBool,
+    status: &'static Status,
 }
 
 impl Player {
@@ -76,6 +77,7 @@ impl Player {
             crate::mk_static!(Signal<CriticalSectionRawMutex, super::control::Skip>, Signal::new());
         let volume = crate::mk_static!(AtomicU8, AtomicU8::new(8));
         let paused = crate::mk_static!(AtomicBool, AtomicBool::new(false));
+        let status = crate::mk_static!(Status, Status::new());
         let (_, _, tx_buffer, tx_descriptors) = esp_hal::dma_buffers!(0, DMA_SIZE);
 
         let audio_enable = crate::mk_static!(
@@ -104,6 +106,7 @@ impl Player {
             skip_signal,
             volume,
             paused,
+            status,
         }
     }
 
@@ -114,7 +117,7 @@ impl Player {
     }
 
     pub fn handle(&self) -> PlayerHandle {
-        PlayerHandle::new(self.command_channel.sender(), self.volume)
+        PlayerHandle::new(self.command_channel.sender(), self.volume, self.status)
     }
 
     pub fn transfer(&mut self) -> I2sWriteDmaTransferAsync<'_, &mut [u8; DMA_SIZE]> {
@@ -175,12 +178,13 @@ pub async fn play_files(
         player.paused,
         player.volume,
         player.audio_enable,
+        player.status,
     ));
 }
 
 #[embassy_executor::task]
 pub async fn run_player(mut player: Player) {
-    let status = Status::get();
+    let status = player.status;
     let receiver = player.command_channel.receiver();
 
     loop {
@@ -200,6 +204,7 @@ async fn play_files_task(
     paused: &'static AtomicBool,
     volume: &'static AtomicU8,
     audio_enable: &'static RefCell<Option<(Output<'static>, Level)>>,
+    status: &'static Status,
 ) {
     if let Some((audio_output, active_level)) = audio_enable.borrow_mut().as_mut() {
         audio_output.set_level(*active_level);
@@ -207,7 +212,7 @@ async fn play_files_task(
 
     play_beep(4, &mut dma_transfer).await;
 
-    Status::get().update_state(State::Playing);
+    status.update_state(State::Playing);
     play_files_task_inner(
         fs,
         files,
@@ -216,9 +221,10 @@ async fn play_files_task(
         skip_signal,
         paused,
         volume,
+        status,
     )
     .await;
-    Status::get().update_state(State::Stopped);
+    status.update_state(State::Stopped);
 
     if let Some((audio_output, active_level)) = audio_enable.borrow_mut().as_mut() {
         audio_output.set_level(!*active_level);
@@ -240,6 +246,7 @@ async fn play_files_task_inner(
     skip_signal: &'static Signal<CriticalSectionRawMutex, super::control::Skip>,
     paused: &'static AtomicBool,
     volume: &'static AtomicU8,
+    status: &'static Status,
 ) {
     let files_vec = files;
     let mut current_index = 0;
@@ -257,7 +264,7 @@ async fn play_files_task_inner(
         }
 
         warn!("current: {}", current_index);
-        Status::get().update_file(current_index);
+        status.update_file(current_index);
         let file = files_vec[current_index].clone();
         let reason = play_file(
             &fs,
@@ -267,6 +274,7 @@ async fn play_files_task_inner(
             skip_signal,
             paused,
             volume,
+            status,
         )
         .await;
 
@@ -370,6 +378,7 @@ async fn play_file<'a>(
     skip_signal: &'static Signal<CriticalSectionRawMutex, super::control::Skip>,
     paused: &'static AtomicBool,
     volume: &'static AtomicU8,
+    status: &'static Status,
 ) -> ExitReason {
     let Ok(mut file_handle) = file.data_reader(fs).await else {
         return ExitReason::Error;
@@ -472,7 +481,7 @@ async fn play_file<'a>(
 
         // send zero samples while paused
         if paused.load(Ordering::SeqCst) {
-            Status::get().update_state(State::Paused);
+            status.update_state(State::Paused);
 
             while paused.load(Ordering::SeqCst) {
                 dma_transfer
@@ -492,14 +501,14 @@ async fn play_file<'a>(
                     .print_err("I2S DMA transfer");
             }
 
-            Status::get().update_state(State::Playing);
+            status.update_state(State::Playing);
         }
 
         // Update position tracking
         bytes_read += next_block.len();
         let current_position = (bytes_read / 22050) as u32; // 2 samples per byte @ 44.1 kHz
         if current_position != last_position_update {
-            Status::get().update_position(current_position);
+            status.update_position(current_position);
             last_position_update = current_position;
         }
 

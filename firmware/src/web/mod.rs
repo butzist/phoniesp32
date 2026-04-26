@@ -13,7 +13,9 @@ use picoserve::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{entities::audio_file::AudioMetadata, player::PlayerHandle};
+use crate::{
+    entities::audio_file::AudioMetadata, player::PlayerHandle, player::Status, rfid::RfidHandle,
+};
 
 mod assets {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));
@@ -28,11 +30,28 @@ mod upload;
 pub struct AppState {
     fs: &'static crate::sd::SdFsWrapper,
     commands: PlayerHandle,
+    rfid_handle: RfidHandle,
 }
 
 impl AppState {
-    pub fn new(fs: &'static crate::sd::SdFsWrapper, commands: PlayerHandle) -> Self {
-        Self { fs, commands }
+    pub fn new(
+        fs: &'static crate::sd::SdFsWrapper,
+        commands: PlayerHandle,
+        rfid_handle: RfidHandle,
+    ) -> Self {
+        Self {
+            fs,
+            commands,
+            rfid_handle,
+        }
+    }
+
+    pub fn status(&self) -> &Status {
+        self.commands.status()
+    }
+
+    pub async fn get_last_fob(&self) -> Option<heapless::String<8>> {
+        self.rfid_handle.get_last_fob().await
     }
 }
 

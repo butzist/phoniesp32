@@ -22,8 +22,6 @@ use spi_bus::SpiDevice;
 
 type MyMfrc522 = Mfrc522<SpiDevice, Input<'static>, Output<'static>, mfrc522_async::Unknown>;
 
-pub static LAST_FOB: Mutex<CriticalSectionRawMutex, Option<String<8>>> = Mutex::new(None);
-
 pub enum RfidScanResult {
     Found(String<8>),
     NotFound,
@@ -33,6 +31,7 @@ pub enum RfidScanResult {
 pub struct RfidHandleInner {
     scan_trigger: Signal<CriticalSectionRawMutex, ()>,
     scan_result: Channel<NoopRawMutex, RfidScanResult, 1>,
+    last_fob: Mutex<CriticalSectionRawMutex, Option<String<8>>>,
 }
 
 impl RfidHandleInner {
@@ -43,6 +42,10 @@ impl RfidHandleInner {
     pub async fn wait_for_scan_result(&self) -> RfidScanResult {
         self.scan_result.receive().await
     }
+
+    pub async fn get_last_fob(&self) -> Option<String<8>> {
+        self.last_fob.lock().await.clone()
+    }
 }
 
 pub type RfidHandle = Rc<RfidHandleInner>;
@@ -51,6 +54,7 @@ pub fn new_rfid_handle() -> RfidHandle {
     Rc::new(RfidHandleInner {
         scan_trigger: Signal::new(),
         scan_result: Channel::new(),
+        last_fob: Mutex::new(None),
     })
 }
 
@@ -114,7 +118,7 @@ async fn rfid_task(mut rfid: MyMfrc522, handle: RfidHandle) {
                         );
 
                         let fob_str = String::try_from(hex_str.as_str()).unwrap();
-                        LAST_FOB.lock().await.replace(fob_str.clone());
+                        handle.last_fob.lock().await.replace(fob_str.clone());
                         info!("FOB scanned: {}", fob_str);
 
                         rfid = rfid_device

@@ -11,7 +11,7 @@ use crate::{
         audio_file::AudioFile,
         playlist::{PlayListRef, Playlist},
     },
-    player::status::{PlaylistWithMetadata, State, Status},
+    player::status::{PlaylistWithMetadata, State},
     web::AppState,
 };
 
@@ -34,8 +34,8 @@ pub struct StatusResponse {
 #[derive(Serialize)]
 pub struct CurrentPlaylistResponse(PlaylistWithMetadata);
 
-pub async fn status() -> impl IntoResponse {
-    let player_status = Status::get();
+pub async fn status(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    let player_status = state.status();
     let position = player_status.get_playback_position();
     let current_file = player_status.get_playback_status();
     let playlist = player_status.get_current_playlist();
@@ -52,8 +52,10 @@ pub async fn status() -> impl IntoResponse {
     })
 }
 
-pub async fn current_playlist() -> impl IntoResponse {
-    let player_status = Status::get();
+pub async fn current_playlist(
+    extract::State(state): extract::State<AppState>,
+) -> impl IntoResponse {
+    let player_status = state.status();
     let current_playlist = player_status.get_current_playlist();
 
     Json(current_playlist.map(CurrentPlaylistResponse))

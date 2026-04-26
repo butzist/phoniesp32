@@ -40,11 +40,9 @@ pub struct AssociationRequest {
     files: Vec<String<8>>,
 }
 
-pub async fn last() -> impl IntoResponse {
-    let last_fob = crate::rfid::LAST_FOB.lock().await;
-    Json(LastFob {
-        last_fob: last_fob.clone(),
-    })
+pub async fn last(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    let last_fob = state.get_last_fob().await;
+    Json(LastFob { last_fob })
 }
 
 pub async fn associate(
