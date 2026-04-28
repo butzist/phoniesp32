@@ -1,7 +1,7 @@
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either4, select4};
 use embassy_time::{Duration, Timer};
-use esp_hal::gpio::{AnyPin, Input, InputConfig, Pull};
+use esp_hal::gpio::{AnyPin, Event, Input, InputConfig, Pull, WaitForOptions, WakeEvent};
 
 use crate::player::PlayerHandle;
 
@@ -14,6 +14,7 @@ pub struct Button {
 impl Button {
     pub fn new(pin: AnyPin<'static>) -> Self {
         let input = Input::new(pin, InputConfig::default().with_pull(Pull::Up));
+
         Self {
             input,
             long_press_threshold: None,
@@ -35,14 +36,37 @@ impl Button {
     /// For buttons with repeat enabled, returns immediately on press
     /// For other buttons, waits for release to determine short/long press
     async fn wait_for_press(&mut self) -> PressType {
-        self.input.wait_for_high().await; // Make sure button is reset
+        self.input
+            .wait_for_with_options(
+                Event::HighLevel,
+                WaitForOptions::default().with_wake_enable(true),
+            )
+            .await
+            .unwrap(); // Make sure button is reset
+        self.input.wakeup_enable(true, WakeEvent::LowLevel).unwrap();
         Timer::after(Duration::from_millis(50)).await; // Debounce
-        self.input.wait_for_low().await; // Wait for press
+        self.input
+            .wait_for_with_options(
+                Event::LowLevel,
+                WaitForOptions::default().with_wake_enable(true),
+            )
+            .await
+            .unwrap(); // Wait for press
+        self.input
+            .wakeup_enable(true, WakeEvent::HighLevel)
+            .unwrap();
         Timer::after(Duration::from_millis(50)).await; // Debounce
 
         if let Some(long_press_threshold) = self.long_press_threshold {
             // Wait for release to determine press duration
-            match embassy_time::with_timeout(long_press_threshold, self.input.wait_for_high()).await
+            match embassy_time::with_timeout(
+                long_press_threshold,
+                self.input.wait_for_with_options(
+                    Event::HighLevel,
+                    WaitForOptions::default().with_wake_enable(true),
+                ),
+            )
+            .await
             {
                 Ok(_) => PressType::Short, // Released
                 Err(_) => PressType::Long, // Still held - trigger event
@@ -57,7 +81,10 @@ impl Button {
     async fn check_repeat(&mut self) -> bool {
         embassy_time::with_timeout(
             self.repeat_interval.unwrap_or(Duration::from_millis(500)),
-            self.input.wait_for_high(),
+            self.input.wait_for_with_options(
+                Event::HighLevel,
+                WaitForOptions::default().with_wake_enable(true),
+            ),
         )
         .await
         .is_err() // Not released
@@ -84,11 +111,16 @@ impl Controls {
         volume_down_pin: AnyPin<'static>,
         volume_up_pin: AnyPin<'static>,
     ) -> Self {
+        let play_pause = Button::new(play_pause_pin).with_long_press(1500);
+        let next_prev = Button::new(next_prev_pin).with_long_press(1500);
+        let volume_down = Button::new(volume_down_pin).with_repeat(500);
+        let volume_up = Button::new(volume_up_pin).with_repeat(500);
+
         Self {
-            play_pause: Button::new(play_pause_pin).with_long_press(1500),
-            next_prev: Button::new(next_prev_pin).with_long_press(1500),
-            volume_down: Button::new(volume_down_pin).with_repeat(500),
-            volume_up: Button::new(volume_up_pin).with_repeat(500),
+            play_pause,
+            next_prev,
+            volume_down,
+            volume_up,
         }
     }
 

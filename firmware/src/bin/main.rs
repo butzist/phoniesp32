@@ -12,7 +12,8 @@ use esp_hal::clock::CpuClock;
 use esp_hal::dma::DmaChannelConvert;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::rtc_cntl::Rtc;
-use esp_hal::rtc_cntl::sleep::TimerWakeupSource;
+use esp_hal::rtc_cntl::sleep::{GpioWakeupSource, TimerWakeupSource};
+use esp_hal::system::{SleepSource, wakeup_cause};
 use esp_hal::timer::timg::TimerGroup;
 use firmware::captive::CaptivePortal;
 use firmware::charger::Charger;
@@ -155,7 +156,13 @@ async fn main(spawner: Spawner) {
         } else {
             let timer_wakeup =
                 TimerWakeupSource::new(Duration::from_millis(scan_interval_ms).into());
-            rtc.sleep_light(&[&timer_wakeup]);
+            let gpio_wakeup = GpioWakeupSource::new();
+            rtc.sleep_light(&[&timer_wakeup, &gpio_wakeup]);
+
+            let source = wakeup_cause();
+            if matches!(source, SleepSource::Gpio) {
+                Timer::after(Duration::from_millis(500)).await;
+            }
         }
     }
 }

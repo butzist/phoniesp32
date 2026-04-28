@@ -1,6 +1,7 @@
 TARGET := "riscv32imac-unknown-none-elf"
 PROFILE := "release"
 TARGET_DIR := "target/" + TARGET + "/" + PROFILE
+FEATURES := "pinout_pcb"
 
 build-web:
 	cd ../web && just all
@@ -17,7 +18,7 @@ all: deps build
 all-nodeps: build
 
 build:
-	cargo build --release
+	cargo build --release --no-default-features --features {{FEATURES}}
 
 flash: build
 	espflash flash --chip esp32c6 {{TARGET_DIR}}/firmware
