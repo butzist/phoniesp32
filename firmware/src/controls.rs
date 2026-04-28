@@ -73,22 +73,22 @@ pub enum PressType {
 pub struct Controls {
     play_pause: Button,
     next_prev: Button,
-    volume_up: Button,
     volume_down: Button,
+    volume_up: Button,
 }
 
 impl Controls {
     pub fn new(
         play_pause_pin: AnyPin<'static>,
         next_prev_pin: AnyPin<'static>,
-        volume_up_pin: AnyPin<'static>,
         volume_down_pin: AnyPin<'static>,
+        volume_up_pin: AnyPin<'static>,
     ) -> Self {
         Self {
             play_pause: Button::new(play_pause_pin).with_long_press(1500),
             next_prev: Button::new(next_prev_pin).with_long_press(1500),
-            volume_up: Button::new(volume_up_pin).with_repeat(500),
             volume_down: Button::new(volume_down_pin).with_repeat(500),
+            volume_up: Button::new(volume_up_pin).with_repeat(500),
         }
     }
 
