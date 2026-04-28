@@ -14,14 +14,12 @@ use picoserve::{
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-use crate::{
-    entities::{
-        audio_file::{AudioFile, AudioMetadata},
-        playlist::{PlayListRef, Playlist},
-    },
-    sd::SdFileSystem,
-    web::{AppState, FileEntry},
+use crate::drivers::sd::SdFileSystem;
+use crate::entities::{
+    audio_file::{AudioFile, AudioMetadata},
+    playlist::{PlayListRef, Playlist},
 };
+use crate::services::web::{AppState, FileEntry};
 
 #[derive(Serialize)]
 pub struct Association {

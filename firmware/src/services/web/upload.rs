@@ -13,10 +13,8 @@ use picoserve::{
     routing::RequestHandlerService,
 };
 
-use crate::{
-    entities::audio_file::AudioFile,
-    web::{AppState, files::AudioFileName},
-};
+use crate::entities::audio_file::AudioFile;
+use crate::services::web::{files::AudioFileName, AppState};
 
 const BUFFER_SIZE: usize = 1024;
 

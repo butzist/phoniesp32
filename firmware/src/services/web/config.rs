@@ -4,7 +4,8 @@ use picoserve::{
     response::{IntoResponse, Response, StatusCode},
 };
 
-use crate::{DeviceConfig, web::AppState};
+use crate::services::web::AppState;
+use crate::DeviceConfig;
 
 pub async fn put(
     extract::State(state): extract::State<AppState>,

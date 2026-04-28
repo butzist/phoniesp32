@@ -14,7 +14,7 @@ use heapless::String;
 use mfrc522_async::{EnableError, Mfrc522};
 use unwrap_infallible::UnwrapInfallible;
 
-use crate::spi_bus;
+use crate::drivers::spi_bus;
 
 use {esp_backtrace as _, esp_println as _};
 

@@ -1,4 +1,5 @@
-use crate::{DeviceConfig, PrintErr, spi_bus};
+use crate::drivers::spi_bus;
+use crate::{DeviceConfig, PrintErr};
 
 use aligned::Aligned;
 use alloc::boxed::Box;

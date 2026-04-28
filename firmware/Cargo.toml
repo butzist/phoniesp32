@@ -21,33 +21,35 @@ mime_guess = "2.0"
 audio-file-utils = { path = "../audio-file-utils" }
 
 # ESP32 HAL
-esp-hal = { git = "https://github.com/esp-rs/esp-hal", features = [
+esp-hal = { git = "https://github.com/butzist/esp-hal", branch = "feat/gpio-wake", features = [
   "defmt",
   "esp32c6",
   "unstable",
 ] }
-esp-rtos = { git = "https://github.com/esp-rs/esp-hal", features = [
+esp-rtos = { git = "https://github.com/butzist/esp-hal", branch = "feat/gpio-wake", features = [
   "defmt",
   "embassy",
   "esp-alloc",
   "esp-radio",
   "esp32c6",
 ] }
-esp-bootloader-esp-idf = { git = "https://github.com/esp-rs/esp-hal", features = [
+esp-bootloader-esp-idf = { git = "https://github.com/butzist/esp-hal", branch = "feat/gpio-wake", features = [
   "defmt",
   "esp32c6",
 ] }
-esp-alloc = { git = "https://github.com/esp-rs/esp-hal", features = ["defmt"] }
-esp-backtrace = { git = "https://github.com/esp-rs/esp-hal", features = [
+esp-alloc = { git = "https://github.com/butzist/esp-hal", branch = "feat/gpio-wake", features = [
+  "defmt",
+] }
+esp-backtrace = { git = "https://github.com/butzist/esp-hal", branch = "feat/gpio-wake", features = [
   "defmt",
   "esp32c6",
   "panic-handler",
 ] }
-esp-println = { git = "https://github.com/esp-rs/esp-hal", features = [
+esp-println = { git = "https://github.com/butzist/esp-hal", branch = "feat/gpio-wake", features = [
   "defmt-espflash",
   "esp32c6",
 ] }
-esp-radio = { git = "https://github.com/esp-rs/esp-hal", features = [
+esp-radio = { git = "https://github.com/butzist/esp-hal", branch = "feat/gpio-wake", features = [
   "defmt",
   "esp-alloc",
   "esp32c6",

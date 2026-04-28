@@ -12,20 +12,19 @@ use esp_hal::clock::CpuClock;
 use esp_hal::dma::DmaChannelConvert;
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::rtc_cntl::Rtc;
-use esp_hal::rtc_cntl::sleep::TimerWakeupSource;
+use esp_hal::rtc_cntl::sleep::{GpioWakeupSource, TimerWakeupSource};
+use esp_hal::system::{SleepSource, wakeup_cause};
 use esp_hal::timer::timg::TimerGroup;
-use firmware::captive::CaptivePortal;
-use firmware::charger::Charger;
-use firmware::controls::Controls;
-use firmware::mdns::MdnsResponder;
+use firmware::controllers::network::NetworkController;
+use firmware::drivers::charger::Charger;
+use firmware::drivers::controls::Controls;
+use firmware::drivers::rfid::Rfid;
+use firmware::drivers::sd::Sd;
+use firmware::drivers::spi_bus;
 use firmware::peripherals::create_peripherals;
 use firmware::player::Player;
 use firmware::player::status::State;
-use firmware::radio::Radio;
-use firmware::rfid::Rfid;
-use firmware::sd::Sd;
-use firmware::web::WebTask;
-use firmware::{mk_static, sd::SdFsWrapper, spi_bus};
+use firmware::{drivers::sd::SdFsWrapper, mk_static};
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
@@ -103,33 +102,19 @@ async fn main(spawner: Spawner) {
     let charger = Charger::new(peripherals.charger.pin, peripherals.charger.connected_level);
     let mut charger_monitor = charger.spawn(&spawner);
 
-    info!("Starting radio");
-    let radio = Radio::new(peripherals.radio_wifi, peripherals.radio.pin, device_config);
-    let (stack, is_ap) = radio.spawn(charger_monitor.clone(), &spawner).await;
+    let wifi_config = device_config.clone();
+    let radio = firmware::radio::Radio::new(peripherals.radio_wifi, peripherals.radio.pin, device_config);
 
-    if is_ap {
-        info!("Starting captive portal");
-        let captive = CaptivePortal::new(stack);
-        captive.spawn(&spawner);
-    }
-
-    info!("Starting mDNS responder");
-    let mdns = MdnsResponder::new(stack);
-    mdns.spawn(&spawner);
-
-    let web_app = firmware::web::WebApp::default();
-    let web_app_state = mk_static!(
-        firmware::web::AppState,
-        firmware::web::AppState::new(fs, player_handle.clone(), rfid_handle.clone())
+    info!("Starting network controller");
+    let network_controller = NetworkController::new(
+        radio,
+        wifi_config,
+        charger_monitor.clone(),
+        fs,
+        player_handle.clone(),
+        rfid_handle.clone(),
     );
-
-    for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
-        info!("Starting web task");
-        let web_task = WebTask::new(id, stack, web_app.router, web_app.config, web_app_state);
-        web_task.spawn(&spawner);
-    }
-
-    info!("Web server started...");
+    network_controller.spawn(&spawner);
 
     loop {
         rfid_handle.trigger_scan();
@@ -138,7 +123,7 @@ async fn main(spawner: Spawner) {
         let is_charging = charger_monitor.is_connected();
 
         let scan_interval_ms = match rfid_handle.wait_for_scan_result().await {
-            firmware::rfid::RfidScanResult::Found(fob) => {
+            firmware::drivers::rfid::RfidScanResult::Found(fob) => {
                 player_handle
                     .play_playlist_ref(firmware::entities::playlist::PlayListRef::new(fob))
                     .await;
@@ -146,8 +131,8 @@ async fn main(spawner: Spawner) {
 
                 5000
             }
-            firmware::rfid::RfidScanResult::NotFound => 500,
-            firmware::rfid::RfidScanResult::Error => 1000,
+            firmware::drivers::rfid::RfidScanResult::NotFound => 500,
+            firmware::drivers::rfid::RfidScanResult::Error => 1000,
         };
 
         if is_charging || is_playing {
@@ -155,7 +140,13 @@ async fn main(spawner: Spawner) {
         } else {
             let timer_wakeup =
                 TimerWakeupSource::new(Duration::from_millis(scan_interval_ms).into());
-            rtc.sleep_light(&[&timer_wakeup]);
+            let gpio_wakeup = GpioWakeupSource::new();
+            rtc.sleep_light(&[&timer_wakeup, &gpio_wakeup]);
+
+            let source = wakeup_cause();
+            if matches!(source, SleepSource::Gpio) {
+                Timer::after(Duration::from_millis(500)).await;
+            }
         }
     }
 }

@@ -6,14 +6,12 @@ use picoserve::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    entities::{
-        audio_file::AudioFile,
-        playlist::{PlayListRef, Playlist},
-    },
-    player::status::{PlaylistWithMetadata, State},
-    web::AppState,
+use crate::entities::{
+    audio_file::AudioFile,
+    playlist::{PlayListRef, Playlist},
 };
+use crate::player::status::{PlaylistWithMetadata, State};
+use crate::services::web::AppState;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]

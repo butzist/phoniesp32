@@ -13,8 +13,9 @@ use picoserve::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::drivers::rfid::RfidHandle;
 use crate::{
-    entities::audio_file::AudioMetadata, player::PlayerHandle, player::Status, rfid::RfidHandle,
+    entities::audio_file::AudioMetadata, player::PlayerHandle, player::Status,
 };
 
 mod assets {
@@ -28,14 +29,14 @@ mod upload;
 
 #[derive(Clone)]
 pub struct AppState {
-    fs: &'static crate::sd::SdFsWrapper,
+    fs: &'static crate::drivers::sd::SdFsWrapper,
     commands: PlayerHandle,
     rfid_handle: RfidHandle,
 }
 
 impl AppState {
     pub fn new(
-        fs: &'static crate::sd::SdFsWrapper,
+    fs: &'static crate::drivers::sd::SdFsWrapper,
         commands: PlayerHandle,
         rfid_handle: RfidHandle,
     ) -> Self {
@@ -158,7 +159,7 @@ impl PathRouterService<AppState, ()> for Fallback {
 
         routing::get_service(File::with_content_type_and_headers(
             "text/html",
-            include_bytes!("../../public/index.html.gz"),
+            include_bytes!("../../../public/index.html.gz"),
             &[("Content-Encoding", "gzip")],
         ))
         .call_method_handler(state, current_path_parameters, request, response_writer)

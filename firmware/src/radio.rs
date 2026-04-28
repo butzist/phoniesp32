@@ -1,10 +1,8 @@
 use core::net::Ipv4Addr;
 
 use embassy_executor::Spawner;
-use embassy_futures::select::{Either, select};
 use embassy_net::{DhcpConfig, Ipv4Cidr, Runner, Stack, StackResources, StaticConfigV4};
 use embassy_time::{Duration, Timer};
-use enumset::EnumSet;
 use esp_hal::{
     gpio::{AnyPin, Level, Output, OutputConfig},
     peripherals::WIFI,
@@ -12,13 +10,13 @@ use esp_hal::{
 };
 use esp_println::println;
 use esp_radio::wifi::{
-    self, WifiAccessPointState, WifiController, WifiDevice, WifiError, WifiEvent, WifiStationState,
+    self, WifiController, WifiDevice, WifiError,
     ap::AccessPointConfig,
 };
 
-use crate::{DeviceConfig, charger::ChargerMonitor, extend_to_static};
+use crate::DeviceConfig;
 
-const NUM_SOCKETS: usize = crate::web::WEB_TASK_POOL_SIZE + 5;
+const NUM_SOCKETS: usize = crate::services::web::WEB_TASK_POOL_SIZE + 5;
 
 pub struct Radio {
     wifi: WIFI<'static>,
@@ -33,64 +31,66 @@ impl Radio {
 
     pub async fn spawn(
         self,
-        charger_monitor: ChargerMonitor,
         spawner: &Spawner,
-    ) -> (Stack<'static>, bool) {
-        let mut rng = esp_hal::rng::Rng::new();
+    ) -> (
+        Stack<'static>,
+        WifiController<'static>,
+        Output<'static>,
+        bool,
+    ) {
+        let mut rng = Rng::new();
         let wifi_led = Output::new(self.led, Level::Low, OutputConfig::default());
 
-        let (controller, interfaces) = esp_radio::wifi::new(self.wifi, Default::default()).unwrap();
+        let (mut controller, interfaces) =
+            esp_radio::wifi::new(self.wifi, Default::default()).unwrap();
         println!("Device capabilities: {:?}", controller.capabilities());
 
-        let stack_resources = mk_static!(StackResources::<NUM_SOCKETS>, StackResources::new());
-
-        // try to connect to AP if credentials are configured
         if let Some(config) = self.config {
+            let stack_resources =
+                mk_static!(StackResources::<NUM_SOCKETS>, StackResources::new());
             match try_start_wifi_sta(
                 controller,
                 wifi_led,
                 interfaces.station,
                 &mut rng,
-                // SAFETY: will only use stack resources if connection is successful
-                unsafe { extend_to_static(stack_resources) },
+                stack_resources,
                 config.clone(),
-                charger_monitor.clone(),
                 spawner,
             )
             .await
             {
-                Ok(stack) => {
-                    return (stack, false);
+                Ok((stack, controller, led)) => {
+                    return (stack, controller, led, false);
                 }
-                Err((controller, led)) => {
-                    // Fall through to AP mode with the returned controller and led
-                    let stack = start_wifi_ap(
+                Err((ctrl, led)) => {
+                    controller = ctrl;
+                    let stack_resources =
+                        mk_static!(StackResources::<NUM_SOCKETS>, StackResources::new());
+                    let (stack, ctrl, led) = start_wifi_ap(
                         controller,
                         led,
                         interfaces.access_point,
                         &mut rng,
                         stack_resources,
-                        charger_monitor,
                         spawner,
                     )
                     .await;
-                    return (stack, true);
+                    return (stack, ctrl, led, true);
                 }
             }
         }
 
-        // Start in AP mode if no config
-        let stack = start_wifi_ap(
+        let stack_resources = mk_static!(StackResources::<NUM_SOCKETS>, StackResources::new());
+        let (stack, ctrl, led) = start_wifi_ap(
             controller,
             wifi_led,
             interfaces.access_point,
             &mut rng,
             stack_resources,
-            charger_monitor,
             spawner,
         )
         .await;
-        (stack, true)
+        (stack, ctrl, led, true)
     }
 }
 
@@ -101,15 +101,16 @@ async fn try_start_wifi_sta(
     rng: &mut Rng,
     stack_resources: &'static mut StackResources<NUM_SOCKETS>,
     config: DeviceConfig,
-    charger_monitor: ChargerMonitor,
     spawner: &Spawner,
-) -> Result<Stack<'static>, (WifiController<'static>, Output<'static>)> {
+) -> Result<
+    (Stack<'static>, WifiController<'static>, Output<'static>),
+    (WifiController<'static>, Output<'static>),
+> {
     let net_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
 
     let dhcp_config = DhcpConfig::default();
     let net_config = embassy_net::Config::dhcpv4(dhcp_config);
 
-    // Init network stack
     let (stack, runner) = embassy_net::new(device, net_config, stack_resources, net_seed);
 
     let mut last_error = None;
@@ -128,28 +129,23 @@ async fn try_start_wifi_sta(
         return Err((controller, led));
     }
 
-    spawner
-        .spawn(connection_task(
-            Some(config),
-            controller,
-            led,
-            charger_monitor,
-        ))
-        .unwrap();
     spawner.spawn(net_task(runner)).unwrap();
 
-    Ok(stack)
+    Ok((stack, controller, led))
 }
 
-pub async fn start_wifi_ap(
+async fn start_wifi_ap(
     mut controller: WifiController<'static>,
     led: Output<'static>,
     device: WifiDevice<'static>,
     rng: &mut Rng,
     stack_resources: &'static mut StackResources<NUM_SOCKETS>,
-    charger_monitor: ChargerMonitor,
     spawner: &Spawner,
-) -> Stack<'static> {
+) -> (
+    Stack<'static>,
+    WifiController<'static>,
+    Output<'static>,
+) {
     let net_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
 
     let net_config = embassy_net::Config::ipv4_static(StaticConfigV4 {
@@ -158,87 +154,16 @@ pub async fn start_wifi_ap(
         dns_servers: Default::default(),
     });
 
-    // Init network stack
     let (stack, runner) = embassy_net::new(device, net_config, stack_resources, net_seed);
 
     wifi_listen(&mut controller).await;
 
-    spawner
-        .spawn(connection_task(None, controller, led, charger_monitor))
-        .unwrap();
     spawner.spawn(net_task(runner)).unwrap();
 
-    stack
+    (stack, controller, led)
 }
 
-#[embassy_executor::task]
-async fn connection_task(
-    config: Option<DeviceConfig>,
-    mut controller: WifiController<'static>,
-    mut pin: Output<'static>,
-    mut charger_monitor: ChargerMonitor,
-) {
-    println!("start connection task");
-    let stopped_events = EnumSet::from_iter([
-        WifiEvent::StationDisconnected,
-        WifiEvent::StationStop,
-        WifiEvent::AccessPointStop,
-    ]);
-    loop {
-        let desired_state = charger_monitor.is_connected();
-        let actual_state = matches!(controller.is_started(), Ok(true));
-
-        match (desired_state, actual_state) {
-            (true, true) => {
-                println!("Wifi running");
-
-                let connected = esp_radio::wifi::station_state() == WifiStationState::Connected
-                    || esp_radio::wifi::access_point_state() == WifiAccessPointState::Started;
-                if connected {
-                    pin.set_high();
-
-                    // wait until we're no longer connected
-                    let controller_future = controller.wait_for_events(stopped_events, false);
-                    let charger_future = charger_monitor.wait_for_event();
-                    match select(controller_future, charger_future).await {
-                        Either::First(_) => {
-                            // disconnected
-                        }
-                        Either::Second(_) => {
-                            continue;
-                        }
-                    }
-                }
-
-                println!("Wifi disconnected");
-                controller.stop_async().await.unwrap();
-                pin.set_low();
-            }
-            (true, false) => {
-                println!("Wifi needs to be started");
-
-                if let Some(config) = &config {
-                    wifi_connect(config, &mut controller).await.ok();
-                } else {
-                    wifi_listen(&mut controller).await;
-                }
-            }
-            (false, true) => {
-                println!("Wifi stopping...");
-
-                controller.stop_async().await.unwrap();
-            }
-            (false, false) => {
-                println!("Wifi off - waiting for charger plugged in");
-
-                pin.set_low();
-                charger_monitor.wait_for_event().await;
-            }
-        }
-    }
-}
-
-async fn wifi_connect(
+pub async fn wifi_connect(
     config: &DeviceConfig,
     controller: &mut WifiController<'static>,
 ) -> Result<(), WifiError> {
@@ -270,7 +195,7 @@ async fn wifi_connect(
     connect_result
 }
 
-async fn wifi_listen(controller: &mut WifiController<'static>) {
+pub async fn wifi_listen(controller: &mut WifiController<'static>) {
     if !matches!(controller.is_started(), Ok(true)) {
         let ap_config = AccessPointConfig::default()
             .with_ssid(alloc::string::String::from("phoniesp32"))
