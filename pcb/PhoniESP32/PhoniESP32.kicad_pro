@@ -240,7 +240,7 @@
       "internal_id": "",
       "mfg": "",
       "mpn": "",
-      "sch_revision": ""
+      "sch_revision": "v1.1"
     },
     "layer_pairs": [],
     "layer_presets": [],
@@ -593,6 +593,24 @@
           "show": true
         },
         {
+          "group_by": false,
+          "label": "LCSC",
+          "name": "LCSC",
+          "show": true
+        },
+        {
+          "group_by": false,
+          "label": "LCSC Part",
+          "name": "LCSC Part",
+          "show": true
+        },
+        {
+          "group_by": false,
+          "label": "MPN",
+          "name": "MPN",
+          "show": true
+        },
+        {
           "group_by": true,
           "label": "Footprint",
           "name": "Footprint",
@@ -644,18 +662,6 @@
           "group_by": false,
           "label": "Forward Voltage (VF)",
           "name": "Forward Voltage (VF)",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "LCSC",
-          "name": "LCSC",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "LCSC Part",
-          "name": "LCSC Part",
           "show": false
         },
         {
@@ -885,6 +891,12 @@
           "label": "Actuator/Cap Color",
           "name": "Actuator/Cap Color",
           "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Diode Configuration",
+          "name": "Diode Configuration",
+          "show": false
         }
       ],
       "filter_string": "",
@@ -943,7 +955,7 @@
         "uuid": "a246d5c1-33d2-4ce4-8f5f-6a6b3acd3d9a"
       }
     ],
-    "used_designators": "",
+    "used_designators": "TP12-14",
     "variants": []
   },
   "sheets": [
