@@ -1,15 +1,18 @@
+use defmt::info;
 use embedded_io_async::Write;
 use picoserve::{
     extract,
     response::{IntoResponse, Response, StatusCode},
 };
 
-use crate::{DeviceConfig, web::AppState};
+use crate::DeviceConfig;
+use crate::services::web::AppState;
 
 pub async fn put(
     extract::State(state): extract::State<AppState>,
     extract::Json(req): extract::Json<DeviceConfig>,
 ) -> impl IntoResponse {
+    info!("WebAPI: config saved");
     let fs_guard = state.fs.borrow_mut().await;
     let root = fs_guard.root_dir();
 
@@ -25,6 +28,7 @@ pub async fn put(
 }
 
 pub async fn delete(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    info!("WebAPI: config deleted");
     let fs_guard = state.fs.borrow_mut().await;
     let root = fs_guard.root_dir();
 

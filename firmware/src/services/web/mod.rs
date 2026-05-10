@@ -1,3 +1,4 @@
+use defmt::info;
 use embassy_executor::Spawner;
 use embassy_net::Stack;
 use embassy_time::Duration;
@@ -13,9 +14,8 @@ use picoserve::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    entities::audio_file::AudioMetadata, player::PlayerHandle, player::Status, rfid::RfidHandle,
-};
+use crate::drivers::rfid::RfidHandle;
+use crate::{entities::audio_file::AudioMetadata, player::PlayerHandle, player::Status};
 
 mod assets {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));
@@ -28,14 +28,14 @@ mod upload;
 
 #[derive(Clone)]
 pub struct AppState {
-    fs: &'static crate::sd::SdFsWrapper,
+    fs: &'static crate::drivers::sd::SdFsWrapper,
     commands: PlayerHandle,
     rfid_handle: RfidHandle,
 }
 
 impl AppState {
     pub fn new(
-        fs: &'static crate::sd::SdFsWrapper,
+        fs: &'static crate::drivers::sd::SdFsWrapper,
         commands: PlayerHandle,
         rfid_handle: RfidHandle,
     ) -> Self {
@@ -158,7 +158,7 @@ impl PathRouterService<AppState, ()> for Fallback {
 
         routing::get_service(File::with_content_type_and_headers(
             "text/html",
-            include_bytes!("../../public/index.html.gz"),
+            include_bytes!("../../../public/index.html.gz"),
             &[("Content-Encoding", "gzip")],
         ))
         .call_method_handler(state, current_path_parameters, request, response_writer)
@@ -290,6 +290,7 @@ async fn web_task(
 
     let app_with_state = &router.shared().with_state(state);
 
+    info!("WebServer: task {} listening on port {}", id, port);
     loop {
         let _shutdown_reason = picoserve::Server::new(app_with_state, config, &mut http_buffer)
             .listen_and_serve(id, stack, port, &mut tcp_rx_buffer, &mut tcp_tx_buffer)

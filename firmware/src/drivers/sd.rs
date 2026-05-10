@@ -1,4 +1,5 @@
-use crate::{DeviceConfig, PrintErr, spi_bus};
+use crate::drivers::spi_bus;
+use crate::{DeviceConfig, PrintErr};
 
 use aligned::Aligned;
 use alloc::boxed::Box;
@@ -78,7 +79,7 @@ where
                     if FAT_PARTITION_TYPES.contains(&partition_type) && start_lba > 0 {
                         let partition_size = sector_count as u64 * 512;
                         info!(
-                            "Found valid partition {}: type={:#02x}, start_lba={}, sectors={}, size={}",
+                            "SD: found valid partition {}: type={:#02x}, start_lba={}, sectors={}, size={}",
                             i + 1,
                             partition_type,
                             start_lba,
@@ -93,10 +94,10 @@ where
                     }
                 }
             } else {
-                info!("No valid MBR signature found, assuming raw FAT filesystem");
+                info!("SD: no valid MBR signature found, assuming raw FAT filesystem");
             }
         } else {
-            info!("Failed to read MBR, assuming raw FAT filesystem");
+            info!("SD: failed to read MBR, assuming raw FAT filesystem");
         }
 
         let total_size = inner.size().await.unwrap_or(0);
@@ -209,7 +210,7 @@ impl SdFsWrapper {
         stop_fn_guard: &mut MutexGuard<'_, CriticalSectionRawMutex, Option<StopFn>>,
     ) {
         if let Some(ref stop_fn) = **stop_fn_guard {
-            warn!("Stopping running player");
+            warn!("SD: stopping running player");
             stop_fn().await;
             // Give player time to actually stop
             embassy_time::Timer::after_millis(100).await;
@@ -254,7 +255,7 @@ impl Sd {
             match sdspi::sd_init(&mut *spi.lock().await, &mut cs_init).await {
                 Ok(_) => break,
                 Err(e) => {
-                    warn!("Sd init error: {:?}", e);
+                    warn!("SD: init error: {:?}", e);
                     embassy_time::Timer::after_millis(10).await;
                 }
             }
@@ -278,22 +279,22 @@ impl Sd {
                         .with_mode(esp_hal::spi::Mode::_0),
                 );
 
-                info!("Initialization complete!");
+                info!("SD: initialization complete!");
 
                 break;
             }
-            info!("Failed to init card, retrying...");
+            info!("SD: failed to init card, retrying...");
             embassy_time::Delay.delay_ns(5000u32).await;
         }
 
         let sd_size = sd.size().await.unwrap();
-        info!("SD card size: {}", sd_size);
+        info!("SD: card size: {}", sd_size);
 
         let sd = PartitionSlice::new(sd).await;
         let inner = BufStream::<_, 512>::new(sd);
         let fs = embedded_fatfs::FileSystem::new(inner, FsOptions::new())
             .await
-            .print_err("open filesystem")
+            .print_err("SD: open filesystem")
             .unwrap();
 
         let root_dir = fs.root_dir();

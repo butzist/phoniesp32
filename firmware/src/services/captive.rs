@@ -1,12 +1,12 @@
 use core::net::{Ipv4Addr, SocketAddr};
 
+use defmt::{info, warn};
 use edge_dhcp::io::DEFAULT_SERVER_PORT;
 use edge_nal::UdpBind;
 use edge_nal_embassy::{Udp, UdpBuffers};
 use embassy_executor::Spawner;
 use embassy_net::Stack;
 use embassy_time::Timer;
-use esp_println::println;
 
 const AP_IP: Ipv4Addr = Ipv4Addr::new(192, 168, 42, 1);
 const CAPTIVE_DNS_PORT: u16 = 53;
@@ -28,7 +28,7 @@ impl CaptivePortal {
 
 #[embassy_executor::task]
 async fn dhcp_task(stack: Stack<'static>) {
-    println!("Starting DHCP server");
+    info!("CaptivePortal: starting DHCP server");
 
     let mut server = edge_dhcp::server::Server::<_, 8>::new_with_et(AP_IP);
 
@@ -52,16 +52,19 @@ async fn dhcp_task(stack: Stack<'static>) {
 
         match udp.bind(socket_addr).await {
             Ok(mut socket) => {
-                println!("DHCP server listening on port {}", DEFAULT_SERVER_PORT);
+                info!(
+                    "CaptivePortal: DHCP server listening on port {}",
+                    DEFAULT_SERVER_PORT
+                );
                 if let Err(e) =
                     edge_dhcp::io::server::run(&mut server, &server_options, &mut socket, &mut buf)
                         .await
                 {
-                    println!("DHCP server error: {:?}", e);
+                    warn!("CaptivePortal: DHCP server error: {:?}", e);
                 }
             }
             Err(e) => {
-                println!("DHCP bind error: {:?}", e);
+                warn!("CaptivePortal: DHCP bind error: {:?}", e);
             }
         }
 
@@ -71,7 +74,7 @@ async fn dhcp_task(stack: Stack<'static>) {
 
 #[embassy_executor::task]
 async fn captive_dns_task(stack: Stack<'static>) {
-    println!("Starting captive DNS server");
+    info!("CaptivePortal: starting captive DNS server");
 
     let udp_buffers = mk_static!(UdpBuffers<1>, UdpBuffers::new());
     let udp = Udp::new(stack, udp_buffers);
@@ -98,10 +101,10 @@ async fn captive_dns_task(stack: Stack<'static>) {
         .await
         {
             Ok(_) => {
-                println!("Captive DNS completed");
+                info!("CaptivePortal: captive DNS completed");
             }
             Err(e) => {
-                println!("Captive DNS error: {:?}", e);
+                warn!("CaptivePortal: captive DNS error: {:?}", e);
             }
         }
 

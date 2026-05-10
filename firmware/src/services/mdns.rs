@@ -1,4 +1,5 @@
 use core::net::Ipv4Addr;
+use defmt::{info, warn};
 use edge_mdns::buf::{BufferAccess, VecBufAccess};
 use edge_mdns::domain::base::Ttl;
 use edge_mdns::io::{self, DEFAULT_SOCKET, MdnsIoError};
@@ -10,7 +11,6 @@ use embassy_net::Stack;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::signal::Signal;
 use embassy_time::{Duration, Timer};
-use esp_println::println;
 
 const SERVICE_NAME: &str = "phoniesp32";
 
@@ -30,7 +30,7 @@ impl MdnsResponder {
 
 #[embassy_executor::task]
 async fn mdns_responder(stack: Stack<'static>) {
-    println!("Starting mDNS responder for {}", SERVICE_NAME);
+    info!("mDNS: starting responder for {}", SERVICE_NAME);
 
     let (recv_buf, send_buf) = mk_static!(
         (
@@ -49,11 +49,11 @@ async fn mdns_responder(stack: Stack<'static>) {
         let udp = Udp::new(stack, udp_buffers);
         match run_mdns(udp, recv_buf, send_buf, &signal, ipv4).await {
             Ok(_) => {
-                println!("mDNS responder completed successfully");
+                info!("mDNS: responder completed");
                 Timer::after(Duration::from_secs(1)).await;
             }
             Err(e) => {
-                println!("mDNS responder error: {:?}", e);
+                warn!("mDNS: responder error: {}", defmt::Debug2Format(&e));
                 Timer::after(Duration::from_secs(5)).await;
             }
         }
@@ -67,7 +67,7 @@ async fn wait_for_network_ready(stack: &Stack<'_>) -> Ipv4Addr {
         {
             let ip = config.address.address();
             if !ip.is_unspecified() {
-                println!("Network ready, IP: {}", ip);
+                info!("mDNS: network ready, IP: {}", ip);
                 return ip;
             }
         }

@@ -13,10 +13,8 @@ use picoserve::{
     routing::RequestHandlerService,
 };
 
-use crate::{
-    entities::audio_file::AudioFile,
-    web::{AppState, files::AudioFileName},
-};
+use crate::entities::audio_file::AudioFile;
+use crate::services::web::{AppState, files::AudioFileName};
 
 const BUFFER_SIZE: usize = 1024;
 
@@ -95,7 +93,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for UploadService {
             .await;
             write_res.unwrap();
             last_read_size = read_res?;
-            debug!("read OK");
+            debug!("Upload: read OK");
 
             (write_buffer, read_buffer) = (read_buffer, write_buffer);
 
@@ -121,14 +119,14 @@ async fn write_all<W: Write>(w: &mut W, buf: &[u8], size: usize) -> Result<(), W
 where
     W::Error: defmt::Format,
 {
-    debug!("writing {} bytes", size);
+    debug!("Upload: writing {} bytes", size);
     match w.write_all(&buf[..size]).await {
         Ok(_) => {
-            debug!("write OK");
+            debug!("Upload: write OK");
             Ok(())
         }
         Err(err) => {
-            error!("write Error: {:?}", err);
+            error!("Upload: write error: {:?}", err);
             Err(err)
         }
     }
@@ -310,23 +308,23 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for HeadFileService {
 }
 
 async fn read_max<R: Read>(r: &mut R, buf: &mut [u8]) -> Result<usize, R::Error> {
-    debug!("reading {} bytes", buf.len());
+    debug!("Upload: reading {} bytes", buf.len());
     let mut buffer_pos = 0;
     while buffer_pos < buf.len() {
         match r.read(&mut buf[buffer_pos..]).await {
             Ok(0) => {
-                debug!("read EOF");
+                debug!("Upload: read EOF");
                 break;
             }
             Ok(n) => {
                 buffer_pos += n;
             }
             Err(e) => {
-                error!("read Error");
+                error!("Upload: read error");
                 return Err(e);
             }
         }
     }
-    debug!("read OK");
+    debug!("Upload: read OK");
     Ok(buffer_pos)
 }

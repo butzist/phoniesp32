@@ -5,8 +5,8 @@ use defmt::warn;
 use heapless::String;
 use serde::Serialize;
 
+use crate::drivers::sd::{FileHandle, SdFileSystem};
 use crate::entities::basename;
-use crate::sd::{FileHandle, SdFileSystem};
 use crate::{PrintErr, with_extension};
 use audio_file_utils::metadata::{INFO_CHUNK_SIZE, extract_metadata};
 use embedded_io_async::{Seek, SeekFrom};

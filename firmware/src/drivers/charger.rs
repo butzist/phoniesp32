@@ -28,7 +28,7 @@ impl Charger {
         let watch = mk_static!(Watch<CriticalSectionRawMutex, ChargerState, NUM_RECEIVERS>, Watch::new_with(initial_state));
 
         info!(
-            "Initial charger state: {}",
+            "Charger: initial state: {}",
             if initial_state == ChargerState::Connected {
                 "connected"
             } else {
@@ -64,7 +64,7 @@ impl Charger {
 
             if current_connected != last_connected {
                 info!(
-                    "Charger event: {}",
+                    "Charger: event: {}",
                     if current_connected == ChargerState::Connected {
                         "plugged in"
                     } else {

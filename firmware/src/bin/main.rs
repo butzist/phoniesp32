@@ -15,18 +15,17 @@ use esp_hal::rtc_cntl::Rtc;
 use esp_hal::rtc_cntl::sleep::{GpioWakeupSource, TimerWakeupSource};
 use esp_hal::system::{SleepSource, wakeup_cause};
 use esp_hal::timer::timg::TimerGroup;
-use firmware::captive::CaptivePortal;
-use firmware::charger::Charger;
-use firmware::controls::Controls;
-use firmware::mdns::MdnsResponder;
+use firmware::controllers::network::NetworkController;
+use firmware::drivers::charger::Charger;
+use firmware::drivers::controls::Controls;
+use firmware::drivers::indicator::IndicatorLed;
+use firmware::drivers::rfid::Rfid;
+use firmware::drivers::sd::Sd;
+use firmware::drivers::spi_bus;
 use firmware::peripherals::create_peripherals;
 use firmware::player::Player;
 use firmware::player::status::State;
-use firmware::radio::Radio;
-use firmware::rfid::Rfid;
-use firmware::sd::Sd;
-use firmware::web::WebTask;
-use firmware::{mk_static, sd::SdFsWrapper, spi_bus};
+use firmware::{drivers::sd::SdFsWrapper, mk_static};
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
@@ -53,7 +52,7 @@ async fn main(spawner: Spawner) {
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 65536);
     esp_alloc::heap_allocator!(size: 65536);
 
-    info!("Embassy initialized!");
+    info!("Main: Embassy initialized!");
 
     let shared_bus = spi_bus::make_shared_spi(
         peripherals.spi_spi2.into(),
@@ -66,8 +65,9 @@ async fn main(spawner: Spawner) {
 
     let (device_config, fs) = sd.init().await;
     let fs = mk_static!(SdFsWrapper, fs);
-    info!("Config: {:?}", &device_config);
+    info!("Main: Config: {:?}", &device_config);
 
+    info!("Main: Starting player");
     let player = Player::new(
         peripherals.player_i2s.into(),
         peripherals.player_dma,
@@ -81,7 +81,7 @@ async fn main(spawner: Spawner) {
     info!("Starting player");
     let player_handle = player.spawn(&spawner);
 
-    info!("Starting controls");
+    info!("Main: Starting controls");
     let controls = Controls::new(
         peripherals.controls.btn_a,
         peripherals.controls.btn_b,
@@ -90,7 +90,7 @@ async fn main(spawner: Spawner) {
     );
     controls.spawn(&spawner, player_handle.clone());
 
-    info!("Starting RFID");
+    info!("Main: Starting RFID");
     let rfid = Rfid::new(
         shared_bus,
         peripherals.rfid_cs,
@@ -100,37 +100,28 @@ async fn main(spawner: Spawner) {
     .await;
     let rfid_handle = rfid.spawn(&spawner);
 
-    info!("Starting charger");
+    info!("Main: Starting charger monitor");
     let charger = Charger::new(peripherals.charger.pin, peripherals.charger.connected_level);
     let mut charger_monitor = charger.spawn(&spawner);
 
-    info!("Starting radio");
-    let radio = Radio::new(peripherals.radio_wifi, peripherals.radio.pin, device_config);
-    let (stack, is_ap) = radio.spawn(charger_monitor.clone(), &spawner).await;
+    let indicator = IndicatorLed::new(peripherals.radio.pin);
+    let indicator_handle = indicator.spawn(&spawner);
 
-    if is_ap {
-        info!("Starting captive portal");
-        let captive = CaptivePortal::new(stack);
-        captive.spawn(&spawner);
-    }
+    let radio = firmware::drivers::radio::Radio::new(peripherals.radio_wifi);
+    let radio_handle = radio.spawn(&spawner).await;
 
-    info!("Starting mDNS responder");
-    let mdns = MdnsResponder::new(stack);
-    mdns.spawn(&spawner);
+    let wifi_handle = firmware::controllers::wifi::WifiManager::new(
+        radio_handle,
+        indicator_handle,
+        device_config,
+        charger_monitor.clone(),
+    )
+    .spawn(&spawner);
 
-    let web_app = firmware::web::WebApp::default();
-    let web_app_state = mk_static!(
-        firmware::web::AppState,
-        firmware::web::AppState::new(fs, player_handle.clone(), rfid_handle.clone())
-    );
-
-    for id in 0..firmware::web::WEB_TASK_POOL_SIZE {
-        info!("Starting web task");
-        let web_task = WebTask::new(id, stack, web_app.router, web_app.config, web_app_state);
-        web_task.spawn(&spawner);
-    }
-
-    info!("Web server started...");
+    info!("Main: Starting network controller");
+    let network_controller =
+        NetworkController::new(wifi_handle, fs, player_handle.clone(), rfid_handle.clone());
+    network_controller.spawn(&spawner);
 
     loop {
         rfid_handle.trigger_scan();
@@ -139,7 +130,7 @@ async fn main(spawner: Spawner) {
         let is_charging = charger_monitor.is_connected();
 
         let scan_interval_ms = match rfid_handle.wait_for_scan_result().await {
-            firmware::rfid::RfidScanResult::Found(fob) => {
+            firmware::drivers::rfid::RfidScanResult::Found(fob) => {
                 player_handle
                     .play_playlist_ref(firmware::entities::playlist::PlayListRef::new(fob))
                     .await;
@@ -147,8 +138,8 @@ async fn main(spawner: Spawner) {
 
                 5000
             }
-            firmware::rfid::RfidScanResult::NotFound => 500,
-            firmware::rfid::RfidScanResult::Error => 1000,
+            firmware::drivers::rfid::RfidScanResult::NotFound => 500,
+            firmware::drivers::rfid::RfidScanResult::Error => 1000,
         };
 
         if is_charging || is_playing {

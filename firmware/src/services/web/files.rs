@@ -13,10 +13,8 @@ use picoserve::{
 };
 use serde_json;
 
-use crate::{
-    entities::audio_file::AudioFile,
-    web::{AppState, AudioMetadata, FileEntry},
-};
+use crate::entities::audio_file::AudioFile;
+use crate::services::web::{AppState, AudioMetadata, FileEntry};
 
 pub struct AudioFileName(pub String<8>);
 
