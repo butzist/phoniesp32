@@ -164,7 +164,7 @@ async fn play_playlist(
 
 async fn playlist_with_metadata_from_playlist(
     playlist: &Playlist,
-    fs: &crate::sd::SdFsWrapper,
+    fs: &crate::drivers::sd::SdFsWrapper,
 ) -> PlaylistWithMetadata {
     let mut files_with_metadata = Vec::new();
 

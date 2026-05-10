@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use defmt::info;
 use futures::stream::StreamExt;
 use heapless::String;
 use picoserve::{
@@ -14,14 +15,12 @@ use picoserve::{
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-use crate::{
-    entities::{
-        audio_file::{AudioFile, AudioMetadata},
-        playlist::{PlayListRef, Playlist},
-    },
-    sd::SdFileSystem,
-    web::{AppState, FileEntry},
+use crate::drivers::sd::SdFileSystem;
+use crate::entities::{
+    audio_file::{AudioFile, AudioMetadata},
+    playlist::{PlayListRef, Playlist},
 };
+use crate::services::web::{AppState, FileEntry};
 
 #[derive(Serialize)]
 pub struct Association {
@@ -49,6 +48,7 @@ pub async fn associate(
     extract::State(state): extract::State<AppState>,
     extract::Json(req): extract::Json<AssociationRequest>,
 ) -> impl IntoResponse {
+    info!("WebAPI: associate FOB {}", req.fob);
     let audio_files: Vec<AudioFile> = req.files.into_iter().map(AudioFile::new).collect();
     let fs_guard = state.fs.borrow_mut().await;
     Playlist::write(&fs_guard, req.fob, &audio_files)

@@ -14,7 +14,7 @@ use heapless::String;
 use mfrc522_async::{EnableError, Mfrc522};
 use unwrap_infallible::UnwrapInfallible;
 
-use crate::spi_bus;
+use crate::drivers::spi_bus;
 
 use {esp_backtrace as _, esp_println as _};
 
@@ -119,7 +119,7 @@ async fn rfid_task(mut rfid: MyMfrc522, handle: RfidHandle) {
 
                         let fob_str = String::try_from(hex_str.as_str()).unwrap();
                         handle.last_fob.lock().await.replace(fob_str.clone());
-                        info!("FOB scanned: {}", fob_str);
+                        info!("RFID: FOB scanned: {}", fob_str);
 
                         rfid = rfid_device
                             .disable()
@@ -140,7 +140,7 @@ async fn rfid_task(mut rfid: MyMfrc522, handle: RfidHandle) {
                 }
                 Err(err) => {
                     if err != mfrc522_async::Error::Timeout {
-                        error!("RFID error: {:?}", defmt::Debug2Format(&err));
+                        error!("RFID: error: {:?}", defmt::Debug2Format(&err));
                     }
 
                     rfid = rfid_device
@@ -154,7 +154,7 @@ async fn rfid_task(mut rfid: MyMfrc522, handle: RfidHandle) {
             },
             Err(e) => {
                 error!(
-                    "RFID initialization failed: {:?}",
+                    "RFID: initialization failed: {:?}",
                     defmt::Debug2Format(e.error())
                 );
 

@@ -1,3 +1,4 @@
+use defmt::info;
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either4, select4};
 use embassy_time::{Duration, Timer};
@@ -91,7 +92,7 @@ impl Button {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, defmt::Format)]
 pub enum PressType {
     Short,
     Long,
@@ -156,25 +157,35 @@ enum ControlEvent {
 async fn controls_task(mut controls: Controls, player: PlayerHandle) {
     loop {
         match controls.wait_for_event().await {
-            ControlEvent::PlayPause(press_type) => match press_type {
-                PressType::Short => player.pause().await,
-                PressType::Long => player.stop().await,
-            },
-            ControlEvent::NextPrev(press_type) => match press_type {
-                PressType::Short => player.skip_next().await,
-                PressType::Long => player.skip_previous().await,
-            },
+            ControlEvent::PlayPause(press_type) => {
+                info!("Controls: PlayPause({:?})", press_type);
+                match press_type {
+                    PressType::Short => player.pause().await,
+                    PressType::Long => player.stop().await,
+                }
+            }
+            ControlEvent::NextPrev(press_type) => {
+                info!("Controls: NextPrev({:?})", press_type);
+                match press_type {
+                    PressType::Short => player.skip_next().await,
+                    PressType::Long => player.skip_previous().await,
+                }
+            }
             ControlEvent::VolumeUp => {
+                info!("Controls: VolumeUp");
                 player.volume_up().await;
                 // Continue repeating while held
                 while controls.volume_up.check_repeat().await {
+                    info!("Controls: VolumeUp (repeat)");
                     player.volume_up().await;
                 }
             }
             ControlEvent::VolumeDown => {
+                info!("Controls: VolumeDown");
                 player.volume_down().await;
                 // Continue repeating while held
                 while controls.volume_down.check_repeat().await {
+                    info!("Controls: VolumeDown (repeat)");
                     player.volume_down().await;
                 }
             }

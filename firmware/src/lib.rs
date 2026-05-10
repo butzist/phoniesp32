@@ -117,16 +117,9 @@ pub fn with_extension(
     Ok(fname)
 }
 
-pub mod captive;
-pub mod charger;
-pub mod controls;
+pub mod controllers;
+pub mod drivers;
 pub mod entities;
-pub mod mdns;
 pub mod peripherals;
 pub mod player;
-pub mod radio;
-pub mod rfid;
-pub mod sd;
-pub mod spi_bus;
-pub mod spi_wrapper;
-pub mod web;
+pub mod services;

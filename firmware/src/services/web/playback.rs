@@ -1,4 +1,5 @@
 use alloc::{vec, vec::Vec};
+use defmt::info;
 use heapless::String;
 use picoserve::{
     extract,
@@ -6,14 +7,12 @@ use picoserve::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    entities::{
-        audio_file::AudioFile,
-        playlist::{PlayListRef, Playlist},
-    },
-    player::status::{PlaylistWithMetadata, State},
-    web::AppState,
+use crate::entities::{
+    audio_file::AudioFile,
+    playlist::{PlayListRef, Playlist},
 };
+use crate::player::status::{PlaylistWithMetadata, State};
+use crate::services::web::AppState;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -65,6 +64,7 @@ pub async fn play(
     extract::State(state): extract::State<AppState>,
     extract::Json(req): extract::Json<PlayRequest>,
 ) -> impl IntoResponse {
+    info!("WebAPI: play requested");
     match req {
         PlayRequest::File(file) => {
             let audio_file = AudioFile::new(file);
@@ -85,31 +85,37 @@ pub async fn play(
 }
 
 pub async fn stop(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    info!("WebAPI: stop");
     let _ = state.commands.stop().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn pause(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    info!("WebAPI: pause");
     let _ = state.commands.pause().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn volume_up(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    info!("WebAPI: volume up");
     let _ = state.commands.volume_up().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn volume_down(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    info!("WebAPI: volume down");
     let _ = state.commands.volume_down().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn next(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    info!("WebAPI: skip next");
     let _ = state.commands.skip_next().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn previous(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    info!("WebAPI: skip previous");
     let _ = state.commands.skip_previous().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }

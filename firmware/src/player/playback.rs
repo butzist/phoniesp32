@@ -5,11 +5,11 @@ use core::ops::Coroutine;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
+use crate::drivers::sd::{PlaybackGuard, SdFileSystem};
 use crate::entities::audio_file::AudioFile;
 use crate::player::control::Skip;
 use crate::player::status::{State, Status};
 use crate::retry;
-use crate::sd::{PlaybackGuard, SdFileSystem};
 use crate::{PrintErr, extend_to_static};
 use audio_codec_algorithms::{AdpcmImaState, decode_adpcm_ima};
 use defmt::{error, warn};
@@ -49,7 +49,7 @@ pub struct Player {
     audio_enable: &'static RefCell<Option<(Output<'static>, Level)>>,
     dma_buffer: &'static mut [u8; DMA_SIZE],
     dma_descriptors: &'static mut [DmaDescriptor; DMA_CHUNKS],
-    pub(crate) fs: &'static crate::sd::SdFsWrapper,
+    pub(crate) fs: &'static crate::drivers::sd::SdFsWrapper,
     command_channel: &'static Channel<NoopRawMutex, PlayerCommand, 2>,
     spawner: Spawner,
     stop_signal: &'static Signal<CriticalSectionRawMutex, ()>,
@@ -67,7 +67,7 @@ impl Player {
         ws: esp_hal::gpio::AnyPin<'static>,
         dout: esp_hal::gpio::AnyPin<'static>,
         audio_enable: Option<(AnyPin<'static>, Level)>,
-        fs: &'static crate::sd::SdFsWrapper,
+        fs: &'static crate::drivers::sd::SdFsWrapper,
         spawner: Spawner,
     ) -> Self {
         let command_channel =
