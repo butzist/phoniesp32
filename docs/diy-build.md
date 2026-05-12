@@ -4,7 +4,7 @@ Build your own **PhoniESP32** jukebox using breakout boards! This guide walks
 you through assembling the prototype on a breadboard or prototype board.
 
 > **Note**: These instructions are for the breadboard/prototype board version.
-> For a more compact on robust solution, the PCB build will be coming soon.
+> For a more compact and robust solution, see the [PCB build guide](pcb-build.md).
 
 ---
 
@@ -275,8 +275,8 @@ espflash monitor --chip esp32c6 --log-format defmt --elf firmware/target/riscv32
 
 ## Next Steps
 
-- [ ] Design and 3D print a case
-- [ ] Consider the custom PCB versio for a more compact build
+- [x] Design and 3D print a case
+- [x] Design custom PCB for a more compact build ([guide](pcb-build.md))
 
 ---
 

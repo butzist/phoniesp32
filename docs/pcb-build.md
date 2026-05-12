@@ -1,12 +1,12 @@
-# DIY Build Instructions - Custom PCB (Second Prototype)
+# Build Instructions - Custom PCB (Second Prototype)
 
 Build your own **PhoniESP32** jukebox with a custom PCB! This guide walks you
 through assembling the compact PCB-based version.
 
 > **Note**: These instructions are for the custom PCB version. For the
-> breadboard/prototype board version, see `diy-build.md`.
+> breadboard/prototype board version, see `./diy-build.md`.
 
----
+## ![Photo of final assembly](./progress-6.jpeg)
 
 ## Parts List
 
@@ -111,7 +111,7 @@ The PCB has populated and unpopulated connector footprints:
 3. Upload to JLCPCB/PCBWay/DigiKey/etc and order PCB
 4. Optional: Select the SMT assembly service with the components listed above
 
-![Photo of PCB top](docs/pcb-top.jpg)
+![Photo of PCB top](./pcb/pcb-top.jpeg)
 
 ### 2. Solder Connectors (J2, J3, J4, J5)
 
@@ -138,13 +138,11 @@ preferred wiring method:
 
 - Solder the 2-pin screw terminal for easy speaker connection
 
-![Photo of connectors soldered](docs/pcb-connectors.jpg)
+![Photo of connectors soldered](./pcb/pcb-connectors.jpeg)
 
 ### 3. Attach Heat Inserts to Case
 
 The case design uses M2.5 brass heat inserts. Instructions for installing them:
-
-![Photo of heat inserts](docs/heat-inserts.jpg)
 
 1. Print the case parts from `case/` directory:
    - `PCBCase-Top.stl`
@@ -156,16 +154,16 @@ The case design uses M2.5 brass heat inserts. Instructions for installing them:
    the surface
 5. Repeat for all mounting holes
 
-### 4. Mount PCB and RC522 in Case
+![Photo of top integration](./pcb/top-integration.jpeg)
 
-![Photo of PCB mounted in case](docs/pcb-in-case.jpg)
+### 4. Mount PCB and RC522 in Case
 
 1. The design has mounting pins that can be melted over the modules with a
    soldering iron for a secure fit
 2. Secure the PCB to the case bottom by melting the mounting pins
 3. Mount the RC522 module under the case top in the same way
 
-![Photo of RC522 mounted in case top](docs/rc522-mounted.jpg)
+![Photo of heat insert tool](./pcb/heat-insert.jpeg)
 
 ### 5. Connect RC522 RFID Module
 
@@ -173,17 +171,7 @@ The case design uses M2.5 brass heat inserts. Instructions for installing them:
 2. A female-female DuPont cable or custom harness works well
 3. Keep the connections short and tidy.
 
-![Photo of RC522 wiring](docs/rc522-wiring.jpg)
-
-### 6. Connect Speaker
-
-- The speaker connects to J5 (screw terminal)
-- Mount the speaker on the side of the case using the designated mounting
-  points.
-
-![Photo of speaker wiring](docs/speaker-wiring.jpg)
-
-### 7. Connect Buttons
+### 6. Connect Buttons
 
 Each button connects between GND and the corresponding signal pin on J3. All
 buttons share a common GND.
@@ -199,9 +187,9 @@ buttons share a common GND.
 Solder one side of all buttons to a common GND wire, then connect the other side
 of each button to its respective J3 pin using individual wires.
 
-![Photo of button wiring](docs/buttons-wiring.jpg)
+![Photo of button wiring](./pcb/buttons.jpeg)
 
-### 8. Connect Battery
+### 7. Connect Battery
 
 If the battery has a JST PH 2.0mm connector, it plugs directly into J2. If not,
 wire it to the 2-pin header:
@@ -211,14 +199,18 @@ wire it to the 2-pin header:
 
 **Warning**: Double-check polarity before connecting!
 
-![Photo of battery wiring](docs/battery-wiring.jpg)
-
-### 9. Connect External Antenna
+### 8. Connect External Antenna
 
 The ESP32-C6-MINI-1U module has an IPX connector for an external antenna.
 Connect the IPX-3 PCB antenna to the module.
 
-![Photo of antenna connection](docs/antenna-wiring.jpg)
+### 9. Connect Speaker
+
+- The speaker connects to J5 (screw terminal)
+- Mount the speaker on the side of the case using the designated mounting
+  points.
+
+![Photo of bottom integration](./pcb/bottom-integration.jpeg)
 
 ### 10. Final Assembly
 
@@ -227,7 +219,7 @@ Connect the IPX-3 PCB antenna to the module.
 3. Close the case and secure with screws
 4. Insert the FAT32-formatted SD card
 
-![Photo of final assembly](docs/final-assembly.jpg)
+![Photo of final assembly](./progress-6.jpeg)
 
 ---
 

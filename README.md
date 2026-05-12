@@ -17,8 +17,8 @@ ultra-portable**.
 ## ✨ Features
 
 - **ESP32-based jukebox**: replaces the Raspberry Pi with an ESP32-C6.
-- **Low-power & battery-ready**: runs on a Li-ion cell with TP4056 charging and
-  MT3608 boost converter.
+- **Low-power & battery-ready**: runs on a Li-ion cell with charging and
+  buck-boost converter.
 - **Bare-metal Rust firmware**: built on the [`embassy`](https://embassy.dev/)
   async embedded framework.
 - **Rust-powered Web UI**: implemented with [Dioxus](https://dioxuslabs.com/)
@@ -45,13 +45,15 @@ ultra-portable**.
 
 1. **[DIY Breakout Board Build](./docs/diy-build.md)** - Build using
    off-the-shelf breakout boards on a breadboard or prototype board (~25 CHF)
+2. **[PCB Build](./docs/pcb-build.md)** - Build using a compact and robust
+   custom PCB board (~30 CHF)
 
 ---
 
 ## 🚧 Project Status
 
-![Photo of current prototype board](./docs/progress-3.jpeg)
-![Photo of current prototype](./docs/progress-4.jpeg)
+![Photo of PCB](./docs/progress-5.jpeg)
+![Photo of PCB integration](./docs/progress-6.jpeg)
 
 - [ ] Hardware
   - [x] Prototype on breadboard
@@ -59,7 +61,7 @@ ultra-portable**.
   - [x] Battery charger
   - [x] Schematics
   - [x] Custom PCB
-  - [ ] Design and 3D print case
+  - [x] Design and 3D print case
 - [x] UI (Dioxus)
   - [x] File transcoding
   - [x] Served from device
@@ -88,6 +90,8 @@ ultra-portable**.
   - [x] Fix concurrent access to file system
   - [x] mDNS responder
   - [x] Turn off Wi-Fi when on battery power
+  - [x] Enable Wi-Fi temporarily by pressing volume up+down simultaneously for
+        3s
   - [x] Captive portal and DHCP server for WiFi access point
   - [x] Speed up SD access/upload (SD card was bad - turns out cheap SD cards
         are bad at SPI)
@@ -128,7 +132,6 @@ Want to help build the cheapest, most fun, and hackable jukebox for kids?
 
 - Review my code! I bet there are many possibilities to optimize power/memory
   usage
-- Create schematics & PCB in KiCad
 - Implement any of the missing features
 - Share your ideas
 
