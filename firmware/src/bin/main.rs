@@ -16,16 +16,17 @@ use esp_hal::rtc_cntl::sleep::{GpioWakeupSource, TimerWakeupSource};
 use esp_hal::system::{SleepSource, wakeup_cause};
 use esp_hal::timer::timg::TimerGroup;
 use firmware::controllers::network::NetworkController;
+use firmware::controllers::playback::PlaybackController;
+use firmware::controllers::playback::status::State;
+use firmware::drivers::audio::Player;
 use firmware::drivers::charger::Charger;
 use firmware::drivers::controls::Controls;
 use firmware::drivers::indicator::IndicatorLed;
 use firmware::drivers::rfid::Rfid;
-use firmware::drivers::sd::Sd;
+use firmware::drivers::sd::{Sd, SdFsWrapper};
 use firmware::drivers::spi_bus;
+use firmware::mk_static;
 use firmware::peripherals::create_peripherals;
-use firmware::player::Player;
-use firmware::player::status::State;
-use firmware::{drivers::sd::SdFsWrapper, mk_static};
 use {esp_backtrace as _, esp_println as _};
 
 extern crate alloc;
@@ -75,11 +76,8 @@ async fn main(spawner: Spawner) {
         peripherals.player.ws,
         peripherals.player.dout,
         peripherals.audio_enable,
-        fs,
-        spawner,
     );
-    info!("Starting player");
-    let player_handle = player.spawn(&spawner);
+    let player_handle = PlaybackController::new(player, fs).spawn(&spawner);
 
     info!("Main: Starting controls");
     let controls = Controls::new(

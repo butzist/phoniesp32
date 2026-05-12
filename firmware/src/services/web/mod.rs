@@ -15,7 +15,10 @@ use picoserve::{
 use serde::{Deserialize, Serialize};
 
 use crate::drivers::rfid::RfidHandle;
-use crate::{entities::audio_file::AudioMetadata, player::PlayerHandle, player::Status};
+use crate::{
+    controllers::playback::PlaybackHandle, controllers::playback::status::Status,
+    entities::audio_file::AudioMetadata,
+};
 
 mod assets {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));
@@ -29,14 +32,14 @@ mod upload;
 #[derive(Clone)]
 pub struct AppState {
     fs: &'static crate::drivers::sd::SdFsWrapper,
-    commands: PlayerHandle,
+    commands: PlaybackHandle,
     rfid_handle: RfidHandle,
 }
 
 impl AppState {
     pub fn new(
         fs: &'static crate::drivers::sd::SdFsWrapper,
-        commands: PlayerHandle,
+        commands: PlaybackHandle,
         rfid_handle: RfidHandle,
     ) -> Self {
         Self {

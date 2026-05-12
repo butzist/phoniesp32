@@ -50,14 +50,6 @@ impl RfidHandleInner {
 
 pub type RfidHandle = Rc<RfidHandleInner>;
 
-pub fn new_rfid_handle() -> RfidHandle {
-    Rc::new(RfidHandleInner {
-        scan_trigger: Signal::new(),
-        scan_result: Channel::new(),
-        last_fob: Mutex::new(None),
-    })
-}
-
 pub struct Rfid {
     rfid: MyMfrc522,
     handle: RfidHandle,
@@ -71,7 +63,11 @@ impl Rfid {
         rfid_enable: AnyPin<'static>,
     ) -> Self {
         let rfid = Self::create_device(shared_spi, cs, irq, rfid_enable);
-        let handle = new_rfid_handle();
+        let handle = Rc::new(RfidHandleInner {
+            scan_trigger: Signal::new(),
+            scan_result: Channel::new(),
+            last_fob: Mutex::new(None),
+        });
         Self { rfid, handle }
     }
 
@@ -169,6 +165,6 @@ async fn rfid_task(mut rfid: MyMfrc522, handle: RfidHandle) {
             }
         };
 
-        let _ = handle.scan_result.send(result).await;
+        handle.scan_result.send(result).await;
     }
 }

@@ -8,7 +8,7 @@ use crate::entities::audio_file::{AudioFile, AudioMetadata};
 
 pub struct Status {
     playback_position: Watch<CriticalSectionRawMutex, u32, 1>,
-    playback_status: Watch<CriticalSectionRawMutex, PlaybackStatus, 1>,
+    playback_status: Watch<CriticalSectionRawMutex, PlaybackStatus, 2>,
     current_playlist: Watch<CriticalSectionRawMutex, Option<PlaylistWithMetadata>, 1>,
 }
 
@@ -21,7 +21,7 @@ pub struct PlaybackStatus {
     pub playlist_name: Option<String<8>>,
 }
 
-#[derive(Clone, Serialize, PartialEq)]
+#[derive(Clone, Copy, Serialize, PartialEq)]
 pub enum State {
     Playing,
     Paused,
@@ -38,6 +38,12 @@ pub struct PlaylistWithMetadata {
 pub struct AudioFileWithMetadata {
     pub file: AudioFile,
     pub metadata: AudioMetadata,
+}
+
+impl Default for Status {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Status {
@@ -72,8 +78,15 @@ impl Status {
 
     pub fn recv_playback_status<'a>(
         &'a self,
-    ) -> Receiver<'a, CriticalSectionRawMutex, PlaybackStatus, 1> {
+    ) -> Receiver<'a, CriticalSectionRawMutex, PlaybackStatus, 2> {
         self.playback_status.receiver().unwrap()
+    }
+
+    pub async fn wait_for_state(&self, state: State) {
+        let mut rx = self.recv_playback_status();
+        while rx.try_get().unwrap().state != state {
+            rx.changed().await;
+        }
     }
 
     pub fn recv_current_playlist<'a>(

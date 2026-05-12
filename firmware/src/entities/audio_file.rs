@@ -8,8 +8,9 @@ use serde::Serialize;
 use crate::drivers::sd::{FileHandle, SdFileSystem};
 use crate::entities::basename;
 use crate::{PrintErr, with_extension};
+use audio_codec_algorithms::{AdpcmImaState, decode_adpcm_ima};
 use audio_file_utils::metadata::{INFO_CHUNK_SIZE, extract_metadata};
-use embedded_io_async::{Seek, SeekFrom};
+use embedded_io_async::{Read, Seek, SeekFrom};
 use futures::stream::{self, Stream, StreamExt};
 
 const FILE_DIR: &str = "FILES";
@@ -53,12 +54,12 @@ impl AudioFile {
         let dir = root
             .open_dir(FILE_DIR)
             .await
-            .print_err("Opening files directory")
+            .print_err("AudioFile: Opening files directory")
             .ok_or(())?;
 
         dir.open_file(&fname)
             .await
-            .print_err("Opening file")
+            .print_err("AudioFile: Opening file")
             .ok_or(())
     }
 
@@ -83,13 +84,13 @@ impl AudioFile {
         let dir = root
             .open_dir(FILE_DIR)
             .await
-            .print_err("Opening files directory")
+            .print_err("AudioFile: Opening files directory")
             .ok_or(())?;
 
         let meta = dir
             .open_meta(&fname)
             .await
-            .print_err("Checking file existence")
+            .print_err("AudioFile: Checking file existence")
             .ok_or(())?;
         Ok(meta.is_file())
     }
@@ -100,13 +101,13 @@ impl AudioFile {
         let dir = root
             .open_dir(FILE_DIR)
             .await
-            .print_err("Opening files directory")
+            .print_err("AudioFile: Opening files directory")
             .ok_or(())?;
 
         let meta = dir
             .open_meta(&fname)
             .await
-            .print_err("Getting file metadata")
+            .print_err("AudioFile: Getting file metadata")
             .ok_or(())?;
         Ok(meta.len())
     }
@@ -121,17 +122,17 @@ impl AudioFile {
         let dir = root
             .open_dir(FILE_DIR)
             .await
-            .print_err("Opening files directory")
+            .print_err("AudioFile: Opening files directory")
             .ok_or(())?;
 
         let mut file = dir
             .open_file(&fname)
             .await
-            .print_err("Opening file for append at offset")
+            .print_err("AudioFile: Opening file for append at offset")
             .ok_or(())?;
 
         if let Err(e) = file.seek(SeekFrom::Start(offset)).await {
-            defmt::error!("Seeking to offset: {:?}", e);
+            defmt::error!("AudioFile: seeking to offset: {:?}", e);
             return Err(());
         }
 
@@ -168,20 +169,20 @@ impl AudioFile {
         let dir = root
             .open_dir(FILE_DIR)
             .await
-            .print_err("Opening files directory")
+            .print_err("AudioFile: Opening files directory")
             .ok_or(())?;
 
         let meta = dir
             .open_meta(&fname)
             .await
-            .print_err("Checking file")
+            .print_err("AudioFile: Checking file")
             .ok_or(())?;
         let file_size = meta.len();
 
         let mut file = dir
             .open_file(&fname)
             .await
-            .print_err("Opening file")
+            .print_err("AudioFile: Opening file")
             .ok_or(())?;
         let audio_metadata = extract_metadata(&mut file).await.unwrap_or_default();
 
@@ -207,7 +208,7 @@ impl AudioFile {
         let dir = root
             .open_dir(FILE_DIR)
             .await
-            .print_err("open files dir")
+            .print_err("AudioFile: open files dir")
             .ok_or(())?;
 
         let stream = stream::unfold((dir.iter(), fs), |(mut iter, fs)| async move {
@@ -220,7 +221,7 @@ impl AudioFile {
                             Some((Some((name, metadata)), (iter, fs)))
                         } else {
                             warn!(
-                                "Unknown file: \\FILES\\{}",
+                                "AudioFile: unknown file: \\FILES\\{}",
                                 entry.short_file_name_as_bytes()
                             );
                             Some((None, (iter, fs)))
@@ -236,5 +237,62 @@ impl AudioFile {
         .filter_map(|x| async { x });
 
         Ok(Box::pin(stream))
+    }
+}
+
+// ---- IMA ADPCM streaming decoder ----
+
+pub struct AudioDecoder<R> {
+    reader: R,
+}
+
+impl<R: Read> AudioDecoder<R> {
+    pub fn new(reader: R) -> Self {
+        Self { reader }
+    }
+
+    /// Read the next ADPCM block from the reader and decode to mono i16 samples.
+    /// `out` should have capacity for at least 2041 samples.
+    /// Returns the number of samples written (0 = EOF, max 2041).
+    pub async fn next_samples(&mut self, out: &mut [i16]) -> Result<usize, ()> {
+        let mut raw = [0u8; 1024];
+        let mut offset = 0;
+        while offset < 1024 {
+            match crate::retry(async || self.reader.read(&mut raw[offset..]).await, 2).await {
+                Ok(0) => break,
+                Ok(n) => offset += n,
+                Err(_) => return Err(()),
+            }
+        }
+
+        if offset < 4 {
+            return Ok(0);
+        }
+
+        let mut state = AdpcmImaState::new();
+        state.predictor = i16::from_le_bytes([raw[0], raw[1]]);
+        state.step_index = raw[2].min(88);
+
+        let max = out.len();
+        let mut count = 0;
+        if count < max {
+            out[count] = state.predictor;
+            count += 1;
+        }
+
+        for b in &raw[4..offset] {
+            if count >= max {
+                break;
+            }
+            out[count] = decode_adpcm_ima(*b & 0x0f, &mut state);
+            count += 1;
+            if count >= max {
+                break;
+            }
+            out[count] = decode_adpcm_ima(*b >> 4, &mut state);
+            count += 1;
+        }
+
+        Ok(count)
     }
 }
