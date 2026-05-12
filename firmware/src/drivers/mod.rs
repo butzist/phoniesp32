@@ -1,3 +1,4 @@
+pub mod audio;
 pub mod charger;
 pub mod controls;
 pub mod indicator;

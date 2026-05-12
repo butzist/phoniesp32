@@ -4,7 +4,7 @@ use embassy_futures::select::{Either4, select4};
 use embassy_time::{Duration, Timer};
 use esp_hal::gpio::{AnyPin, Event, Input, InputConfig, Pull, WaitForOptions, WakeEvent};
 
-use crate::player::PlayerHandle;
+use crate::controllers::playback::PlaybackHandle;
 
 pub struct Button {
     input: Input<'static>,
@@ -141,7 +141,7 @@ impl Controls {
         }
     }
 
-    pub fn spawn(self, spawner: &Spawner, player: PlayerHandle) {
+    pub fn spawn(self, spawner: &Spawner, player: PlaybackHandle) {
         spawner.must_spawn(controls_task(self, player));
     }
 }
@@ -154,7 +154,7 @@ enum ControlEvent {
 }
 
 #[embassy_executor::task]
-async fn controls_task(mut controls: Controls, player: PlayerHandle) {
+async fn controls_task(mut controls: Controls, player: PlaybackHandle) {
     loop {
         match controls.wait_for_event().await {
             ControlEvent::PlayPause(press_type) => {

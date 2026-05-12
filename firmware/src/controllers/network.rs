@@ -1,10 +1,10 @@
 use defmt::info;
 use embassy_executor::Spawner;
 
+use crate::controllers::playback::PlaybackHandle;
 use crate::controllers::wifi::WifiManagerHandle;
 use crate::drivers::rfid::RfidHandle;
 use crate::drivers::sd::SdFsWrapper;
-use crate::player::PlayerHandle;
 use crate::services::captive::CaptivePortal;
 use crate::services::mdns::MdnsResponder;
 use crate::services::web::WebTask;
@@ -12,7 +12,7 @@ use crate::services::web::WebTask;
 pub struct NetworkController {
     wifi_handle: WifiManagerHandle,
     fs: &'static SdFsWrapper,
-    player_handle: PlayerHandle,
+    player_handle: PlaybackHandle,
     rfid_handle: RfidHandle,
 }
 
@@ -20,7 +20,7 @@ impl NetworkController {
     pub fn new(
         wifi_handle: WifiManagerHandle,
         fs: &'static SdFsWrapper,
-        player_handle: PlayerHandle,
+        player_handle: PlaybackHandle,
         rfid_handle: RfidHandle,
     ) -> Self {
         Self {
@@ -47,7 +47,7 @@ async fn network_task(
     spawner: Spawner,
     wifi_handle: WifiManagerHandle,
     fs: &'static SdFsWrapper,
-    player_handle: PlayerHandle,
+    player_handle: PlaybackHandle,
     rfid_handle: RfidHandle,
 ) {
     info!("NetworkController: waiting for WiFi stack");

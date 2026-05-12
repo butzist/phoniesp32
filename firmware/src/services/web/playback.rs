@@ -7,11 +7,11 @@ use picoserve::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::controllers::playback::status::{PlaylistWithMetadata, State};
 use crate::entities::{
     audio_file::AudioFile,
     playlist::{PlayListRef, Playlist},
 };
-use crate::player::status::{PlaylistWithMetadata, State};
 use crate::services::web::AppState;
 
 #[derive(Deserialize)]

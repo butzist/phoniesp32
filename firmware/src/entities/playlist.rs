@@ -32,13 +32,13 @@ impl PlayListRef {
         let dir = root
             .open_dir(PLAYLIST_DIR)
             .await
-            .print_err("Failed to open fobs directory")
+            .print_err("Playlist: Failed to open fobs directory")
             .ok_or(())?;
         let fname = with_extension(&self.0, PLAYLIST_EXT).unwrap();
         let mut file = dir
             .open_file(&fname)
             .await
-            .print_err("Failed to open playlist file")
+            .print_err("Playlist: Failed to open playlist file")
             .ok_or(())?;
 
         // Read entire file
@@ -49,7 +49,7 @@ impl PlayListRef {
                 Ok(0) => break,
                 Ok(n) => buffer.extend_from_slice(&temp_buf[..n]),
                 Err(_) => {
-                    error!("Error reading playlist file");
+                    error!("Playlist: error reading playlist file");
                     return Err(());
                 }
             }
@@ -58,7 +58,7 @@ impl PlayListRef {
         // Parse
         let content = core::str::from_utf8(&buffer)
             .map_err(|_| ())
-            .print_err("Invalid UTF-8 in playlist")
+            .print_err("Playlist: Invalid UTF-8 in playlist")
             .ok_or(())?;
         let mut files = Vec::new();
         for line in content.lines() {

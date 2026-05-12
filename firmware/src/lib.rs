@@ -1,8 +1,6 @@
 #![no_std]
 #![recursion_limit = "256"]
 #![feature(impl_trait_in_assoc_type)]
-#![feature(coroutines)]
-#![feature(coroutine_trait)]
 #![feature(stmt_expr_attributes)]
 #![feature(trivial_bounds)]
 
@@ -88,12 +86,21 @@ where
     }
 }
 
-/// Extends lifetime of a reference to 'static
+/// Extends a mutable reference's lifetime to `'static`.
 ///
 /// # Safety
 ///
-/// Intrinsically unsafe! Only use this, if you know what you are doing, r is not
-/// deallocated, and you don't anticipate data races.
+/// The caller must guarantee:
+/// - The referenced data will remain valid for the entire program lifetime
+///   (i.e. it is never deallocated, and no `core::mem::forget` is called
+///    on the owner that would skip destructors).
+/// - There are no concurrent mutable aliases to the same data
+///   (no data races).
+/// - The reference points to valid, properly aligned memory.
+///
+/// Typical legitimate uses on embedded MCUs:
+/// - Memory-mapped peripheral registers at fixed addresses.
+/// - DMA buffers allocated via `dma_buffers!()` into static memory.
 pub unsafe fn extend_to_static<T>(r: &mut T) -> &'static mut T {
     let ptr = r as *mut T;
     unsafe { &mut *ptr }
@@ -121,5 +128,4 @@ pub mod controllers;
 pub mod drivers;
 pub mod entities;
 pub mod peripherals;
-pub mod player;
 pub mod services;
