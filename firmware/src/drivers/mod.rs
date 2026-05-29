@@ -1,6 +1,6 @@
 pub mod audio;
 pub mod charger;
-pub mod controls;
+pub mod control_button;
 pub mod indicator;
 pub mod radio;
 pub mod rfid;

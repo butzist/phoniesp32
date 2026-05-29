@@ -9,35 +9,27 @@ use crate::services::captive::CaptivePortal;
 use crate::services::mdns::MdnsResponder;
 use crate::services::web::WebTask;
 
-pub struct NetworkController {
-    wifi_handle: WifiManagerHandle,
-    fs: &'static SdFsWrapper,
-    player_handle: PlaybackHandle,
-    rfid_handle: RfidHandle,
-}
+pub struct NetworkController;
 
 impl NetworkController {
-    pub fn new(
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn spawn(
+        self,
+        spawner: &Spawner,
         wifi_handle: WifiManagerHandle,
         fs: &'static SdFsWrapper,
         player_handle: PlaybackHandle,
         rfid_handle: RfidHandle,
-    ) -> Self {
-        Self {
+    ) {
+        spawner.must_spawn(network_task(
+            *spawner,
             wifi_handle,
             fs,
             player_handle,
             rfid_handle,
-        }
-    }
-
-    pub fn spawn(self, spawner: &Spawner) {
-        spawner.must_spawn(network_task(
-            *spawner,
-            self.wifi_handle,
-            self.fs,
-            self.player_handle,
-            self.rfid_handle,
         ));
     }
 }
