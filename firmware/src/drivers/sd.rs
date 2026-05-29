@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use block_device_adapters::BufStream;
 use block_device_driver::slice_to_blocks_mut;
-use defmt::{info, warn};
+use defmt::{debug, info, warn};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::{Mutex, MutexGuard};
 use embassy_time::Delay;
@@ -179,6 +179,7 @@ impl SdFsWrapper {
     }
 
     pub async fn borrow_for_playback(&self, stop_fn: StopFn) -> PlaybackGuard<'_> {
+        debug!("SD: borrow_for_playback - locking stop_fn");
         let mut stop_fn_guard = self.stop_fn.lock().await;
 
         // Stop any existing playback
@@ -186,9 +187,11 @@ impl SdFsWrapper {
 
         // Store the new stop function
         *stop_fn_guard = Some(stop_fn);
+        debug!("SD: borrow_for_playback - stop_fn stored, locking fs");
 
         // Keep stop_fn_guard locked while acquiring fs lock to prevent race conditions
         let fs_guard = self.fs.lock().await;
+        debug!("SD: borrow_for_playback - fs locked");
 
         PlaybackGuard {
             wrapper: self,
@@ -197,9 +200,11 @@ impl SdFsWrapper {
     }
 
     pub async fn borrow_mut(&self) -> MutexGuard<'_, CriticalSectionRawMutex, SdFileSystem> {
+        debug!("SD: borrow_mut - locking stop_fn");
         // Stop any active playback before borrowing
         let mut stop_fn_guard = self.stop_fn.lock().await;
         self.stop_playback(&mut stop_fn_guard).await;
+        debug!("SD: borrow_mut - locking fs");
         self.fs.lock().await
     }
 
@@ -212,9 +217,13 @@ impl SdFsWrapper {
         if let Some(ref stop_fn) = **stop_fn_guard {
             warn!("SD: stopping running player");
             stop_fn().await;
+            debug!("SD: stop_fn completed, waiting for player to settle");
             // Give player time to actually stop
             embassy_time::Timer::after_millis(100).await;
             **stop_fn_guard = None;
+            debug!("SD: playback stopped");
+        } else {
+            debug!("SD: no active playback to stop");
         }
     }
 }
@@ -239,6 +248,8 @@ impl<'a> Drop for PlaybackGuard<'a> {
         // This is still safe, but will in the worst case issue an unnecessary call to
         // `Self::stop_playback()`
         if let Ok(mut guard) = self.wrapper.stop_fn.try_lock() {
+            // Cannot use defmt::debug! here because Drop is not async and defmt may need
+            // the critical section; use a simple placeholder instead
             *guard = None;
         }
     }
@@ -251,6 +262,7 @@ pub struct Sd {
 impl Sd {
     pub async fn new(spi: spi_bus::SharedSpi, mut cs: AnyPin<'static>) -> Self {
         let mut cs_init = Output::new(cs.reborrow(), Level::High, OutputConfig::default());
+        debug!("SD: starting initialization");
         loop {
             match sdspi::sd_init(&mut *spi.lock().await, &mut cs_init).await {
                 Ok(_) => break,
@@ -270,6 +282,7 @@ impl Sd {
         let spid = self.device;
         let mut sd = SdSpi::<_, _, aligned::A1>::new(spid, Delay);
 
+        debug!("SD: initializing card");
         loop {
             // Initialize the card
             if sd.init().await.is_ok() {
@@ -290,6 +303,7 @@ impl Sd {
         let sd_size = sd.size().await.unwrap();
         info!("SD: card size: {}", sd_size);
 
+        debug!("SD: reading partition table");
         let sd = PartitionSlice::new(sd).await;
         let inner = BufStream::<_, 512>::new(sd);
         let fs = embedded_fatfs::FileSystem::new(inner, FsOptions::new())
@@ -320,6 +334,7 @@ impl Sd {
         drop(root_dir);
 
         let fs_wrapper = SdFsWrapper::new(fs);
+        debug!("SD: initialization complete");
 
         (config, fs_wrapper)
     }

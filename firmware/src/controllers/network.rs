@@ -1,4 +1,4 @@
-use defmt::info;
+use defmt::{debug, info};
 use embassy_executor::Spawner;
 
 use crate::controllers::playback::PlaybackHandle;
@@ -42,10 +42,10 @@ async fn network_task(
     player_handle: PlaybackHandle,
     rfid_handle: RfidHandle,
 ) {
-    info!("NetworkController: waiting for WiFi stack");
+    debug!("NetworkController: waiting for WiFi stack");
     let stack = wifi_handle.wait_for_stack().await;
 
-    info!("NetworkController: setting up services");
+    debug!("NetworkController: setting up services");
     let is_ap = stack
         .config_v4()
         .map(|c| c.address.address() == core::net::Ipv4Addr::new(192, 168, 42, 1))

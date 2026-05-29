@@ -1,6 +1,6 @@
 use core::net::{Ipv4Addr, SocketAddr};
 
-use defmt::{info, warn};
+use defmt::{debug, info, warn};
 use edge_dhcp::io::DEFAULT_SERVER_PORT;
 use edge_nal::UdpBind;
 use edge_nal_embassy::{Udp, UdpBuffers};
@@ -52,6 +52,7 @@ async fn dhcp_task(stack: Stack<'static>) {
 
         match udp.bind(socket_addr).await {
             Ok(mut socket) => {
+                debug!("CaptivePortal: DHCP bound");
                 info!(
                     "CaptivePortal: DHCP server listening on port {}",
                     DEFAULT_SERVER_PORT

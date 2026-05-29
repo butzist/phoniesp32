@@ -1,4 +1,4 @@
-use defmt::info;
+use defmt::{debug, info};
 use embassy_executor::Spawner;
 use embassy_net::Stack;
 use embassy_time::Duration;
@@ -293,6 +293,7 @@ async fn web_task(
 
     let app_with_state = &router.shared().with_state(state);
 
+    debug!("WebServer: task {} initializing with buffers", id);
     info!("WebServer: task {} listening on port {}", id, port);
     loop {
         let _shutdown_reason = picoserve::Server::new(app_with_state, config, &mut http_buffer)

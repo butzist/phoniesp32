@@ -1,4 +1,4 @@
-use defmt::info;
+use defmt::{debug, info};
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either, Either4, select, select4};
 use embassy_net::Stack;
@@ -85,7 +85,7 @@ async fn wifi_manager_task(
     cmd_channel: &'static Channel<NoopRawMutex, WifiCommand, 1>,
     stack_signal: &'static Signal<NoopRawMutex, Stack<'static>>,
 ) {
-    info!("WifiManager: initial startup");
+    debug!("WifiManager: initial startup");
 
     if let Some(ref config) = config {
         if radio_handle.try_start_wifi_sta(config).await.is_err() {
@@ -113,6 +113,7 @@ async fn wifi_manager_task(
         }
         let desired_state = charger_state || has_override;
         let actual_state = radio_handle.is_started();
+        debug!("WifiManager: loop - charger={} has_override={} desired={} actual={}", charger_state, has_override, desired_state, actual_state);
 
         match (desired_state, actual_state) {
             (true, true) => {

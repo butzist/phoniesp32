@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
+use defmt::debug;
 use crate::PrintErr;
 use crate::controllers::playback::status::{State, Status};
 use crate::extend_to_static;
@@ -178,11 +179,16 @@ async fn i2s_output_task(
     let mut amp_enabled = false;
     let rx = channel.receiver();
 
+    debug!("Player: I2S output task started");
     loop {
         match rx.receive().await {
-            AudioPacket::Eof => break,
+            AudioPacket::Eof => {
+                debug!("Player: received EOF");
+                break;
+            }
 
             AudioPacket::Buffer(buf) => {
+                debug!("Player: playing buffer len={}", buf.len);
                 if !amp_enabled {
                     player.borrow_mut().set_amp(true);
                     amp_enabled = true;
@@ -207,6 +213,7 @@ async fn i2s_output_task(
             }
 
             AudioPacket::Silence(samples) => {
+                debug!("Player: silence samples={}", samples);
                 if amp_enabled {
                     player.borrow_mut().set_amp(false);
                     amp_enabled = false;

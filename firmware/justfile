@@ -20,7 +20,13 @@ all-nodeps: build
 build:
 	cargo build --release --no-default-features --features {{FEATURES}}
 
-flash: build
+build-debug:
+	DEFMT_LOG="firmware=debug,info" cargo build --release --no-default-features --features {{FEATURES}}
+
+build-prototype:
+	cargo build --release --no-default-features --features pinout_prototype
+
+flash:
 	espflash flash --chip esp32c6 {{TARGET_DIR}}/firmware
 
 run: flash

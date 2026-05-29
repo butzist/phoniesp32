@@ -1,4 +1,4 @@
-use defmt::info;
+use defmt::{debug, info};
 use embassy_executor::Spawner;
 use embassy_sync::watch::Watch;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, watch::Receiver};
@@ -63,6 +63,7 @@ impl Charger {
             let current_connected = Self::current_state(&self.pin, self.connected_level);
 
             if current_connected != last_connected {
+                debug!("Charger: state changed");
                 info!(
                     "Charger: event: {}",
                     if current_connected == ChargerState::Connected {
