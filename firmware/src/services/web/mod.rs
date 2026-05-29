@@ -4,7 +4,7 @@ use embassy_net::Stack;
 use embassy_time::Duration;
 use esp_alloc as _;
 use picoserve::{
-    AppWithStateBuilder, ResponseSent, Router,
+    AppWithStateBuilder, ResponseSent, Router, extract,
     request::Request,
     response::{File, IntoResponse, Response, ResponseWriter, StatusCode},
     routing::{
@@ -12,8 +12,9 @@ use picoserve::{
         RequestHandlerService,
     },
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
+use crate::controllers::wifi::WifiManagerHandle;
 use crate::drivers::rfid::RfidHandle;
 use crate::{
     controllers::playback::PlaybackHandle, controllers::playback::status::Status,
@@ -34,6 +35,7 @@ pub struct AppState {
     fs: &'static crate::drivers::sd::SdFsWrapper,
     commands: PlaybackHandle,
     rfid_handle: RfidHandle,
+    pub wifi_handle: WifiManagerHandle,
 }
 
 impl AppState {
@@ -41,11 +43,13 @@ impl AppState {
         fs: &'static crate::drivers::sd::SdFsWrapper,
         commands: PlaybackHandle,
         rfid_handle: RfidHandle,
+        wifi_handle: WifiManagerHandle,
     ) -> Self {
         Self {
             fs,
             commands,
             rfid_handle,
+            wifi_handle,
         }
     }
 
@@ -56,11 +60,6 @@ impl AppState {
     pub async fn get_last_fob(&self) -> Option<heapless::String<8>> {
         self.rfid_handle.get_last_fob().await
     }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Test {
-    x: u16,
 }
 
 #[derive(Clone, Serialize)]
@@ -145,6 +144,7 @@ impl PathRouterService<AppState, ()> for Fallback {
         request: Request<'_, R>,
         response_writer: W,
     ) -> Result<ResponseSent, W::Error> {
+        state.wifi_handle.wifi_on().await;
         if let Some((first, _path)) = path.split_first_segment()
             && first == "api"
         {
@@ -212,7 +212,8 @@ impl AppWithStateBuilder for Application {
     }
 }
 
-async fn captive_handler() -> impl IntoResponse {
+async fn captive_handler(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     Response::new(StatusCode::FOUND, "").with_header("Location", "http://phoniesp32.local/")
 }
 

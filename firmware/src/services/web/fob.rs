@@ -40,6 +40,7 @@ pub struct AssociationRequest {
 }
 
 pub async fn last(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     let last_fob = state.get_last_fob().await;
     Json(LastFob { last_fob })
 }
@@ -48,6 +49,7 @@ pub async fn associate(
     extract::State(state): extract::State<AppState>,
     extract::Json(req): extract::Json<AssociationRequest>,
 ) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     info!("WebAPI: associate FOB {}", req.fob);
     let audio_files: Vec<AudioFile> = req.files.into_iter().map(AudioFile::new).collect();
     let fs_guard = state.fs.borrow_mut().await;
@@ -74,6 +76,7 @@ impl RequestHandlerService<AppState> for ListAssociationsService {
         request: Request<'_, R>,
         response_writer: W,
     ) -> Result<ResponseSent, W::Error> {
+        state.wifi_handle.wifi_on().await;
         let query = extract::Query::<ListQuery>::from_request_parts(state, &request.parts)
             .await
             .ok();

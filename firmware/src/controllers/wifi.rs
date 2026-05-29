@@ -1,3 +1,5 @@
+use core::sync::atomic::{AtomicBool, Ordering};
+
 use defmt::{debug, info};
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either, Either4, select, select4};
@@ -22,6 +24,7 @@ pub enum WifiCommand {
 pub struct WifiManagerHandle {
     cmd_channel: &'static Channel<NoopRawMutex, WifiCommand, 1>,
     stack_signal: &'static Signal<NoopRawMutex, Stack<'static>>,
+    wifi_is_active: &'static AtomicBool,
 }
 
 impl WifiManagerHandle {
@@ -36,20 +39,27 @@ impl WifiManagerHandle {
     pub async fn wait_for_stack(&self) -> Stack<'static> {
         self.stack_signal.wait().await
     }
+
+    pub fn is_wifi_active(&self) -> bool {
+        self.wifi_is_active.load(Ordering::Relaxed)
+    }
 }
 
 pub struct WifiManager {
     cmd_channel: &'static Channel<NoopRawMutex, WifiCommand, 1>,
     stack_signal: &'static Signal<NoopRawMutex, Stack<'static>>,
+    wifi_is_active: &'static AtomicBool,
 }
 
 impl WifiManager {
     pub fn new() -> Self {
         let cmd_channel = mk_static!(Channel<NoopRawMutex, WifiCommand, 1>, Channel::new());
         let stack_signal = mk_static!(Signal<NoopRawMutex, Stack<'static>>, Signal::new());
+        let wifi_is_active = mk_static!(AtomicBool, AtomicBool::new(true));
         Self {
             cmd_channel,
             stack_signal,
+            wifi_is_active,
         }
     }
 
@@ -68,11 +78,19 @@ impl WifiManager {
             charger_monitor,
             self.cmd_channel,
             self.stack_signal,
+            self.wifi_is_active,
         ));
         WifiManagerHandle {
             cmd_channel: self.cmd_channel,
             stack_signal: self.stack_signal,
+            wifi_is_active: self.wifi_is_active,
         }
+    }
+}
+
+impl Default for WifiManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -84,6 +102,7 @@ async fn wifi_manager_task(
     mut charger_monitor: ChargerMonitor,
     cmd_channel: &'static Channel<NoopRawMutex, WifiCommand, 1>,
     stack_signal: &'static Signal<NoopRawMutex, Stack<'static>>,
+    wifi_is_active: &'static AtomicBool,
 ) {
     debug!("WifiManager: initial startup");
 
@@ -113,7 +132,11 @@ async fn wifi_manager_task(
         }
         let desired_state = charger_state || has_override;
         let actual_state = radio_handle.is_started();
-        debug!("WifiManager: loop - charger={} has_override={} desired={} actual={}", charger_state, has_override, desired_state, actual_state);
+        wifi_is_active.store(actual_state || desired_state, Ordering::Relaxed);
+        debug!(
+            "WifiManager: loop - charger={} has_override={} desired={} actual={}",
+            charger_state, has_override, desired_state, actual_state
+        );
 
         match (desired_state, actual_state) {
             (true, true) => {

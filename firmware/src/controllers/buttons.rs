@@ -1,7 +1,7 @@
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either4, select, select4};
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Instant, Timer};
 
 use crate::controllers::playback::PlaybackHandle;
 use crate::controllers::wifi::WifiManagerHandle;
@@ -30,7 +30,8 @@ impl Buttons {
     }
 
     async fn wait_for_both_volume_held(&mut self) -> bool {
-        embassy_time::with_timeout(
+        let start_time = Instant::now();
+        let timed_out = embassy_time::with_timeout(
             Duration::from_secs(3),
             select(
                 self.volume_up.wait_for_release(),
@@ -38,7 +39,10 @@ impl Buttons {
             ),
         )
         .await
-        .is_err() // timed out = both held for 3s
+        .is_err(); // timed out = both held for 3s
+
+        let duration = start_time.elapsed();
+        timed_out || duration >= Duration::from_secs(3)
     }
 
     async fn wait_for_event(&mut self) -> ControlEvent {

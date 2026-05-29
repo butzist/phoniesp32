@@ -64,7 +64,7 @@ async fn network_task(
     let web_app = crate::services::web::WebApp::default();
     let web_app_state = mk_static!(
         crate::services::web::AppState,
-        crate::services::web::AppState::new(fs, player_handle, rfid_handle)
+        crate::services::web::AppState::new(fs, player_handle, rfid_handle, wifi_handle.clone())
     );
 
     for id in 0..crate::services::web::WEB_TASK_POOL_SIZE {

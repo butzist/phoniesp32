@@ -34,6 +34,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for CreateFileService {
         request: Request<'_, R>,
         response_writer: W,
     ) -> Result<ResponseSent, W::Error> {
+        state.wifi_handle.wifi_on().await;
         let name = path_parameters.0.0;
         let audio_file = AudioFile::new(name.clone());
 
@@ -61,6 +62,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for UploadService {
         mut request: Request<'_, R>,
         response_writer: W,
     ) -> Result<ResponseSent, W::Error> {
+        state.wifi_handle.wifi_on().await;
         let name = path_parameters.0.0;
         let audio_file = AudioFile::new(name);
 
@@ -143,6 +145,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for PatchUploadService {
         mut request: Request<'_, R>,
         response_writer: W,
     ) -> Result<ResponseSent, W::Error> {
+        state.wifi_handle.wifi_on().await;
         let name = path_parameters.0.0;
         let audio_file = AudioFile::new(name);
 
@@ -285,6 +288,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for HeadFileService {
         request: Request<'_, R>,
         response_writer: W,
     ) -> Result<ResponseSent, W::Error> {
+        state.wifi_handle.wifi_on().await;
         let name = path_parameters.0.0;
         let audio_file = AudioFile::new(name);
 
