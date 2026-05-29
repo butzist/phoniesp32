@@ -12,6 +12,7 @@ pub async fn put(
     extract::State(state): extract::State<AppState>,
     extract::Json(req): extract::Json<DeviceConfig>,
 ) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     info!("WebAPI: config saved");
     let fs_guard = state.fs.borrow_mut().await;
     let root = fs_guard.root_dir();
@@ -28,6 +29,7 @@ pub async fn put(
 }
 
 pub async fn delete(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     info!("WebAPI: config deleted");
     let fs_guard = state.fs.borrow_mut().await;
     let root = fs_guard.root_dir();

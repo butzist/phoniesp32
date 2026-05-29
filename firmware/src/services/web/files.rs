@@ -77,6 +77,7 @@ impl Chunks for StreamingFiles {
 }
 
 pub async fn list(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     ChunkedResponse::new(StreamingFiles { state })
 }
 
@@ -93,6 +94,7 @@ impl RequestHandlerService<AppState, (AudioFileName,)> for GetMetadataService {
         request: Request<'_, R>,
         response_writer: W,
     ) -> Result<ResponseSent, W::Error> {
+        state.wifi_handle.wifi_on().await;
         let name = path_parameters.0.0;
         let connection = request.body_connection.finalize().await?;
 

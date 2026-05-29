@@ -34,6 +34,7 @@ pub struct StatusResponse {
 pub struct CurrentPlaylistResponse(PlaylistWithMetadata);
 
 pub async fn status(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     let player_status = state.status();
     let position = player_status.get_playback_position();
     let current_file = player_status.get_playback_status();
@@ -54,6 +55,7 @@ pub async fn status(extract::State(state): extract::State<AppState>) -> impl Int
 pub async fn current_playlist(
     extract::State(state): extract::State<AppState>,
 ) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     let player_status = state.status();
     let current_playlist = player_status.get_current_playlist();
 
@@ -64,6 +66,7 @@ pub async fn play(
     extract::State(state): extract::State<AppState>,
     extract::Json(req): extract::Json<PlayRequest>,
 ) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     debug!("WebAPI: play requested");
     match req {
         PlayRequest::File(file) => {
@@ -85,36 +88,42 @@ pub async fn play(
 }
 
 pub async fn stop(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     info!("WebAPI: stop");
     let _ = state.commands.stop().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn pause(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     info!("WebAPI: pause");
     let _ = state.commands.pause().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn volume_up(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     info!("WebAPI: volume up");
     let _ = state.commands.volume_up().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn volume_down(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     info!("WebAPI: volume down");
     let _ = state.commands.volume_down().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn next(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     info!("WebAPI: skip next");
     let _ = state.commands.skip_next().await;
     Response::new(StatusCode::NO_CONTENT, "")
 }
 
 pub async fn previous(extract::State(state): extract::State<AppState>) -> impl IntoResponse {
+    state.wifi_handle.wifi_on().await;
     info!("WebAPI: skip previous");
     let _ = state.commands.skip_previous().await;
     Response::new(StatusCode::NO_CONTENT, "")

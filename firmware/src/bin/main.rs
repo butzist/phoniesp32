@@ -152,7 +152,11 @@ async fn main(spawner: Spawner) {
 
         let mut is_playing = player_handle.status().get_playback_status().state == State::Playing;
         let is_charging = charger_monitor.is_connected();
-        debug!("Main: scan loop - is_playing={}, is_charging={}", is_playing, is_charging);
+        let is_wifi_active = wifi_handle.is_wifi_active();
+        debug!(
+            "Main: scan loop - is_playing={}, is_charging={}, is_wifi_active={}",
+            is_playing, is_charging, is_wifi_active
+        );
 
         let scan_interval_ms = match rfid_handle.wait_for_scan_result().await {
             firmware::drivers::rfid::RfidScanResult::Found(fob) => {
@@ -167,7 +171,7 @@ async fn main(spawner: Spawner) {
             firmware::drivers::rfid::RfidScanResult::Error => 1000,
         };
 
-        if is_charging || is_playing {
+        if is_charging || is_playing || is_wifi_active {
             Timer::after(Duration::from_millis(scan_interval_ms)).await;
         } else {
             let timer_wakeup =
