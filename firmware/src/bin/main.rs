@@ -15,12 +15,13 @@ use esp_hal::rtc_cntl::Rtc;
 use esp_hal::rtc_cntl::sleep::{GpioWakeupSource, TimerWakeupSource};
 use esp_hal::system::{SleepSource, wakeup_cause};
 use esp_hal::timer::timg::TimerGroup;
+use firmware::controllers::buttons::Buttons;
 use firmware::controllers::network::NetworkController;
 use firmware::controllers::playback::PlaybackController;
 use firmware::controllers::playback::status::State;
 use firmware::drivers::audio::Player;
 use firmware::drivers::charger::Charger;
-use firmware::drivers::controls::Controls;
+use firmware::drivers::control_button::Button;
 use firmware::drivers::indicator::IndicatorLed;
 use firmware::drivers::rfid::Rfid;
 use firmware::drivers::sd::{Sd, SdFsWrapper};
@@ -55,6 +56,8 @@ async fn main(spawner: Spawner) {
 
     info!("Main: Embassy initialized!");
 
+    // ====== DRIVERS ======
+
     let shared_bus = spi_bus::make_shared_spi(
         peripherals.spi_spi2.into(),
         peripherals.spi_dma.degrade(),
@@ -68,7 +71,7 @@ async fn main(spawner: Spawner) {
     let fs = mk_static!(SdFsWrapper, fs);
     info!("Main: Config: {:?}", &device_config);
 
-    info!("Main: Starting player");
+    info!("Main: Initializing player");
     let player = Player::new(
         peripherals.player_i2s.into(),
         peripherals.player_dma,
@@ -77,18 +80,23 @@ async fn main(spawner: Spawner) {
         peripherals.player.dout,
         peripherals.audio_enable,
     );
-    let player_handle = PlaybackController::new(player, fs).spawn(&spawner);
 
-    info!("Main: Starting controls");
-    let controls = Controls::new(
-        peripherals.controls.btn_a,
-        peripherals.controls.btn_b,
-        peripherals.controls.btn_c,
-        peripherals.controls.btn_d,
-    );
-    controls.spawn(&spawner, player_handle.clone());
+    info!("Main: Initializing charger monitor");
+    let charger = Charger::new(peripherals.charger.pin, peripherals.charger.connected_level);
 
-    info!("Main: Starting RFID");
+    info!("Main: Initializing indicator LED");
+    let indicator = IndicatorLed::new(peripherals.radio.pin);
+
+    info!("Main: Initializing radio");
+    let radio = firmware::drivers::radio::Radio::new(peripherals.radio_wifi);
+
+    info!("Main: Initializing controls");
+    let btn_play_pause = Button::new(peripherals.controls.btn_a).with_long_press(1500);
+    let btn_next_prev = Button::new(peripherals.controls.btn_b).with_long_press(1500);
+    let btn_vol_down = Button::new(peripherals.controls.btn_c).with_repeat(500);
+    let btn_vol_up = Button::new(peripherals.controls.btn_d).with_repeat(500);
+
+    info!("Main: Initializing RFID");
     let rfid = Rfid::new(
         shared_bus,
         peripherals.rfid_cs,
@@ -96,30 +104,40 @@ async fn main(spawner: Spawner) {
         peripherals.rfid_enable,
     )
     .await;
+
+    // Spawn driver tasks
+    let player_handle = PlaybackController::new(player, fs).spawn(&spawner);
+    let mut charger_monitor = charger.spawn(&spawner);
+    let indicator_handle = indicator.spawn(&spawner);
+    let radio_handle = radio.spawn(&spawner).await;
     let rfid_handle = rfid.spawn(&spawner);
 
-    info!("Main: Starting charger monitor");
-    let charger = Charger::new(peripherals.charger.pin, peripherals.charger.connected_level);
-    let mut charger_monitor = charger.spawn(&spawner);
+    // ====== CONTROLLERS ======
 
-    let indicator = IndicatorLed::new(peripherals.radio.pin);
-    let indicator_handle = indicator.spawn(&spawner);
-
-    let radio = firmware::drivers::radio::Radio::new(peripherals.radio_wifi);
-    let radio_handle = radio.spawn(&spawner).await;
-
-    let wifi_handle = firmware::controllers::wifi::WifiManager::new(
+    info!("Main: Starting WiFi manager");
+    let wifi_handle = firmware::controllers::wifi::WifiManager::new().spawn(
+        &spawner,
         radio_handle,
         indicator_handle,
         device_config,
         charger_monitor.clone(),
-    )
-    .spawn(&spawner);
+    );
 
     info!("Main: Starting network controller");
-    let network_controller =
-        NetworkController::new(wifi_handle, fs, player_handle.clone(), rfid_handle.clone());
-    network_controller.spawn(&spawner);
+    NetworkController::new().spawn(
+        &spawner,
+        wifi_handle.clone(),
+        fs,
+        player_handle.clone(),
+        rfid_handle.clone(),
+    );
+
+    info!("Main: Starting buttons task");
+    Buttons::new(btn_play_pause, btn_next_prev, btn_vol_down, btn_vol_up).spawn(
+        &spawner,
+        wifi_handle.clone(),
+        player_handle.clone(),
+    );
 
     loop {
         rfid_handle.trigger_scan();

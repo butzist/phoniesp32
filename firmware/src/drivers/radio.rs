@@ -4,7 +4,9 @@ use defmt::{info, warn};
 use embassy_executor::Spawner;
 use embassy_net::{DhcpConfig, Ipv4Cidr, Runner, Stack, StackResources, StaticConfigV4};
 use embassy_time::{Duration, Timer};
+use enumset::EnumSet;
 use esp_hal::rng::Rng;
+use esp_radio::wifi::WifiEvent;
 use esp_radio::wifi::{self, WifiController, WifiDevice, WifiError, ap::AccessPointConfig};
 
 use crate::DeviceConfig;
@@ -130,9 +132,7 @@ impl RadioHandle {
         matches!(self.controller.is_started(), Ok(true))
     }
 
-    pub async fn wait_for_stopped(&mut self) {
-        use enumset::EnumSet;
-        use esp_radio::wifi::WifiEvent;
+    pub async fn wait_for_disconnect(&mut self) {
         let events = EnumSet::from_iter([
             WifiEvent::StationDisconnected,
             WifiEvent::StationStop,
