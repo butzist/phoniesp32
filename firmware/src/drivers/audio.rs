@@ -2,10 +2,10 @@ use alloc::boxed::Box;
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
-use defmt::debug;
 use crate::PrintErr;
 use crate::controllers::playback::status::{State, Status};
 use crate::extend_to_static;
+use defmt::debug;
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
@@ -86,6 +86,7 @@ impl I2sInner {
 pub struct Player {
     i2s_inner: I2sInner,
     audio_enable: &'static mut Option<(Output<'static>, Level)>,
+    channel: &'static Channel<NoopRawMutex, AudioPacket, 1>,
 }
 
 impl Player {
@@ -109,7 +110,13 @@ impl Player {
             })
         );
 
+        let channel = crate::mk_static!(
+            Channel<NoopRawMutex, AudioPacket, 1>,
+            Channel::new()
+        );
+
         Self {
+            channel,
             i2s_inner: I2sInner {
                 i2s,
                 dma,
@@ -141,13 +148,10 @@ impl Player {
         spawner: &Spawner,
         status: &'static Status,
     ) -> AudioSender {
-        let channel = crate::mk_static!(
-            Channel<NoopRawMutex, AudioPacket, 1>,
-            Channel::new()
-        );
-        let sender = channel.sender();
+        debug!("Player: startng I2S output task");
 
         let mut this = player.borrow_mut();
+        let sender = this.channel.sender();
         let transfer = this.i2s_inner.transfer();
         // SAFETY: All data referenced by the transfer is either:
         // 1. DMA buffer + descriptors — allocated in static memory by dma_buffers!().
@@ -164,7 +168,7 @@ impl Player {
         };
         drop(this);
 
-        spawner.must_spawn(i2s_output_task(transfer, player, channel, status));
+        spawner.must_spawn(i2s_output_task(transfer, player, status));
         sender
     }
 }
@@ -173,11 +177,10 @@ impl Player {
 async fn i2s_output_task(
     mut transfer: I2sWriteDmaTransferAsync<'static, &'static mut [u8; DMA_SIZE]>,
     player: Rc<RefCell<Player>>,
-    channel: &'static Channel<NoopRawMutex, AudioPacket, 1>,
     status: &'static Status,
 ) {
-    let mut amp_enabled = false;
-    let rx = channel.receiver();
+    let rx = player.borrow().channel.receiver();
+    status.update_state(State::Playing);
 
     debug!("Player: I2S output task started");
     loop {
@@ -189,56 +192,52 @@ async fn i2s_output_task(
 
             AudioPacket::Buffer(buf) => {
                 debug!("Player: playing buffer len={}", buf.len);
-                if !amp_enabled {
-                    player.borrow_mut().set_amp(true);
-                    amp_enabled = true;
-                }
+                player.borrow_mut().set_amp(true);
 
                 let n = buf.len.min(BUF_SAMPLES);
-                transfer
-                    .push_with(|out: &mut [u8]| {
-                        let max_out = out.len() / 4;
-                        let count = n.min(max_out);
-                        for i in 0..count {
-                            let s = buf.samples[i];
-                            out[i * 4] = s as u8;
-                            out[i * 4 + 1] = (s >> 8) as u8;
-                            out[i * 4 + 2] = 0;
-                            out[i * 4 + 3] = 0;
-                        }
-                        count * 4
-                    })
-                    .await
-                    .print_err("Player: I2S DMA transfer");
+                let mut written = 0;
+                while written < n {
+                    transfer
+                        .push_with(|out: &mut [u8]| {
+                            let max_out = out.len() / 4;
+                            let remaining = n - written;
+                            let count = remaining.min(max_out);
+                            for i in 0..count {
+                                let s = buf.samples[written + i];
+                                out[i * 4] = s as u8;
+                                out[i * 4 + 1] = (s >> 8) as u8;
+                                out[i * 4 + 2] = 0;
+                                out[i * 4 + 3] = 0;
+                            }
+                            written += count;
+                            count * 4
+                        })
+                        .await
+                        .print_err("Player: I2S DMA transfer");
+                }
             }
 
             AudioPacket::Silence(samples) => {
                 debug!("Player: silence samples={}", samples);
-                if amp_enabled {
-                    player.borrow_mut().set_amp(false);
-                    amp_enabled = false;
-                }
+                player.borrow_mut().set_amp(false);
 
                 let mut remaining = samples as usize;
                 while remaining > 0 {
-                    let n = remaining.min(DMA_SIZE / 4);
                     transfer
                         .push_with(|out: &mut [u8]| {
-                            let bytes = n * 4;
-                            out[..bytes].fill(0);
-                            bytes
+                            let count = remaining.min(out.len() / 4);
+                            out[..count * 4].fill(0);
+                            remaining -= count;
+                            count * 4
                         })
                         .await
                         .print_err("Player: I2S DMA transfer");
-                    remaining -= n;
                 }
             }
         }
     }
 
-    if amp_enabled {
-        player.borrow_mut().set_amp(false);
-    }
+    player.borrow_mut().set_amp(false);
 
     status.update_state(State::Stopped);
 }
