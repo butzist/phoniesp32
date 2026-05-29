@@ -1,6 +1,6 @@
 use alloc::format;
 use alloc::rc::Rc;
-use defmt::{error, info};
+use defmt::{debug, error, info};
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
@@ -95,6 +95,7 @@ async fn rfid_task(mut rfid: MyMfrc522, handle: RfidHandle) {
     loop {
         handle.scan_trigger.wait().await;
         handle.scan_trigger.reset();
+        debug!("RFID: scan triggered");
 
         let rfid_device = rfid
             .enable()

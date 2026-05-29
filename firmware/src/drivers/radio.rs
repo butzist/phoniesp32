@@ -1,6 +1,6 @@
 use core::net::Ipv4Addr;
 
-use defmt::{info, warn};
+use defmt::{debug, info, warn};
 use embassy_executor::Spawner;
 use embassy_net::{DhcpConfig, Ipv4Cidr, Runner, Stack, StackResources, StaticConfigV4};
 use embassy_time::{Duration, Timer};
@@ -162,6 +162,7 @@ pub async fn wifi_connect(
         controller.start_async().await.unwrap();
         info!("Radio: WiFi started!");
     }
+    debug!("Radio: connecting to SSID: {}", config.ssid.as_str());
     info!("Radio: about to connect...");
 
     let connect_result = controller.connect_async().await;

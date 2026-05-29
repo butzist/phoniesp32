@@ -5,7 +5,7 @@
     reason = "mem::forget is generally not safe to use with esp_hal types, especially those \
     holding buffers for the duration of a data transfer."
 )]
-use defmt::info;
+use defmt::{debug, info};
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_hal::clock::CpuClock;
@@ -44,20 +44,24 @@ async fn main(spawner: Spawner) {
     let peripherals = esp_hal::init(config);
 
     let peripherals = create_peripherals(peripherals);
+    debug!("Main: peripherals initialized");
 
     let timer0 = TimerGroup::new(peripherals.timer0);
     let sw_int = SoftwareInterruptControl::new(peripherals.sw_interrupt);
     esp_rtos::start(timer0.timer0, sw_int.software_interrupt0);
+    debug!("Main: RTOS started");
 
     let mut rtc = Rtc::new(peripherals.lpwr);
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 65536);
     esp_alloc::heap_allocator!(size: 65536);
+    debug!("Main: heap allocators initialized");
 
     info!("Main: Embassy initialized!");
 
     // ====== DRIVERS ======
 
+    debug!("Main: initializing SPI bus");
     let shared_bus = spi_bus::make_shared_spi(
         peripherals.spi_spi2.into(),
         peripherals.spi_dma.degrade(),
@@ -65,8 +69,10 @@ async fn main(spawner: Spawner) {
         peripherals.spi.mosi,
         peripherals.spi.miso,
     );
+    debug!("Main: SPI bus created, initializing SD card");
     let sd = Sd::new(shared_bus, peripherals.sd_cs).await;
 
+    debug!("Main: SD card ready, initializing filesystem");
     let (device_config, fs) = sd.init().await;
     let fs = mk_static!(SdFsWrapper, fs);
     info!("Main: Config: {:?}", &device_config);
@@ -111,6 +117,7 @@ async fn main(spawner: Spawner) {
     let indicator_handle = indicator.spawn(&spawner);
     let radio_handle = radio.spawn(&spawner).await;
     let rfid_handle = rfid.spawn(&spawner);
+    debug!("Main: all driver tasks spawned");
 
     // ====== CONTROLLERS ======
 
@@ -139,11 +146,13 @@ async fn main(spawner: Spawner) {
         player_handle.clone(),
     );
 
+    debug!("Main: all controllers spawned, entering main loop");
     loop {
         rfid_handle.trigger_scan();
 
         let mut is_playing = player_handle.status().get_playback_status().state == State::Playing;
         let is_charging = charger_monitor.is_connected();
+        debug!("Main: scan loop - is_playing={}, is_charging={}", is_playing, is_charging);
 
         let scan_interval_ms = match rfid_handle.wait_for_scan_result().await {
             firmware::drivers::rfid::RfidScanResult::Found(fob) => {

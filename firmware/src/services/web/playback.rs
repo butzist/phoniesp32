@@ -1,5 +1,5 @@
 use alloc::{vec, vec::Vec};
-use defmt::info;
+use defmt::{debug, info};
 use heapless::String;
 use picoserve::{
     extract,
@@ -64,7 +64,7 @@ pub async fn play(
     extract::State(state): extract::State<AppState>,
     extract::Json(req): extract::Json<PlayRequest>,
 ) -> impl IntoResponse {
-    info!("WebAPI: play requested");
+    debug!("WebAPI: play requested");
     match req {
         PlayRequest::File(file) => {
             let audio_file = AudioFile::new(file);

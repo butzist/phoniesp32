@@ -4,7 +4,7 @@ use core::cell::RefCell;
 use core::sync::atomic::{AtomicU8, Ordering};
 
 use alloc::boxed::Box;
-use defmt::{info, warn};
+use defmt::{debug, info, warn};
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either, Either3, select, select3};
 use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
@@ -140,8 +140,10 @@ async fn controller_task(
 // ---- Command dispatch ----
 
 async fn stop_playback(context: &PlaybackContext) {
+    debug!("Playback: requesting STOP");
     context.set_desired_state(State::Stopped);
     context.status.wait_for_state(State::Stopped).await;
+    debug!("Playback: STOP confirmed");
 }
 
 async fn handle_command(
@@ -229,12 +231,15 @@ async fn play_playlist(
     spawner: &Spawner,
     context: &'static PlaybackContext,
 ) {
+    debug!("Playback: building playlist metadata");
     let playlist_with_metadata = playlist_with_metadata_from_playlist(&playlist, fs).await;
     context.status.update_playlist(Some(playlist_with_metadata));
 
+    debug!("Playback: borrowing fs for playback");
     let stop_fn: Box<dyn Fn() -> LocalBoxFuture<'static, ()>> =
         Box::new(move || Box::pin(async move { context.set_desired_state(State::Stopped) }));
     let fs_guard = fs.borrow_for_playback(stop_fn).await;
+    debug!("Playback: fs borrowed, spawning playlist task");
 
     spawner.must_spawn(playlist_task(
         fs_guard,
@@ -304,6 +309,7 @@ impl<'a> PlaybackStream<'a> {
         loop {
             match desired_state {
                 State::Paused => {
+                    debug!("Playback: paused");
                     self.context.status.update_state(State::Paused);
                     match select(
                         self.sender.send(AudioPacket::Silence(BUF_SAMPLES as u32)),
@@ -312,14 +318,21 @@ impl<'a> PlaybackStream<'a> {
                     .await
                     {
                         Either::First(_) => {}
-                        Either::Second(value) => desired_state = value,
+                        Either::Second(value) => {
+                            debug!("Playback: state changed while paused");
+                            desired_state = value;
+                        }
                     }
                 }
                 State::Playing => {
+                    debug!("Playback: resuming from pause");
                     self.context.status.update_state(State::Playing);
                     return Ok(());
                 }
-                State::Stopped => return Err(SendInterrupted),
+                State::Stopped => {
+                    debug!("Playback: stopped while paused");
+                    return Err(SendInterrupted);
+                }
             }
         }
     }
@@ -343,9 +356,12 @@ async fn playlist_task(
     spawner: Spawner,
 ) {
     context.status.update_state(State::Playing);
+    debug!("Playback: playlist task starting with {} files", files.len());
 
+    debug!("Playback: starting I2S output task");
     // Start the I2S output task
     let sender = Player::start(player, &spawner, context.status);
+    debug!("Playback: I2S output task started");
 
     let stream = PlaybackStream {
         sender: &sender,
@@ -357,8 +373,11 @@ async fn playlist_task(
 
 impl PlaybackStream<'_> {
     async fn close(&self) {
+        debug!("Playback: sending EOF to I2S task");
         self.sender.send(AudioPacket::Eof).await;
+        debug!("Playback: waiting for STOP confirmation");
         self.context.status.wait_for_state(State::Stopped).await;
+        debug!("Playback: stream closed");
     }
 
     async fn playlist_task_inner(
@@ -366,6 +385,7 @@ impl PlaybackStream<'_> {
         fs_guard: PlaybackGuard<'static>,
         files: Vec<AudioFile>,
     ) -> Result<(), SendInterrupted> {
+        debug!("Playback: playing start beep");
         self.play_beep(2).await?;
 
         let mut current_index: usize = 0;
@@ -377,6 +397,7 @@ impl PlaybackStream<'_> {
             }
 
             self.context.status.update_file(current_index);
+            debug!("Playback: opening file {} (index {})", files[current_index].name(), current_index);
 
             let file_handle = match files[current_index].data_reader(&fs_guard).await {
                 Ok(fh) => fh,
@@ -409,16 +430,19 @@ impl PlaybackStream<'_> {
                         0
                     }
                     Either3::Second(skip) => {
+                        debug!("Playback: skip {:?} during decode", skip);
                         self.context.skip_signal.reset();
                         handle_skip(skip, &mut current_index, total_files);
                         break;
                     }
                     Either3::Third(_) => {
+                        debug!("Playback: stopped during decode");
                         return Err(SendInterrupted);
                     }
                 };
 
                 if n == 0 {
+                    debug!("Playback: file {} done, moving to next", current_index);
                     current_index += 1;
                     break;
                 }
@@ -446,11 +470,13 @@ impl PlaybackStream<'_> {
                 {
                     Either3::First(_) => {}
                     Either3::Second(skip) => {
+                        debug!("Playback: skip {:?} during send", skip);
                         self.context.skip_signal.reset();
                         handle_skip(skip, &mut current_index, total_files);
                         break;
                     }
                     Either3::Third(_) => {
+                        debug!("Playback: stopped during send");
                         return Err(SendInterrupted);
                     }
                 }

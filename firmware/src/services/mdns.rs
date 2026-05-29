@@ -1,5 +1,5 @@
 use core::net::Ipv4Addr;
-use defmt::{info, warn};
+use defmt::{debug, info, warn};
 use edge_mdns::buf::{BufferAccess, VecBufAccess};
 use edge_mdns::domain::base::Ttl;
 use edge_mdns::io::{self, DEFAULT_SOCKET, MdnsIoError};
@@ -45,6 +45,7 @@ async fn mdns_responder(stack: Stack<'static>) {
     let signal = Signal::new();
 
     loop {
+        debug!("mDNS: waiting for network");
         let ipv4 = wait_for_network_ready(&stack).await;
         let udp = Udp::new(stack, udp_buffers);
         match run_mdns(udp, recv_buf, send_buf, &signal, ipv4).await {
