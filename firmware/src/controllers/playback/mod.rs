@@ -305,7 +305,8 @@ impl<'a> PlaybackStream<'a> {
     }
 
     async fn handle_pause(&self) -> Result<(), SendInterrupted> {
-        let mut desired_state = self.context.desired_state.try_get().unwrap();
+        let mut rx = self.context.desired_state.receiver().unwrap();
+        let mut desired_state = rx.try_get().unwrap();
         loop {
             match desired_state {
                 State::Paused => {
@@ -313,7 +314,7 @@ impl<'a> PlaybackStream<'a> {
                     self.context.status.update_state(State::Paused);
                     match select(
                         self.sender.send(AudioPacket::Silence(BUF_SAMPLES as u32)),
-                        self.context.desired_state.receiver().unwrap().changed(),
+                        rx.changed(),
                     )
                     .await
                     {
@@ -321,12 +322,16 @@ impl<'a> PlaybackStream<'a> {
                         Either::Second(value) => {
                             debug!("Playback: state changed while paused");
                             desired_state = value;
+
+                            if desired_state == State::Playing {
+                                debug!("Playback: resuming from pause");
+                                self.context.status.update_state(State::Playing);
+                                return Ok(());
+                            }
                         }
                     }
                 }
                 State::Playing => {
-                    debug!("Playback: resuming from pause");
-                    self.context.status.update_state(State::Playing);
                     return Ok(());
                 }
                 State::Stopped => {
@@ -355,8 +360,11 @@ async fn playlist_task(
     context: &'static PlaybackContext,
     spawner: Spawner,
 ) {
-    context.status.update_state(State::Playing);
-    debug!("Playback: playlist task starting with {} files", files.len());
+    context.set_desired_state(State::Playing);
+    debug!(
+        "Playback: playlist task starting with {} files",
+        files.len()
+    );
 
     debug!("Playback: starting I2S output task");
     // Start the I2S output task
@@ -386,7 +394,7 @@ impl PlaybackStream<'_> {
         files: Vec<AudioFile>,
     ) -> Result<(), SendInterrupted> {
         debug!("Playback: playing start beep");
-        self.play_beep(2).await?;
+        self.play_beep(1).await?;
 
         let mut current_index: usize = 0;
         let total_files = files.len();
@@ -397,7 +405,11 @@ impl PlaybackStream<'_> {
             }
 
             self.context.status.update_file(current_index);
-            debug!("Playback: opening file {} (index {})", files[current_index].name(), current_index);
+            debug!(
+                "Playback: opening file {} (index {})",
+                files[current_index].name(),
+                current_index
+            );
 
             let file_handle = match files[current_index].data_reader(&fs_guard).await {
                 Ok(fh) => fh,
