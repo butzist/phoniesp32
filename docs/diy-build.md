@@ -136,7 +136,7 @@ Connect to speaker:
    git clone https://github.com/butzist/phoniesp32.git
    cd phoniesp32
    nix develop
-   cd firmware && cargo build --release --no-default-features --features pinout_prototype
+   cd firmware && just build --pinout prototype
    ```
 
 2. Install `espflash` if not already installed:

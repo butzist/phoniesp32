@@ -53,7 +53,7 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Build firmware (prototype)
-        run: nix develop --command "cd firmware && cargo build --release --no-default-features --features pinout_prototype"
+        run: nix develop --command "cd firmware && just build --pinout prototype"
 
       - name: Create firmware binary
         run: cp firmware/target/riscv32imac-unknown-none-elf/release/firmware firmware-prototype.bin
@@ -111,7 +111,7 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Build firmware (PCB)
-        run: nix develop --command "cd firmware && cargo build --release --features pinout_pcb"
+        run: nix develop --command "cd firmware && just build"
 
       - name: Create firmware binary
         run: cp firmware/target/riscv32imac-unknown-none-elf/release/firmware firmware-pcb.bin

@@ -1,9 +1,11 @@
 # Toplevel justfile to build all components and create ESP binary
 
 # Build everything and create the ESP binary
-all:
+[arg("pinout", long)]
+[arg("log", long)]
+all pinout="pcb" log="info":
 	cd cli && just all
-	cd firmware && just all
+	cd firmware && just all --pinout {{pinout}} --log {{log}}
 	cp firmware/target/riscv32imac-unknown-none-elf/release/firmware ./firmware.bin
 
 # Build CLI only

@@ -1,7 +1,6 @@
 TARGET := "riscv32imac-unknown-none-elf"
 PROFILE := "release"
 TARGET_DIR := "target/" + TARGET + "/" + PROFILE
-FEATURES := "pinout_pcb"
 
 build-web:
 	cd ../web && just all
@@ -13,18 +12,20 @@ copy-assets:
 
 deps: build-web copy-assets
 
-all: deps build
+[arg("pinout", long)]
+[arg("log", long)]
+all pinout="pcb" log="info": deps
+	@just build --pinout {{pinout}} --log {{log}}
 
-all-nodeps: build
+[arg("pinout", long)]
+[arg("log", long)]
+all-nodeps pinout="pcb" log="info":
+	@just build --pinout {{pinout}} --log {{log}}
 
-build:
-	cargo build --release --no-default-features --features {{FEATURES}}
-
-build-debug:
-	DEFMT_LOG="firmware=debug,info" cargo build --release --no-default-features --features {{FEATURES}}
-
-build-prototype:
-	cargo build --release --no-default-features --features pinout_prototype
+[arg("pinout", long)]
+[arg("log", long)]
+build pinout="pcb" log="info":
+	DEFMT_LOG=firmware={{log}},info cargo build --release --no-default-features --features pinout_{{pinout}}
 
 flash:
 	espflash flash --chip esp32c6 {{TARGET_DIR}}/firmware
