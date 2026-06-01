@@ -1,5 +1,6 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
+use core::cell::RefCell;
 use defmt::{debug, info};
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either, Either4, select, select4};
@@ -7,7 +8,8 @@ use embassy_net::Stack;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_sync::signal::Signal;
-use embassy_time::{Duration, Instant, Timer};
+use embassy_time::{Duration, Timer};
+use esp_hal::rtc_cntl::Rtc;
 use esp_radio::wifi::{WifiAccessPointState, WifiStationState};
 
 use crate::DeviceConfig;
@@ -70,12 +72,14 @@ impl WifiManager {
         led_handle: IndicatorLedHandle,
         config: Option<DeviceConfig>,
         charger_monitor: ChargerMonitor,
+        rtc: &'static RefCell<Rtc<'static>>,
     ) -> WifiManagerHandle {
         spawner.must_spawn(wifi_manager_task(
             radio_handle,
             led_handle,
             config,
             charger_monitor,
+            rtc,
             self.cmd_channel,
             self.stack_signal,
             self.wifi_is_active,
@@ -100,6 +104,7 @@ async fn wifi_manager_task(
     led_handle: IndicatorLedHandle,
     config: Option<DeviceConfig>,
     mut charger_monitor: ChargerMonitor,
+    rtc: &'static RefCell<Rtc<'static>>,
     cmd_channel: &'static Channel<NoopRawMutex, WifiCommand, 1>,
     stack_signal: &'static Signal<NoopRawMutex, Stack<'static>>,
     wifi_is_active: &'static AtomicBool,
@@ -119,13 +124,14 @@ async fn wifi_manager_task(
 
     info!("WifiManager: task started");
 
-    let mut override_until: Option<Instant> = None;
+    let mut override_until: Option<u64> = None;
 
     loop {
+        let now = rtc.borrow().time_since_power_up().as_millis();
         let charger_state = charger_monitor.is_connected();
-        let has_override = override_until.map(|t| Instant::now() < t).unwrap_or(false);
+        let has_override = override_until.map(|t| now < t).unwrap_or(false);
         if let Some(t) = override_until
-            && Instant::now() >= t
+            && now >= t
         {
             info!("WifiManager: powersave override expired");
             override_until = None;
@@ -163,8 +169,9 @@ async fn wifi_manager_task(
                             match cmd {
                                 WifiCommand::WifiOn => {
                                     info!("WifiManager: override on — 10 min");
-                                    override_until =
-                                        Some(Instant::now() + Duration::from_secs(600));
+                                    override_until = Some(
+                                        rtc.borrow().time_since_power_up().as_millis() + 600_000,
+                                    );
                                 }
                                 WifiCommand::WifiOff => {
                                     info!("WifiManager: override off — immediate stop");
@@ -195,7 +202,8 @@ async fn wifi_manager_task(
                     Either::Second(cmd) => match cmd {
                         WifiCommand::WifiOn => {
                             info!("WifiManager: override on — 10 min");
-                            override_until = Some(Instant::now() + Duration::from_secs(600));
+                            override_until =
+                                Some(rtc.borrow().time_since_power_up().as_millis() + 600_000);
                         }
                         WifiCommand::WifiOff => {}
                     },

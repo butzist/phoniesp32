@@ -1,13 +1,16 @@
+use core::cell::RefCell;
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either4, select, select4};
-use embassy_time::{Duration, Instant, Timer};
+use embassy_time::{Duration, Timer};
+use esp_hal::rtc_cntl::Rtc;
 
 use crate::controllers::playback::PlaybackHandle;
 use crate::controllers::wifi::WifiManagerHandle;
 use crate::drivers::control_button::{Button, PressType};
 
 pub struct Buttons {
+    rtc: &'static RefCell<Rtc<'static>>,
     play_pause: Button,
     next_prev: Button,
     volume_down: Button,
@@ -16,12 +19,14 @@ pub struct Buttons {
 
 impl Buttons {
     pub fn new(
+        rtc: &'static RefCell<Rtc<'static>>,
         play_pause: Button,
         next_prev: Button,
         volume_down: Button,
         volume_up: Button,
     ) -> Self {
         Self {
+            rtc,
             play_pause,
             next_prev,
             volume_down,
@@ -30,7 +35,7 @@ impl Buttons {
     }
 
     async fn wait_for_both_volume_held(&mut self) -> bool {
-        let start_time = Instant::now();
+        let start_ms = self.rtc.borrow().time_since_power_up().as_millis();
         let timed_out = embassy_time::with_timeout(
             Duration::from_secs(3),
             select(
@@ -41,8 +46,8 @@ impl Buttons {
         .await
         .is_err(); // timed out = both held for 3s
 
-        let duration = start_time.elapsed();
-        timed_out || duration >= Duration::from_secs(3)
+        let elapsed = self.rtc.borrow().time_since_power_up().as_millis() - start_ms;
+        timed_out || elapsed >= 2500
     }
 
     async fn wait_for_event(&mut self) -> ControlEvent {
