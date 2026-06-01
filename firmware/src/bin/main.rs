@@ -5,6 +5,7 @@
     reason = "mem::forget is generally not safe to use with esp_hal types, especially those \
     holding buffers for the duration of a data transfer."
 )]
+use core::cell::RefCell;
 use defmt::{debug, info};
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
@@ -51,7 +52,11 @@ async fn main(spawner: Spawner) {
     esp_rtos::start(timer0.timer0, sw_int.software_interrupt0);
     debug!("Main: RTOS started");
 
-    let mut rtc = Rtc::new(peripherals.lpwr);
+    let rtc = mk_static!(
+        RefCell<Rtc<'static>>,
+        RefCell::new(Rtc::new(peripherals.lpwr))
+    );
+    let rtc: &'static RefCell<Rtc<'static>> = &*rtc;
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 65536);
     esp_alloc::heap_allocator!(size: 65536);
@@ -128,6 +133,7 @@ async fn main(spawner: Spawner) {
         indicator_handle,
         device_config,
         charger_monitor.clone(),
+        rtc,
     );
 
     info!("Main: Starting network controller");
@@ -140,7 +146,7 @@ async fn main(spawner: Spawner) {
     );
 
     info!("Main: Starting buttons task");
-    Buttons::new(btn_play_pause, btn_next_prev, btn_vol_down, btn_vol_up).spawn(
+    Buttons::new(rtc, btn_play_pause, btn_next_prev, btn_vol_down, btn_vol_up).spawn(
         &spawner,
         wifi_handle.clone(),
         player_handle.clone(),
@@ -177,7 +183,7 @@ async fn main(spawner: Spawner) {
             let timer_wakeup =
                 TimerWakeupSource::new(Duration::from_millis(scan_interval_ms).into());
             let gpio_wakeup = GpioWakeupSource::new();
-            rtc.sleep_light(&[&timer_wakeup, &gpio_wakeup]);
+            rtc.borrow_mut().sleep_light(&[&timer_wakeup, &gpio_wakeup]);
 
             let source = wakeup_cause();
             if matches!(source, SleepSource::Gpio) {
