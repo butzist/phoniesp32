@@ -47,15 +47,35 @@ ultra-portable**.
    off-the-shelf breakout boards on a breadboard or prototype board (~25 CHF)
 2. **[PCB Build](./docs/pcb-build.md)** - Build using a compact and robust
    custom PCB board (~30 CHF)
+3. **[PCBWay Shared Project](https://www.pcbway.com/project/shareproject/PhoniESP32_v1_2_d32752ab.html)**
+   Order PCB on PCBWay with optional partial assembly of basic parts. Tutorial
+   TBD
+
+### 🏆 Sponsored by PCBWay
+
+I'm grateful to [PCBWay](https://www.pcbway.com) for sponsoring this project!
+
+The PCB and assembly quality was excellent, and their BOM review caught a few
+mistakes I made in component selection — super helpful. I used the sponsorship
+to fix minor bugs from v1 (charging indicator) and produce a version that can be
+hand soldered. I opted for partial assembly (resistors, capacitors, LEDs) and am
+practicing soldering connectors and ICs myself. Update and tutorial TBD — while
+waiting, check out my project on PCBWay's shared project platform.
+
+<a href="https://www.pcbway.com/project/shareproject/PhoniESP32_v1_2_d32752ab.html">
+    <img src="https://www.pcbway.com/project/img/images/frompcbway-1220.png" alt="PCB from PCBWay" />
+</a>
 
 ---
 
 ## 🚧 Project Status
 
-![Photo of PCB](./docs/progress-5.jpeg)
+![Photo of PCB](./docs/progress-7.jpeg)
 ![Photo of PCB integration](./docs/progress-6.jpeg)
 
-- [ ] Hardware
+### Backlog
+
+- [x] Hardware
   - [x] Prototype on breadboard
   - [x] Soldered Prototype
   - [x] Battery charger
@@ -122,6 +142,7 @@ ultra-portable**.
 - [ ] Documentation
   - [x] [API Documentation](./API.md)
   - [x] [DIY Build Instructions](./docs/diy-build.md)
+  - [ ] Hand soldering tutorial
   - [ ] Video tutorial
 
 ---
