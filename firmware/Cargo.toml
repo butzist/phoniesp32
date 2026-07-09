@@ -12,6 +12,18 @@ pinout_pcb = []
 [[bin]]
 name = "firmware"
 path = "./src/bin/main.rs"
+test = false
+
+[lib]
+test = false
+
+[[test]]
+name = "sd_benchmark"
+harness = false
+
+[[test]]
+name = "unit_tests"
+harness = false
 
 [build-dependencies]
 walkdir = "2.5"
@@ -121,6 +133,9 @@ edge-captive = { version = "0.7.0", features = ["io", "defmt"] }
 edge-nal = "0.6.0"
 edge-nal-embassy = { version = "0.8.1", features = ["defmt"] }
 rand_core = { version = "0.9", default-features = false }
+
+# Testing
+embedded-test = { version = "0.5", default-features = false, features = ["defmt"] }
 
 # Various
 aligned = "0.4.2"

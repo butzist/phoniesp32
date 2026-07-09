@@ -21,7 +21,7 @@ pub struct PlaybackStatus {
     pub playlist_name: Option<String<8>>,
 }
 
-#[derive(Clone, Copy, Serialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, PartialEq)]
 pub enum State {
     Playing,
     Paused,

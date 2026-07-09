@@ -47,7 +47,7 @@ pub enum PlayerCommand {
 
 // ---- Shared playback state ----
 
-struct PlaybackContext {
+pub struct PlaybackContext {
     desired_state: &'static Watch<CriticalSectionRawMutex, State, 2>,
     skip_signal: &'static Signal<CriticalSectionRawMutex, Skip>,
     volume: &'static AtomicU8,
@@ -55,7 +55,7 @@ struct PlaybackContext {
 }
 
 impl PlaybackContext {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let desired_state =
             crate::mk_static!(Watch<CriticalSectionRawMutex, State, 2>, Watch::new());
         let skip_signal = crate::mk_static!(Signal<CriticalSectionRawMutex, Skip>, Signal::new());
@@ -72,15 +72,23 @@ impl PlaybackContext {
         }
     }
 
-    fn set_desired_state(&self, state: State) {
+    pub fn set_desired_state(&self, state: State) {
         self.desired_state.sender().send(state);
     }
 
-    async fn wait_for_desired_state(&self, state: State) {
+    pub async fn wait_for_desired_state(&self, state: State) {
         let mut rx = self.desired_state.receiver().unwrap();
         while rx.try_get().unwrap() != state {
             rx.changed().await;
         }
+    }
+
+    pub fn status(&self) -> &'static Status {
+        self.status
+    }
+
+    pub fn volume(&self) -> &'static AtomicU8 {
+        self.volume
     }
 }
 
@@ -343,7 +351,7 @@ impl<'a> PlaybackStream<'a> {
     }
 }
 
-fn handle_skip(skip: Skip, current_index: &mut usize, total_files: usize) {
+pub fn handle_skip(skip: Skip, current_index: &mut usize, total_files: usize) {
     match skip {
         Skip::Next => *current_index = (*current_index + 1).min(total_files.saturating_sub(1)),
         Skip::Previous => *current_index = current_index.saturating_sub(1),
@@ -527,7 +535,7 @@ pub struct PlaybackHandle {
 }
 
 impl PlaybackHandle {
-    fn new(
+    pub fn new(
         sender: Sender<'static, NoopRawMutex, PlayerCommand, 2>,
         context: &'static PlaybackContext,
     ) -> Self {
