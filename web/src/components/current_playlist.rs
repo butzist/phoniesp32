@@ -12,10 +12,8 @@ pub fn CurrentPlaylist(
     let current_file_index = status().as_ref().map(|c| c.index_in_playlist);
 
     rsx! {
-        b::Card {
-            class: "has-background-primary-soft is-card-hover-lift",
-            b::CardHeader {
-                class: "is-card-header-gradient",
+        b::Card { class: "has-background-primary-soft is-card-hover-lift",
+            b::CardHeader { class: "is-card-header-gradient",
                 b::CardHeaderTitle { "Current Playlist" }
             }
             b::CardContent {
@@ -71,10 +69,7 @@ pub fn CurrentPlaylist(
                         }
                     }
                 } else {
-                    Notification {
-                        color: b::BulmaColor::Info,
-                        "No playlist currently loaded"
-                    }
+                    Notification { color: b::BulmaColor::Info, "No playlist currently loaded" }
                 }
             }
         }

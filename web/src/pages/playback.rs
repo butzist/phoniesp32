@@ -57,10 +57,8 @@ pub fn Playback() -> Element {
             b::Container {
                 b::Columns {
                     b::Column {
-                        b::Card {
-                            class: "has-background-primary-soft is-card-hover-lift",
-                            b::CardHeader {
-                                class: "is-card-header-gradient",
+                        b::Card { class: "has-background-primary-soft is-card-hover-lift",
+                            b::CardHeader { class: "is-card-header-gradient",
                                 b::CardHeaderTitle { "🎵 Now Playing" }
                             }
                             b::CardContent {

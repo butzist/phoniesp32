@@ -116,7 +116,7 @@ async fn upload_chunk(name: &str, offset: u64, chunk: &[u8], max_retries: u32) -
 
         match response {
             Ok(_) => return Ok(()),
-            Err(e) if attempt < max_retries => {
+            Err(_e) if attempt < max_retries => {
                 // Wait before retry (exponential backoff)
                 let delay_ms = 100 * (2_u32.pow(attempt));
                 async_std::task::sleep(std::time::Duration::from_millis(delay_ms as u64)).await;

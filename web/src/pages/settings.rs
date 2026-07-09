@@ -44,8 +44,7 @@ pub fn Settings() -> Element {
     rsx! {
         b::Section {
             b::Container {
-                Notification {
-                    color: b::BulmaColor::Info,
+                Notification { color: b::BulmaColor::Info,
                     b::Title { size: b::TitleSize::Is5, "Access Point Mode" }
                     p {
                         "When no WiFi credentials are configured, the device will automatically start in Access Point (AP) mode. Connect to the network with SSID "

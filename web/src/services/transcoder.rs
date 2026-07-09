@@ -17,7 +17,7 @@ pub struct TranscodeResult {
 }
 
 const WORKER_DIR: Asset = asset!("/assets/worker");
-const N_WORKERS: usize = 4;
+pub(crate) const N_WORKERS: usize = 4;
 
 thread_local! {
     static WORKERS: RefCell<Option<Vec<Worker>>> = const { RefCell::new(None) };

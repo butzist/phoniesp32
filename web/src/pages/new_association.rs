@@ -69,8 +69,7 @@ pub fn NewAssociation() -> Element {
         b::Section {
             b::Container {
                 b::Title { size: b::TitleSize::Is4, "New Association" }
-                Notification {
-                    color: if last_fob().is_some() { b::BulmaColor::Info } else { b::BulmaColor::Warning },
+                Notification { color: if last_fob().is_some() { b::BulmaColor::Info } else { b::BulmaColor::Warning },
                     if let Some(fob) = last_fob() {
                         span {
                             "Create a playlist to associate with last scanned FOB: "
@@ -83,10 +82,8 @@ pub fn NewAssociation() -> Element {
                 if last_fob().is_some() {
                     b::Columns { multiline: true,
                         b::Column { size: b::ColumnSize::Half,
-                            b::Card {
-                                class: "has-background-primary-soft is-card-hover-lift",
-                                b::CardHeader {
-                                    class: "is-card-header-gradient",
+                            b::Card { class: "has-background-primary-soft is-card-hover-lift",
+                                b::CardHeader { class: "is-card-header-gradient",
                                     b::CardHeaderTitle { "Playlist" }
                                 }
                                 b::CardContent {
@@ -242,9 +239,7 @@ pub fn NewAssociation() -> Element {
                                         }
                                     }
                                     if let Some(status) = save_status() {
-                                        Notification {
-                                            color: save_status_type(), "{status}"
-                                        }
+                                        Notification { color: save_status_type(), "{status}" }
                                     }
                                     b::Button {
                                         class: "is-button-gradient-primary",
@@ -280,10 +275,8 @@ pub fn NewAssociation() -> Element {
                             }
                         }
                         b::Column { size: b::ColumnSize::Half,
-                            b::Card {
-                                class: "has-background-primary-soft is-card-hover-lift",
-                                b::CardHeader {
-                                    class: "is-card-header-gradient",
+                            b::Card { class: "has-background-primary-soft is-card-hover-lift",
+                                b::CardHeader { class: "is-card-header-gradient",
                                     b::CardHeaderTitle { "All Files" }
                                 }
                                 b::CardContent {
